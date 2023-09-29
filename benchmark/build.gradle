@@ -5,6 +5,17 @@ plugins {
 group = 'io.inline'
 version = '1.0-SNAPSHOT'
 
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'io.inline.Main'
+        )
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
 repositories {
     mavenCentral()
 }
