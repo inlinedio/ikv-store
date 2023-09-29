@@ -21,7 +21,7 @@ public class Main {
         // Remote AWS ElasticCache Memcached instance benchmark
         System.out.println("Starting Memcached Remote AWS benchmark");
         MemcachedClient remoteMemcachedClient = new MemcachedClient(
-                new InetSocketAddress("pushkar-memcached-1.95dmho.0001.eun1.cache.amazonaws.com:11211",
+                new InetSocketAddress("pushkar-memcached-1.95dmho.cfg.eun1.cache.amazonaws.com",
                         11211));
         MemcachedBenchmark remoteBenchmark = new MemcachedBenchmark(remoteMemcachedClient);
         remoteBenchmark.initialize();
