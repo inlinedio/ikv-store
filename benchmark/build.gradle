@@ -6,6 +6,7 @@ group = 'io.inline'
 version = '1.0-SNAPSHOT'
 
 jar {
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
     manifest {
         attributes(
                 'Main-Class': 'io.inline.Main'
