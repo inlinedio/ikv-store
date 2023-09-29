@@ -20,7 +20,6 @@ public class MemcachedBenchmark {
         _memcachedClient = Preconditions.checkNotNull(memcachedClient);
     }
 
-    // add 1K entries, with 1hr expiration time.
     public void initialize() {
         for (int i = 0; i < NUM_ENTRIES; i++) {
             // Write to local client
@@ -29,39 +28,46 @@ public class MemcachedBenchmark {
         }
     }
 
-    public void benchmarkSingleGet(int warmupIterations, int mainIterations) {
-        for (int i = 0; i < warmupIterations; i++) {
-            benchmarkSingleGetImpl();
+    public void benchmarkSingleGet(int warmupIterations) {
+        // warmups
+        for (int iter = 0; iter < warmupIterations; iter++) {
+            for (int i = 0; i < NUM_ENTRIES; i++) {
+                Preconditions.checkArgument(createStringValue(i).equals(_memcachedClient.get(createStringKey(i))));
+                Preconditions.checkArgument(Arrays.equals(createArrayValue(i), (int[]) _memcachedClient.get(createArrayKey(i))));
+            }
         }
 
-        Instant startTime = Instant.now();
-        for (int i = 0; i < mainIterations; i++) {
-            benchmarkSingleGetImpl();
-        }
-        Duration timeTaken = Duration.between(startTime, Instant.now());
-
-        // Print results
-        String output = String.format("benchmarkSingleGet Time: %d millis, " +
-                "warmupIterations: %d, " +
-                "mainIterations: %d, " +
-                "num-entries: %d", timeTaken.toMillis(), warmupIterations, mainIterations, NUM_ENTRIES);
-        System.out.println(output);
-    }
-
-    private void benchmarkSingleGetImpl() {
+        // actual benchmark
+        BenchmarkHistogram stringLookupBenchmarkHistogram =
+                new BenchmarkHistogram("singleGet-stringLookup", NUM_ENTRIES);
+        BenchmarkHistogram arrayLookupBenchmarkHistogram =
+                new BenchmarkHistogram("singleGet-arrayLookup", NUM_ENTRIES);
         for (int i = 0; i < NUM_ENTRIES; i++) {
+            Instant point1 = Instant.now();
+
             Preconditions.checkArgument(createStringValue(i).equals(_memcachedClient.get(createStringKey(i))));
+
+            Instant point2 = Instant.now();
+
             Preconditions.checkArgument(Arrays.equals(createArrayValue(i), (int[]) _memcachedClient.get(createArrayKey(i))));
+
+            Instant point3 = Instant.now();
+
+            stringLookupBenchmarkHistogram.setLatency(Duration.between(point1, point2).toNanos() / 1000L);
+            arrayLookupBenchmarkHistogram.setLatency(Duration.between(point2, point3).toNanos() / 1000L);
         }
+
+        System.out.println(stringLookupBenchmarkHistogram);
+        System.out.println(arrayLookupBenchmarkHistogram);
     }
 
-    public void benchmarkBatchGet(int warmupIterations, int mainIterations) {
+    public void benchmarkBatchGet(int warmupIterations) {
         for (int i = 0; i < warmupIterations; i++) {
             benchmarkBatchGetImpl();
         }
 
         Instant startTime = Instant.now();
-        for (int i = 0; i < mainIterations; i++) {
+        for (int i = 0; i < 1; i++) {
             benchmarkBatchGetImpl();
         }
         Duration timeTaken = Duration.between(startTime, Instant.now());
@@ -72,7 +78,7 @@ public class MemcachedBenchmark {
                         "mainIterations: %d, " +
                         "num-entries: %d, " +
                         "batch-size: %d",
-                timeTaken.toMillis(), warmupIterations, mainIterations, NUM_ENTRIES, BATCH_SIZE);
+                timeTaken.toMillis(), warmupIterations, 1, NUM_ENTRIES, BATCH_SIZE);
         System.out.println(output);
     }
 
