@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::OpenOptions,
+    fs::{File, OpenOptions},
     io::{self, Error, Write},
 };
 
@@ -11,8 +11,10 @@ use super::field::Field;
 pub type Key = Vec<u8>;
 
 pub struct PrimaryKeyIndex {
-    /// Primary hashmap which stores offsets
     index: HashMap<Key, Vec<usize>>,
+
+    index_file: File,
+
     memory_map: MmapMut,
 }
 
@@ -21,14 +23,56 @@ impl PrimaryKeyIndex {
     pub fn new(index_id: u32) -> io::Result<PrimaryKeyIndex> {
         let index = HashMap::new();
 
+        // hashmap persistence file
+        let filename = format!("index_{}", index_id);
+        let index_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(filename)?;
+
+        // memmap file
         let filename = format!("mmap_{}", index_id);
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(filename)?;
         let memory_map = unsafe { MmapMut::map_mut(&file)? };
-        Ok(PrimaryKeyIndex { index, memory_map })
+        Ok(PrimaryKeyIndex {
+            index,
+            index_file,
+            memory_map,
+        })
+    }
+
+    /// Re-open a previously created index.
+    pub fn open(index_id: u32) -> io::Result<PrimaryKeyIndex> {
+        let index = HashMap::new();
+
+        // hashmap persistence file
+        let filename = format!("index_{}", index_id);
+        let index_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(false)
+            .open(filename)?;
+
+        // memmap file
+        let filename = format!("mmap_{}", index_id);
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(false)
+            .open(filename)?;
+        let memory_map = unsafe { MmapMut::map_mut(&file)? };
+        Ok(PrimaryKeyIndex {
+            index,
+            index_file,
+            memory_map,
+        })
     }
 
     /// Read bytes for a given key and field.
@@ -87,7 +131,7 @@ impl PrimaryKeyIndex {
 
         let field_id = field.id() as usize;
 
-        let offsets = self.index.entry(key).or_default();
+        let offsets = self.index.entry(key.clone()).or_default();
         if field_id as usize >= offsets.len() {
             offsets.resize(field_id + 1, usize::MAX);
         }
@@ -108,11 +152,19 @@ impl PrimaryKeyIndex {
                 mmap[write_offset + 4..write_offset + 4 + value.len()].copy_from_slice(value);
             }
         }
-
         mmap.flush()?;
 
         // update offset in index
         offsets[field_id] = write_offset;
+
+        // persist hashmap index to file
+        // [key-bytes-len as u32][key-bytes][field_id as u32][write_offset as u32]
+        self.index_file.write(&(key.len() as u32).to_le_bytes())?;
+        self.index_file.write(&key)?;
+        self.index_file.write(&(field_id as u32).to_le_bytes())?;
+        self.index_file
+            .write(&(write_offset as u32).to_le_bytes())?;
+
         Ok(())
     }
 }
