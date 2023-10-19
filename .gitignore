@@ -4,6 +4,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### Rust
+ikv/target/*
+
 ### IntelliJ IDEA ###
 .idea/*
 .idea/modules.xml
