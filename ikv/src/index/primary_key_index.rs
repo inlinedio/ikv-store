@@ -6,12 +6,10 @@ use std::{
 
 use memmap2::MmapMut;
 
-use super::field::Field;
-
-pub type Key = Vec<u8>;
+use crate::schema::field::Field;
 
 pub struct PrimaryKeyIndex {
-    index: HashMap<Key, Vec<usize>>,
+    index: HashMap<Vec<u8>, Vec<usize>>,
 
     index_file: File,
 
@@ -20,11 +18,11 @@ pub struct PrimaryKeyIndex {
 
 impl PrimaryKeyIndex {
     /// Creates a brand new empty instance of a primary-key index.
-    pub fn new(index_id: u32) -> io::Result<PrimaryKeyIndex> {
+    pub fn new(mount_directory: &str, index_id: usize) -> io::Result<PrimaryKeyIndex> {
         let index = HashMap::new();
 
         // hashmap persistence file
-        let filename = format!("index_{}", index_id);
+        let filename = format!("{}/index_{}", mount_directory, index_id);
         let index_file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -33,7 +31,7 @@ impl PrimaryKeyIndex {
             .open(filename)?;
 
         // memmap file
-        let filename = format!("mmap_{}", index_id);
+        let filename = format!("{}/mmap_{}", mount_directory, index_id);
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -49,11 +47,11 @@ impl PrimaryKeyIndex {
     }
 
     /// Re-open a previously created index.
-    pub fn open(index_id: u32) -> io::Result<PrimaryKeyIndex> {
+    pub fn open(mount_directory: &str, index_id: usize) -> io::Result<PrimaryKeyIndex> {
         let index = HashMap::new();
 
         // hashmap persistence file
-        let filename = format!("index_{}", index_id);
+        let filename = format!("{}/index_{}", mount_directory, index_id);
         let index_file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -61,7 +59,7 @@ impl PrimaryKeyIndex {
             .open(filename)?;
 
         // memmap file
-        let filename = format!("mmap_{}", index_id);
+        let filename = format!("{}/mmap_{}", mount_directory, index_id);
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -76,7 +74,7 @@ impl PrimaryKeyIndex {
     }
 
     /// Read bytes for a given key and field.
-    pub fn read(&self, key: &Key, field: &Field) -> Option<Vec<u8>> {
+    pub fn read(&self, key: &[u8], field: &Field) -> Option<Vec<u8>> {
         let offsets = self.index.get(key)?;
         let offset = offsets.get(field.id() as usize).copied()?;
         if offset == usize::MAX {
@@ -107,7 +105,7 @@ impl PrimaryKeyIndex {
     }
 
     /// Upsert value (bytes) for a given key.
-    pub fn upsert(&mut self, key: Key, field: &Field, value: &[u8]) -> io::Result<()> {
+    pub fn upsert(&mut self, key: &[u8], field: &Field, value: &[u8]) -> io::Result<()> {
         if key.len() == 0 {
             return Err(Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -131,7 +129,7 @@ impl PrimaryKeyIndex {
 
         let field_id = field.id() as usize;
 
-        let offsets = self.index.entry(key.clone()).or_default();
+        let offsets = self.index.entry(key.to_vec()).or_default();
         if field_id as usize >= offsets.len() {
             offsets.resize(field_id + 1, usize::MAX);
         }
