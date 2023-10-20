@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct Field {
     id: u16,
     field_type: FieldType,
@@ -21,6 +22,7 @@ impl Field {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum FieldType {
     I32,
     String,
