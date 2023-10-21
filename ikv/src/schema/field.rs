@@ -1,12 +1,21 @@
 #[derive(Debug, Clone)]
 pub struct Field {
+    name: String,
     id: u16,
     field_type: FieldType,
 }
 
 impl Field {
-    pub fn new(id: u16, field_type: FieldType) -> Self {
-        Self { id, field_type }
+    pub fn new(name: String, id: u16, field_type: FieldType) -> Self {
+        Self {
+            name,
+            id,
+            field_type,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn id(&self) -> u16 {
