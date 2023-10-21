@@ -1,0 +1,10 @@
+document:
+  - name: firstname
+      id: 2
+      type: string
+  - name: age
+      id: 0
+      type: i32
+  - name: profile
+      id: 1
+      type: bytes
