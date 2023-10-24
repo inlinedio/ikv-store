@@ -33,8 +33,14 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_createNew<'local>(
         .get_string(&schema_path)
         .expect("Couldn't get schema_path")
         .into();
-    let index = CKVIndex::new(mount_path, &schema_path).unwrap();
-    external_handle::to_external_handle(index)
+
+    match CKVIndex::new(&mount_path, &schema_path) {
+        Ok(index) => return external_handle::to_external_handle(index),
+        Err(e) => {
+            eprintln!("Cannot create new indes: {e}");
+            panic!("")
+        }
+    }
 }
 
 #[no_mangle]
