@@ -2,7 +2,7 @@ use jni::objects::{JByteArray, JClass, JObject, JString};
 use jni::sys::{jbyteArray, jlong, jstring};
 use jni::JNIEnv;
 
-use crate::index::api::ColumnarKVIndex;
+use crate::index::ckv::CKVIndex;
 use crate::index::external_handle;
 use crate::jni::utils;
 
@@ -33,7 +33,7 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_createNew<'local>(
         .get_string(&schema_path)
         .expect("Couldn't get schema_path")
         .into();
-    let index = ColumnarKVIndex::new(mount_path, &schema_path).unwrap();
+    let index = CKVIndex::new(mount_path, &schema_path).unwrap();
     external_handle::to_external_handle(index)
 }
 
@@ -47,7 +47,7 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_open<'local>(
         .get_string(&mount_path)
         .expect("Couldn't get mount_path")
         .into();
-    let index = ColumnarKVIndex::open(mount_path).unwrap();
+    let index = CKVIndex::open(mount_path).unwrap();
     external_handle::to_external_handle(index)
 }
 
