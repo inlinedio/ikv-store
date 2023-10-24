@@ -23,24 +23,24 @@ pub struct CKVIndex {
 }
 
 impl CKVIndex {
-    pub fn new(mount_directory: String, schema: &str) -> io::Result<CKVIndex> {
+    pub fn new(mount_directory: &str, schema: &str) -> io::Result<CKVIndex> {
         // ensure mount_directory exists
-        fs::create_dir_all(&mount_directory)?;
+        fs::create_dir_all(mount_directory.clone())?;
 
         // create schema file
-        let mut schema_file = BufWriter::new(
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .truncate(true)
-                .create(true)
-                .open(format!("{}/schema", mount_directory))?,
-        );
+        let schema_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(format!("{}/schema", mount_directory))?;
+
+        let mut schema_file = BufWriter::new(schema_file);
         schema_file.write_all(schema.as_bytes())?;
 
         let mut segments = vec![];
         for index_id in 0..NUM_SEGMENTS {
-            let segment = CKVIndexSegment::new(&mount_directory, index_id)?;
+            let segment = CKVIndexSegment::new(mount_directory, index_id)?;
             segments.push(RwLock::new(segment));
         }
 
@@ -177,5 +177,27 @@ impl CKVIndex {
         let index_id = fxhash::hash(document_id) % NUM_SEGMENTS;
         let mut primary_key_index = self.segments[index_id].write().unwrap();
         primary_key_index.upsert(document_id, field_value, field)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CKVIndex;
+
+    #[test]
+    fn open() {
+        let yaml_str = "
+        document:
+        - name: firstname
+          id: 0
+          type: string
+        - name: age
+          id: 1
+          type: i32
+        - name: profile
+          id: 2
+          type: bytes";
+        let index = CKVIndex::new("/tmp/basic", yaml_str);
+        assert!(index.is_ok());
     }
 }

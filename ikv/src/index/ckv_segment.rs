@@ -22,7 +22,7 @@ pub struct CKVIndexSegment {
 
     // memory-mapping
     // underlying file, grows in chunks of size `CHUNK_SIZE`
-    mamp_file: File,
+    mmap_file: File,
     mmap: MmapMut,
 }
 
@@ -32,28 +32,26 @@ impl CKVIndexSegment {
         // hash table index
         let filename = format!("{}/index_{}", mount_directory, index_id);
         let index_file = OpenOptions::new()
+            .create(true)
             .read(true)
             .append(true)
-            .create(true)
-            .truncate(true)
             .open(filename)?;
-        let index: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
 
         // memmap file
         let filename = format!("{}/mmap_{}", mount_directory, index_id);
-        let mamp_file = OpenOptions::new()
+        let mmap_file = OpenOptions::new()
+            .create(true)
             .read(true)
             .append(true)
-            .create(true)
-            .truncate(true)
             .open(filename)?;
-        let mmap = unsafe { MmapMut::map_mut(&mamp_file)? };
+
+        let mmap = unsafe { MmapMut::map_mut(&mmap_file)? };
 
         Ok(CKVIndexSegment {
             index_file,
-            index,
+            index: HashMap::new(),
             write_offset: 0 as usize,
-            mamp_file,
+            mmap_file,
             mmap,
         })
     }
@@ -123,7 +121,7 @@ impl CKVIndexSegment {
             index_file,
             index,
             write_offset,
-            mamp_file,
+            mmap_file: mamp_file,
             mmap,
         })
     }
@@ -184,10 +182,10 @@ impl CKVIndexSegment {
             num_chunks
         );
 
-        self.mamp_file
+        self.mmap_file
             .write_all(&vec![0 as u8; CHUNK_SIZE * num_chunks])?;
-        self.mamp_file.flush()?;
-        self.mmap = unsafe { MmapMut::map_mut(&self.mamp_file)? };
+        self.mmap_file.flush()?;
+        self.mmap = unsafe { MmapMut::map_mut(&self.mmap_file)? };
 
         Ok(())
     }
