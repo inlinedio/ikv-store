@@ -3,8 +3,8 @@ package io.inline;
 public final class IKVClient {
     private final long _indexHandle;
 
-    public static IKVClient create_new(String mountPath, String schemaPath) {
-        long indexHandle = IKVClientJNI.createNew(mountPath, schemaPath);
+    public static IKVClient create_new(String mountPath, String yamlSchema) {
+        long indexHandle = IKVClientJNI.createNew(mountPath, yamlSchema);
         return new IKVClient(indexHandle);
     }
 

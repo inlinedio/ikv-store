@@ -1,10 +1,13 @@
 document:
   - name: firstname
-      id: 2
-      type: string
+    id: 2
+    type: string
   - name: age
-      id: 0
-      type: i32
+    id: 0
+    type: i32
   - name: profile
-      id: 1
-      type: bytes
+    id: 1
+    type: bytes
+  - name: zip
+    id: 3
+    type: i32

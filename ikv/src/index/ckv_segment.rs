@@ -2,61 +2,72 @@ use std::{
     collections::HashMap,
     fs::{File, OpenOptions},
     io::{self, ErrorKind, Read, Write},
+    ops::DerefMut,
 };
 
 use memmap2::MmapMut;
 
 use crate::schema::field::Field;
 
-pub struct PrimaryKeyIndex {
+const CHUNK_SIZE: usize = 64 * 1024 * 1024; // 64M
+
+pub struct CKVIndexSegment {
+    // hash-table index, document_id bytes -> vector of offsets
+    // offsets point into the memory map
+    index_file: File,
     index: HashMap<Vec<u8>, Vec<usize>>,
 
-    index_file: File,
+    // current (usable) offset for new writes into the mmap
+    write_offset: usize,
 
-    memory_map: MmapMut,
+    // memory-mapping
+    // underlying file, grows in chunks of size `CHUNK_SIZE`
+    mamp_file: File,
+    mmap: MmapMut,
 }
 
-impl PrimaryKeyIndex {
+impl CKVIndexSegment {
     /// Creates a brand new empty instance of a primary-key index.
-    pub fn new(mount_directory: &str, index_id: usize) -> io::Result<PrimaryKeyIndex> {
-        let index: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
-
-        // hashmap persistence file
+    pub fn new(mount_directory: &str, index_id: usize) -> io::Result<CKVIndexSegment> {
+        // hash table index
         let filename = format!("{}/index_{}", mount_directory, index_id);
         let index_file = OpenOptions::new()
             .read(true)
-            .write(true)
+            .append(true)
             .create(true)
             .truncate(true)
             .open(filename)?;
+        let index: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
 
         // memmap file
         let filename = format!("{}/mmap_{}", mount_directory, index_id);
-        let file = OpenOptions::new()
+        let mamp_file = OpenOptions::new()
             .read(true)
-            .write(true)
+            .append(true)
             .create(true)
             .truncate(true)
             .open(filename)?;
-        let memory_map = unsafe { MmapMut::map_mut(&file)? };
-        Ok(PrimaryKeyIndex {
-            index,
+        let mmap = unsafe { MmapMut::map_mut(&mamp_file)? };
+
+        Ok(CKVIndexSegment {
             index_file,
-            memory_map,
+            index,
+            write_offset: 0 as usize,
+            mamp_file,
+            mmap,
         })
     }
 
     /// Re-open a previously created index.
-    pub fn open(mount_directory: &str, index_id: usize) -> io::Result<PrimaryKeyIndex> {
-        let mut index = HashMap::new();
-
-        // hashmap persistence file
+    pub fn open(mount_directory: &str, index_id: usize) -> io::Result<CKVIndexSegment> {
+        // hash table index
         let filename = format!("{}/index_{}", mount_directory, index_id);
         let mut index_file = OpenOptions::new()
             .read(true)
-            .write(true)
+            .append(true)
             .create(false)
             .open(filename)?;
+        let mut index = HashMap::new();
 
         // Recreate the hashmap
         // Entry format
@@ -68,7 +79,7 @@ impl PrimaryKeyIndex {
                 Ok(_) => document_id_size = u16::from_le_bytes(buffer.try_into().unwrap()),
                 Err(e) => {
                     match e.kind() {
-                        ErrorKind::Interrupted => {
+                        ErrorKind::UnexpectedEof => {
                             // EOF reached
                             break;
                         }
@@ -96,16 +107,24 @@ impl PrimaryKeyIndex {
 
         // memmap file
         let filename = format!("{}/mmap_{}", mount_directory, index_id);
-        let file = OpenOptions::new()
+        let mamp_file = OpenOptions::new()
             .read(true)
-            .write(true)
+            .append(true)
             .create(false)
             .open(filename)?;
-        let memory_map = unsafe { MmapMut::map_mut(&file)? };
-        Ok(PrimaryKeyIndex {
-            index,
+        let file_metadata = mamp_file.metadata()?;
+
+        // TODO(pushkar): write_offset is always set to end of file, resulting in some internal fragmentation
+        let write_offset = file_metadata.len() as usize;
+
+        let mmap = unsafe { MmapMut::map_mut(&mamp_file)? };
+
+        Ok(CKVIndexSegment {
             index_file,
-            memory_map,
+            index,
+            write_offset,
+            mamp_file,
+            mmap,
         })
     }
 
@@ -120,17 +139,17 @@ impl PrimaryKeyIndex {
         let value = match field.value_len() {
             Some(value_len) => {
                 // static size
-                &self.memory_map[offset..offset + value_len]
+                &self.mmap[offset..offset + value_len]
             }
             None => {
                 // dynamic size
-                let value_len = &self.memory_map[offset..offset + 4];
+                let value_len = &self.mmap[offset..offset + 4];
                 let value_len = u32::from_le_bytes(
                     value_len
                         .try_into()
                         .expect("persisted value_len must be 4 bytes in length"),
                 ) as usize;
-                &self.memory_map[offset + 4..offset + 4 + value_len]
+                &self.mmap[offset + 4..offset + 4 + value_len]
             }
         };
 
@@ -140,6 +159,39 @@ impl PrimaryKeyIndex {
         Some(result)
     }
 
+    // See: https://stackoverflow.com/questions/28516996/how-to-create-and-write-to-memory-mapped-files
+    fn expand_mmap_if_required(
+        &mut self,
+        write_offset: usize,
+        num_bytes_to_write: usize,
+    ) -> io::Result<()> {
+        let end_offset = write_offset + num_bytes_to_write; // non-inclusive
+                                                            // space [write_offset, end_offset) should be available
+
+        if self.mmap.len() >= end_offset {
+            return Ok(());
+        }
+
+        let num_chunks =
+            (1.0 + ((end_offset - self.mmap.len()) as f64 / CHUNK_SIZE as f64)) as usize;
+        assert!(num_chunks >= 1);
+
+        println!(
+            "Need to resize the mmap. curr_len: {} write_offset: {} end_offset: {} num_chunks: {}",
+            self.mmap.len(),
+            write_offset,
+            end_offset,
+            num_chunks
+        );
+
+        self.mamp_file
+            .write_all(&vec![0 as u8; CHUNK_SIZE * num_chunks])?;
+        self.mamp_file.flush()?;
+        self.mmap = unsafe { MmapMut::map_mut(&self.mamp_file)? };
+
+        Ok(())
+    }
+
     /// Upsert value (bytes) for a given key.
     pub fn upsert(
         &mut self,
@@ -147,14 +199,30 @@ impl PrimaryKeyIndex {
         field_value: &[u8],
         field: &Field,
     ) -> io::Result<()> {
+        let write_offset = self.write_offset;
+
+        // calculate number of bytes to write
+        let num_bytes_to_write: usize;
+        match field.value_len() {
+            Some(_) => {
+                // fixed size
+                num_bytes_to_write = field_value.len();
+            }
+            None => {
+                // dynamic size
+                num_bytes_to_write = 4 + field_value.len();
+            }
+        }
+
+        self.expand_mmap_if_required(write_offset, num_bytes_to_write)?;
+
         // write persistently to mmap
-        let mut mmap = &mut self.memory_map[..];
-        let write_offset = mmap.len();
+        let mut mmap = self.mmap.deref_mut();
 
         match field.value_len() {
             Some(value_len) => {
-                // static size
-                mmap[write_offset..write_offset + field_value.len()].copy_from_slice(field_value);
+                // fixed size
+                mmap[write_offset..write_offset + value_len].copy_from_slice(field_value);
             }
             None => {
                 // dynamic size
@@ -174,6 +242,9 @@ impl PrimaryKeyIndex {
             offsets.resize(field_id + 1, usize::MAX);
         }
         offsets[field_id] = write_offset;
+
+        // update global write offset
+        self.write_offset += num_bytes_to_write;
 
         // persist hashmap index to file
         // Entry format
