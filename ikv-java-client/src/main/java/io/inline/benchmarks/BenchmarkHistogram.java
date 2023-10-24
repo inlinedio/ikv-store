@@ -1,4 +1,4 @@
-package io.inline;
+package io.inline.benchmarks;
 
 import com.google.common.base.Preconditions;
 

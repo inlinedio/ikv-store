@@ -1,4 +1,4 @@
-package io.inline;
+package io.inline.benchmarks;
 
 import java.util.HashMap;
 import java.util.Map;

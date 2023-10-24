@@ -1,18 +1,21 @@
-package io.inline;
+package io.inline.benchmarks;
 
 import com.google.common.base.Preconditions;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 
 public class KeyValuesGenerator {
     private static final int VALUE_LENGTH = 1000;
     public static final byte[] VALUE_BYTES;
+    public static final String VALUE_BYTES_STRING;
     static {
         VALUE_BYTES = new byte[VALUE_LENGTH];
         for (int i = 0; i < VALUE_LENGTH; i++) {
             VALUE_BYTES[i] = (byte) i;
         }
+        VALUE_BYTES_STRING = new String(VALUE_BYTES, StandardCharsets.UTF_8);
     }
 
     private final ArrayList<String> _keys;

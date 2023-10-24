@@ -33,39 +33,24 @@ public class IntegrationTests {
     public void basic() {
         IKVClient ikvClient =
                 IKVClient.create_new("/tmp/basic", INDEX_SCHEMA);
-
-        byte[] docId1 = "document1".getBytes(StandardCharsets.UTF_8);
-        byte[] firstname1 = "alice".getBytes(StandardCharsets.UTF_8);
-
-        byte[] docId2 = "document2".getBytes(StandardCharsets.UTF_8);
-        byte[] age2 = ByteBuffer.allocate(4).putInt(25).array();
-
-        byte[] docId3 = "document3".getBytes(StandardCharsets.UTF_8);
         byte[] profile3 = "profileBytes".getBytes(StandardCharsets.UTF_8);
 
-        // not inserted
-        byte[] docId4 = "document4".getBytes(StandardCharsets.UTF_8);
-
         // WRITES
-        ikvClient.upsertFieldValue(docId1, firstname1, "firstname");
+        ikvClient.upsertFieldValue("document1", "alice".getBytes(StandardCharsets.UTF_8), "firstname");
 
-        byte[] val = ikvClient.getFieldValue(docId1, "firstname");
-        Assertions.assertArrayEquals(val, firstname1);
+        // get for document1
+        Assertions.assertEquals( "alice", ikvClient.getStringFieldValue("document1", "firstname"));
 
-        ikvClient.upsertFieldValue(docId2, age2, "age");
-        ikvClient.upsertFieldValue(docId3, profile3, "profile");
+        ikvClient.upsertFieldValue("document3", profile3, "profile");
 
-        // READS
-        val = ikvClient.getFieldValue(docId1, "firstname");
-        Assertions.assertArrayEquals(val, firstname1);
+        // get for document1
+        Assertions.assertEquals("alice", ikvClient.getStringFieldValue("document1", "firstname"));
 
-        val = ikvClient.getFieldValue(docId2, "age");
-        Assertions.assertArrayEquals(val, age2);
+        // get for document3
+        Assertions.assertArrayEquals(profile3, ikvClient.getBytesFieldValue("document3", "profile"));
 
-        val = ikvClient.getFieldValue(docId3, "profile");
-        Assertions.assertArrayEquals(val, profile3);
-
-        Assertions.assertNull(ikvClient.getFieldValue(docId4, "firstname"));
+        // get for document2
+        Assertions.assertNull(ikvClient.getBytesFieldValue("document2", "firstname"));
 
         ikvClient.close();
     }
