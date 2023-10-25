@@ -19,7 +19,7 @@ public class MemcachedBenchmarkRunner {
 
     public static void main(String[] args) {
         // arg parsing
-        String paramString = "num_entries:10000,batch_size:1000";
+        String paramString = "num_entries:10000,batch_size:1";
         if (args.length > 0) {
             paramString = args[0];
         }
