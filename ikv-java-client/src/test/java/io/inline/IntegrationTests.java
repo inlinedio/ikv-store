@@ -49,21 +49,21 @@ public class IntegrationTests {
         // WRITES
         ikvClient.upsertFieldValue(docId1, firstname1, "firstname");
 
-        byte[] val = ikvClient.getFieldValue(docId1, "firstname");
-        Assertions.assertArrayEquals(val, firstname1);
+        ByteBuffer val = ikvClient.getFieldValue(docId1, "firstname");
+        Assertions.assertArrayEquals(val.array(), firstname1);
 
         ikvClient.upsertFieldValue(docId2, age2, "age");
         ikvClient.upsertFieldValue(docId3, profile3, "profile");
 
         // READS
         val = ikvClient.getFieldValue(docId1, "firstname");
-        Assertions.assertArrayEquals(val, firstname1);
+        Assertions.assertArrayEquals(val.array(), firstname1);
 
         val = ikvClient.getFieldValue(docId2, "age");
-        Assertions.assertArrayEquals(val, age2);
+        Assertions.assertArrayEquals(val.array(), age2);
 
         val = ikvClient.getFieldValue(docId3, "profile");
-        Assertions.assertArrayEquals(val, profile3);
+        Assertions.assertArrayEquals(val.array(), profile3);
 
         Assertions.assertNull(ikvClient.getFieldValue(docId4, "firstname"));
 

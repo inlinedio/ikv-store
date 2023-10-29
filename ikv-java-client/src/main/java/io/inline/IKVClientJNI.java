@@ -1,5 +1,7 @@
 package io.inline;
 
+import java.nio.ByteBuffer;
+
 public final class IKVClientJNI {
     static {
         System.load("/Users/pushkar/projects/inlineio/ikv/target/debug/libikv.dylib");
@@ -11,9 +13,12 @@ public final class IKVClientJNI {
     private IKVClientJNI() {
     }
 
-    static native long createNew(String mountPath, String schemaPath);
+    static native long createNew(String mountPath, String schemaFilePath);
     static native long open(String mountPath);
     static native void close(long indexHandle);
-    static native byte[] getFieldValue(long indexHandle, byte[] documentId, String fieldName);
+
+    static native ByteBuffer getBytesFieldValue(long indexHandle, byte[] documentId, String fieldName);
+
+
     static native void upsertFieldValue(long indexHandle, byte[] documentId, byte[] fieldValue, String fieldName);
 }

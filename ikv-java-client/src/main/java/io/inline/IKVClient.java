@@ -1,5 +1,7 @@
 package io.inline;
 
+import java.nio.ByteBuffer;
+
 public final class IKVClient {
     private final long _indexHandle;
 
@@ -22,8 +24,8 @@ public final class IKVClient {
     }
 
     // nullable
-    public byte[] getFieldValue(byte[] documentId, String fieldName) {
-        return IKVClientJNI.getFieldValue(_indexHandle, documentId, fieldName);
+    public ByteBuffer getFieldValue(byte[] documentId, String fieldName) {
+        return IKVClientJNI.getBytesFieldValue(_indexHandle, documentId, fieldName);
     }
 
     public void upsertFieldValue(byte[] documentId, byte[] fieldValue, String fieldName) {
