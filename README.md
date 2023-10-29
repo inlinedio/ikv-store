@@ -1,16 +1,12 @@
 # Inline I/O
 
-Inline I/O provides database infrastructure which enables extremely low latency online data access, for enterprise grade applications like recommendation engines and ML inference services.
-Inline databases provide eventual read-after-write consistency and can scale to handle huge datasets with sharding/partitioning.
+Inline I/O provides scalable **embedded database** infrastructure, for latency sensitive applications. Inline I/O databases do not require any network calls (aka RPCs) and store the entire dataset in memory (with option to spill to disk), enabling **microsecond** level read latency.
 
-Indexes used for reads do not need any remote network calls and are stored in the same container/server as the hosting application - hence they can provide microsecond level latency (as compared to 10-100's of millisecond latency provided by cloud solutions). Inline I/O provides all the necessary components like pub-sub, backup, nearline/batch writers out of the box - which makes productionizing a local database achievable.
+While providing embedded read access, the platform provides all the features of a traditional Database-as-a-Service platform like - persistence and backup, horizontal scalability (replicas and shards), bulk loading and bootstrap. Inline I/O is a perfect choice for recommendation engines and AI products which need fast access to a lot of data.
 
-Inline I/O databses have clients in many popular languages like Java and Python to power your usecase. Get started now, the following versions are available for production use - 
+Inline I/O is written in Rust, and provides clients in Java and Python.
 
 ## InlineKV
-InlineKV is a distributed NoSQL **Key-Value store** with online readers, nearline/offline/batch writer components. InlineKV is ideal for usecases which need extremely low access latency, potentially make multiple (100-1000)'s of read calls per application request, and cannot afford to make outbound network calls.
-
-### Quick Start
-Read installation instructions.
+InlineKV is a distributed NoSQL **Key-Value store**.
 
 
