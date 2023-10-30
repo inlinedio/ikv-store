@@ -1,5 +1,5 @@
 use jni::objects::{JByteArray, JClass, JObject, JString};
-use jni::sys::{jbyteArray, jlong, jstring};
+use jni::sys::{jbyteArray, jlong, jobject, jstring};
 use jni::JNIEnv;
 
 use crate::index::ckv::CKVIndex;
@@ -67,7 +67,7 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_close<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_getFieldValue<'local>(
+pub extern "system" fn Java_io_inline_IKVClientJNI_getBytesFieldValue<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
@@ -91,6 +91,17 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_getFieldValue<'local>(
     // TODO - assert that field_value cannot exceed i32
 
     utils::vec_to_jbyte_array(&env, field_value)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValue<'local>(
+    mut env: JNIEnv<'local>,
+    class: JClass<'local>,
+    index_handle: jlong,
+    document_ids: JObject<'local>,
+    field_name: JString<'local>,
+) -> JObject<'local> {
+    todo!()
 }
 
 #[no_mangle]

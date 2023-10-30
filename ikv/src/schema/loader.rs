@@ -1,7 +1,23 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fs::OpenOptions,
+    io::{self, BufReader, Read},
+};
 
 use super::field::Field;
 use yaml_rust::YamlLoader;
+
+/// Reads the entire contents of file at specified path into a new String.
+pub fn read_schema_file(path: &str) -> io::Result<String> {
+    let schema_file = OpenOptions::new().read(true).open(path)?;
+    let mut schema_file_reader = BufReader::new(schema_file);
+
+    let mut schema_str = String::new();
+
+    schema_file_reader.read_to_string(&mut schema_str)?;
+
+    Ok(schema_str)
+}
 
 /// Parse yaml string into vector of Field structs. Order of field structs is undefined.
 pub fn load_yaml_schema(schema_str: &str) -> Vec<Field> {
