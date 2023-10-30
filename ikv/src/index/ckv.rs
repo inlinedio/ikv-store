@@ -23,20 +23,15 @@ pub struct CKVIndex {
 }
 
 impl CKVIndex {
-    pub fn new(mount_directory: &str, schema: &str) -> io::Result<CKVIndex> {
+    pub fn new(mount_directory: &str, schema_file_path: &str) -> io::Result<CKVIndex> {
         // ensure mount_directory exists
         fs::create_dir_all(mount_directory.clone())?;
 
-        // create schema file
-        let schema_file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(format!("{}/schema", mount_directory))?;
+        // copy and persist schema file
+        let mount_schema_file_path = format!("{}/schema", mount_directory);
+        fs::copy(schema_file_path, format!("{}/schema", mount_directory))?;
 
-        let mut schema_file = BufWriter::new(schema_file);
-        schema_file.write_all(schema.as_bytes())?;
+        let schema_string = schema::read_schema_file(&mount_schema_file_path)?;
 
         let mut segments = vec![];
         for index_id in 0..NUM_SEGMENTS {
@@ -44,7 +39,7 @@ impl CKVIndex {
             segments.push(RwLock::new(segment));
         }
 
-        let mut fieldid_field_table = schema::load_yaml_schema(schema);
+        let mut fieldid_field_table = schema::load_yaml_schema(&schema_string);
         schema::sort_by_field_id(&mut fieldid_field_table);
         let fieldname_field_table = schema::to_map(&fieldid_field_table);
 
@@ -56,20 +51,11 @@ impl CKVIndex {
     }
 
     pub fn open(mount_directory: String) -> io::Result<CKVIndex> {
-        // read schema file
-        let schema_file = OpenOptions::new()
-            .read(true)
-            .write(false)
-            .create(false)
-            .open(format!("{}/schema", mount_directory))?;
-        let mut schema_file = BufReader::new(schema_file);
+        // read persisted schema into String
+        let schema_file_path = format!("{}/schema", mount_directory);
+        let schema_string = schema::read_schema_file(&schema_file_path)?;
 
-        let mut schema_str = String::new();
-        schema_file
-            .read_to_string(&mut schema_str)
-            .expect("cant read schema file");
-
-        let mut fieldid_field_table = schema::load_yaml_schema(&schema_str);
+        let mut fieldid_field_table = schema::load_yaml_schema(&schema_string);
         schema::sort_by_field_id(&mut fieldid_field_table);
         let fieldname_field_table = schema::to_map(&fieldid_field_table);
 

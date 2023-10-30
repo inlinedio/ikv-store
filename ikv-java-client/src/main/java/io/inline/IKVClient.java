@@ -1,10 +1,13 @@
 package io.inline;
 
+import javax.annotation.Nullable;
+import java.util.List;
+
 public final class IKVClient {
     private final long _indexHandle;
 
-    public static IKVClient create_new(String mountPath, String yamlSchema) {
-        long indexHandle = IKVClientJNI.createNew(mountPath, yamlSchema);
+    public static IKVClient create_new(String mountPath, String schemaFilePath) {
+        long indexHandle = IKVClientJNI.createNew(mountPath, schemaFilePath);
         return new IKVClient(indexHandle);
     }
 
@@ -21,9 +24,13 @@ public final class IKVClient {
         IKVClientJNI.close(_indexHandle);
     }
 
-    // nullable
-    public byte[] getFieldValue(byte[] documentId, String fieldName) {
-        return IKVClientJNI.getFieldValue(_indexHandle, documentId, fieldName);
+    @Nullable
+    public byte[] getBytesFieldValue(byte[] documentId, String fieldName) {
+        return IKVClientJNI.getBytesFieldValue(_indexHandle, documentId, fieldName);
+    }
+
+    public List<byte[]> getBatchBytesFieldValue(List<byte[]> documentIds, String fieldName) {
+        return IKVClientJNI.getBatchBytesFieldValue(_indexHandle, documentIds, fieldName);
     }
 
     public void upsertFieldValue(byte[] documentId, byte[] fieldValue, String fieldName) {

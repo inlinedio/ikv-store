@@ -5,14 +5,14 @@ use jni::JNIEnv;
 pub fn jbyte_array_to_vec<'local>(env: &JNIEnv<'local>, jbytes: JByteArray) -> Vec<u8> {
     let size = env.get_array_length(&jbytes).unwrap();
     let mut result = vec![0 as i8; size as usize];
-    env.get_byte_array_region(jbytes, 0, &mut result);
+    env.get_byte_array_region(jbytes, 0, &mut result).unwrap();
     vec_i8_into_u8(result)
 }
 
 pub fn vec_to_jbyte_array<'local>(env: &JNIEnv<'local>, bytes: Vec<u8>) -> jbyteArray {
     let result = env.new_byte_array(bytes.len() as i32).unwrap();
     let bytes = vec_u8_into_i8(bytes);
-    env.set_byte_array_region(&result, 0, &bytes);
+    env.set_byte_array_region(&result, 0, &bytes).unwrap();
     result.into_raw()
 }
 

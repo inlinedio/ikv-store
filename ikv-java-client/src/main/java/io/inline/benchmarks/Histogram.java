@@ -5,16 +5,16 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class BenchmarkHistogram {
+public class Histogram {
     private final String _name;
     private final ArrayList<Long> _data;
 
-    public BenchmarkHistogram(String name, int entriesHint) {
+    public Histogram(String name, int entriesHint) {
         _name = Preconditions.checkNotNull(name);
         _data = new ArrayList<>(entriesHint);
     }
 
-    public void setLatency(long latency) {
+    public synchronized void captureLatency(long latency) {
         _data.add(latency);
     }
 
