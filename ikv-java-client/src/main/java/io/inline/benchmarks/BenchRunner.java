@@ -10,17 +10,14 @@ public class BenchRunner {
         }
         BenchmarkParams benchmarkParams = new BenchmarkParams(paramString);
 
-
-        // Local Memcached instance benchmark
-        System.out.println("Starting IKV Local benchmark");
-
         IKVLatencyBenchmarkWorkflow workflow = new IKVLatencyBenchmarkWorkflow(benchmarkParams);
         workflow.connect();
-        Histogram histogram = new Histogram("noop", 100);
-        workflow.benchmarkSingleGet(histogram);
+        Histogram histogram = new Histogram("noop", 100000);
+        workflow.initializeWithWrites(histogram);
+        workflow.benchmarkBatchGet(histogram);
         workflow.shutdown();
 
-        System.out.println(histogram.toString());
+        System.out.println(histogram);
 
         System.exit(0);
     }

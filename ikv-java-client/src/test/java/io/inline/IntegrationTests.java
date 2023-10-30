@@ -1,5 +1,6 @@
 package io.inline;
 
+import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +50,10 @@ public class IntegrationTests {
 
         val = ikvClient.getBytesFieldValue(docId3, "profile");
         Assertions.assertArrayEquals(val, profile3);
+
+        Assertions.assertNotNull(
+                ikvClient.getBatchBytesFieldValue(
+                        ImmutableList.of(docId1, docId2, docId3), "firstname"));
 
         Assertions.assertNull(ikvClient.getBytesFieldValue(docId4, "firstname"));
 

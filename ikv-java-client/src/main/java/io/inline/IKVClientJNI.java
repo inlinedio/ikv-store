@@ -21,9 +21,10 @@ public final class IKVClientJNI {
 
     @Nullable
     static native byte[] getBytesFieldValue(long indexHandle, byte[] documentId, String fieldName);
-
     @Nullable
-    static native List<byte[]> getBatchBytesFieldValue(long indexHandle, List<byte[]> documentIds, String fieldName);
+    static native byte[] getBatchBytesFieldValue(long indexHandle, byte[] documentIds, String fieldName);
+
+    static native void getBatchBytesFieldValueV2(long indexHandle, List<byte[]> documentIds, String fieldName, List<byte[]> results);
 
     static native void upsertFieldValue(long indexHandle, byte[] documentId, byte[] fieldValue, String fieldName);
 }
