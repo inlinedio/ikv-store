@@ -1,10 +1,12 @@
-use jni::objects::{JByteArray, JClass, JObject, JString};
+use jni::objects::{AutoLocal, JByteArray, JClass, JList, JObject, JString};
 use jni::sys::{jbyteArray, jlong, jobject, jstring};
 use jni::JNIEnv;
 
 use crate::index::ckv::CKVIndex;
 use crate::index::external_handle;
 use crate::jni::utils;
+
+const LENGTH: [u8; 4] = [0, 0, 0, 0];
 
 #[no_mangle]
 pub extern "system" fn Java_io_inline_IKVClientJNI_provideHelloWorld<'local>(
@@ -94,14 +96,103 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_getBytesFieldValue<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValue<'local>(
+pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValueV2<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
     document_ids: JObject<'local>,
     field_name: JString<'local>,
-) -> JObject<'local> {
-    todo!()
+    results: JObject<'local>,
+) {
+    let field_name: String = env
+        .get_string(&field_name)
+        .expect("Couldn't get field_name")
+        .into();
+    let index = external_handle::from_external_handle(index_handle);
+
+    let mut results = JList::from_env(&mut env, &results).unwrap();
+
+    // get document ids
+    let document_id_jlist = JList::from_env(&mut env, &document_ids).unwrap();
+    let mut iterator = document_id_jlist.iter(&mut env).unwrap();
+    while let Some(obj) = iterator.next(&mut env).unwrap() {
+        /*
+           Each call to next creates a new local reference.
+           To prevent excessive memory usage or overflow error,
+           the local reference should be deleted using JNIEnv::delete_local_ref or JNIEnv::auto_local
+           before the next loop iteration. Alternatively,
+           if the list is known to have a small, predictable size,
+           the loop could be wrapped in JNIEnv::with_local_frame to delete all
+           of the local references at once.
+        */
+        let document_id_jbytes: JByteArray = obj.into();
+        let document_id = env.convert_byte_array(document_id_jbytes).unwrap();
+
+        let mut result = vec![];
+        let _ = index.append_field_value_by_name(&document_id, &field_name, &mut result);
+
+        let result_jbytes = env.byte_array_from_slice(&result).unwrap();
+        results.add(&mut env, &result_jbytes).unwrap();
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValue<'local>(
+    mut env: JNIEnv<'local>,
+    class: JClass<'local>,
+    index_handle: jlong,
+    document_ids: JByteArray<'local>,
+    field_name: JString<'local>,
+) -> jbyteArray {
+    let field_name: String = env
+        .get_string(&field_name)
+        .expect("Couldn't get field_name")
+        .into();
+    let index = external_handle::from_external_handle(index_handle);
+
+    // size prefixed, concatenated doc-ids
+    let document_ids = utils::jbyte_array_to_vec(&env, document_ids);
+    if document_ids.len() == 0 {
+        return JObject::null().into_raw();
+    }
+
+    // allocate result byte array
+    // this must be empty!!
+    let mut result = vec![];
+
+    let mut i = 0 as usize;
+    while i < document_ids.len() {
+        // parse document id
+        // length of document id (lower endian bytes)
+        let document_id_len_bytes: [u8; 4] = document_ids[i..i + 4]
+            .try_into()
+            .expect("length must be 4 bytes");
+        let document_id_len = i32::from_le_bytes(document_id_len_bytes);
+        // value of document id
+        let start = i + 4;
+        let end = start + document_id_len as usize;
+        let document_id = &document_ids[start..end];
+        i = end;
+
+        // fetch and append to `result` vec
+
+        result.extend_from_slice(&LENGTH);
+
+        let value_len = index.append_field_value_by_name(&document_id, &field_name, &mut result);
+        // TODO - assert that field_value cannot exceed i32
+
+        // update w/ correct length
+        let end = result.len() - value_len;
+        let start = end - 4;
+        let value_len_bytes = (value_len as i32).to_le_bytes();
+        result[start..end].copy_from_slice(value_len_bytes.as_slice());
+        if value_len == 0 {
+            // strip last 4 bytes
+            let _ = result.drain(start..);
+        }
+    }
+
+    utils::vec_to_jbyte_array(&env, result)
 }
 
 #[no_mangle]

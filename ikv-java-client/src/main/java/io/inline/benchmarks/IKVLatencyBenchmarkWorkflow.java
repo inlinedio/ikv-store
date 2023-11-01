@@ -119,6 +119,10 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         }
     }
 
+    public List<byte[]> getValuesTemp(List<byte[]> keys) {
+        return _ikvClient.getBatchBytesFieldValue(keys, "profile");
+    }
+
     @Override
     public void shutdown() {
         _ikvClient.close();

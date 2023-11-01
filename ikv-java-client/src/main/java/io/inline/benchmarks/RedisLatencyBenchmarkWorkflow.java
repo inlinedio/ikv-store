@@ -16,8 +16,8 @@ import java.util.*;
 
 public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     private final Set<HostAndPort> _jedisClusterNodes;
-    private volatile JedisCluster _jedisCluster;
-    // private volatile Jedis _jedis;  // for single node local benchmark
+    // private volatile JedisCluster _jedisCluster;
+    private volatile Jedis _jedis;  // for single node local benchmark
 
     private final KeyValuesGenerator _keyValuesGenerator;
     private final HashMap<String, byte[]> _sourceOfTruth;
@@ -41,16 +41,16 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     @Override
     public void connect() {
         // single node testing:
-        // JedisPool jedisPool = new JedisPool("localhost", 6379);
-        // _jedis = jedisPool.getResource();
+        JedisPool jedisPool = new JedisPool("localhost", 6379);
+        _jedis = jedisPool.getResource();
 
 
-        try {
+        /*try {
             _jedisCluster = new JedisCluster(_jedisClusterNodes);
         } catch (Exception e) {
             System.out.println("Cannot connect to Redis: " + e);
             throw e;
-        }
+        }*/
     }
 
     @Override
@@ -61,7 +61,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
             byte[] valueBytes = _keyValuesGenerator.getValueBytes(350);
 
             // Write to redis cluster
-            _jedisCluster.set(keyBytes, valueBytes);
+            _jedis.set(keyBytes, valueBytes);
 
             // Write to internal SOT for assertions
             _sourceOfTruth.put(key, valueBytes);
@@ -85,7 +85,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
             // redis lookup
             Instant start = Instant.now();
-            byte[] returnedValueBytes = _jedisCluster.get(keyBytes);
+            byte[] returnedValueBytes = _jedis.get(keyBytes);
             Instant end = Instant.now();
 
             if (histogram != null) {
@@ -107,6 +107,10 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         benchmarkBatchGetImpl(histogram);
     }
 
+    public List<byte[]> getValuesTemp(byte[][] redisKeys) {
+        return _jedis.mget(redisKeys);
+    }
+
     void benchmarkBatchGetImpl(@Nullable Histogram histogram) {
         int i = 0;
         while (i < _numEntries) {
@@ -120,7 +124,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
             byte[][] redisKeys = bytesKeys.toArray(new byte[0][]);
 
             Instant start = Instant.now();
-            List<byte[]> returnedValues = _jedisCluster.mget(redisKeys);
+            List<byte[]> returnedValues = _jedis.mget(redisKeys);
             Instant end = Instant.now();
 
             if (histogram != null) {
@@ -140,8 +144,8 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
     @Override
     public void shutdown() {
-        // _jedis.close();
-        _jedisCluster.close();
-        _jedisCluster = null;
+        _jedis.close();
+        // _jedisCluster.close();
+        // _jedisCluster = null;
     }
 }

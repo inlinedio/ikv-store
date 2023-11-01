@@ -9,7 +9,7 @@ use memmap2::MmapMut;
 
 use crate::schema::field::Field;
 
-const CHUNK_SIZE: usize = 64 * 1024 * 1024; // 64M
+const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
 
 pub struct CKVIndexSegment {
     // hash-table index, document_id bytes -> vector of offsets
@@ -126,24 +126,33 @@ impl CKVIndexSegment {
         })
     }
 
-    /// Read bytes for a given key and field.
-    pub fn read(&self, document_id: &[u8], field: &Field) -> Option<Vec<u8>> {
-        let offsets = self.index.get(document_id)?;
-        let offset = offsets.get(field.id() as usize).copied()?;
-        if offset == usize::MAX {
-            return None;
+    /// Read bytes for a given key and field, and append to "dest" vector.
+    /// Return length (non-zero) as a result iff the field's value exists, or 0.
+    pub fn read(&self, document_id: &[u8], field: &Field, dest: &mut Vec<u8>) -> usize {
+        let maybe_offsets = self.index.get(document_id);
+        if maybe_offsets == None {
+            return 0;
         }
 
+        let maybe_offset = maybe_offsets.unwrap().get(field.id() as usize).copied();
+        if maybe_offset == None || maybe_offset.unwrap() == usize::MAX {
+            return 0;
+        }
+
+        let offset = maybe_offset.unwrap();
+        let value_len;
+
         let value = match field.value_len() {
-            Some(value_len) => {
-                // static size
+            Some(fixed_value_len) => {
+                // fixed size
+                value_len = fixed_value_len;
                 &self.mmap[offset..offset + value_len]
             }
             None => {
                 // dynamic size
-                let value_len = &self.mmap[offset..offset + 4];
-                let value_len = u32::from_le_bytes(
-                    value_len
+                let value_len_bytes = &self.mmap[offset..offset + 4];
+                value_len = u32::from_le_bytes(
+                    value_len_bytes
                         .try_into()
                         .expect("persisted value_len must be 4 bytes in length"),
                 ) as usize;
@@ -151,10 +160,11 @@ impl CKVIndexSegment {
             }
         };
 
-        // deep copy result into vector
-        let mut result = vec![0 as u8; value.len()];
-        result[..].copy_from_slice(&value);
-        Some(result)
+        // append value bytes to destination
+        // this can resize the vector
+        dest.extend_from_slice(&value);
+
+        return value_len;
     }
 
     // See: https://stackoverflow.com/questions/28516996/how-to-create-and-write-to-memory-mapped-files
