@@ -172,7 +172,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
             // assert on returned values
             for (int j = 0; j < bytesKeys.size(); j++) {
-                byte[] key = bytesKeys.get(i);
+                byte[] key = bytesKeys.get(j);
                 byte[] expectedValue = _sourceOfTruth.get(new KeyValuesGenerator.BytesKey(key));
                 byte[] returnedValue = returnedValues.get(j);
 
