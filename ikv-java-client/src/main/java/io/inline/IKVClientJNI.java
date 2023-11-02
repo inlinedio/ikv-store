@@ -1,12 +1,13 @@
 package io.inline;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 public final class IKVClientJNI {
+    // System.load("/home/ubuntu/inlineio/ikv/target/release/libikv.so");
+    // System.load("/Users/pushkar/projects/inlineio/ikv/target/debug/libikv.dylib");
     static {
-        System.load("/Users/pushkar/projects/inlineio/ikv/target/debug/libikv.dylib");
+        System.load("/home/ubuntu/inlineio/ikv/target/release/libikv.so");
     }
 
     /** For simple testing. */

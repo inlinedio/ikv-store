@@ -1,35 +1,55 @@
 package io.inline.benchmarks;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import io.inline.IKVClient;
-import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.JedisCluster;
 
 import javax.annotation.Nullable;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
+    // Usage:
+    // java -Xms10g -Xmx10g -cp ikv-java-client-redis-single.jar io.inline.benchmarks.IKVLatencyBenchmarkWorkflow "num_entries:10000,batch_size:100"
+    public static void main(String[] args) {
+        // arg parsing
+        String paramString = "num_entries:100000,batch_size:100";  // default
+        if (args.length > 0) {
+            paramString = args[0];
+        }
+        BenchmarkParams benchmarkParams = new BenchmarkParams(paramString);
+
+        IKVLatencyBenchmarkWorkflow workflow = new IKVLatencyBenchmarkWorkflow(benchmarkParams);
+        workflow.connect();
+        Histogram histogram = new Histogram("IKVBenchmarks", 100000);
+        workflow.initializeWithWrites(histogram);
+        workflow.benchmarkBatchGet(histogram);
+        workflow.shutdown();
+
+        System.out.println(histogram);
+        System.exit(0);
+    }
+
     private final IKVClient _ikvClient;
 
     private final KeyValuesGenerator _keyValuesGenerator;
-    private final HashMap<String, byte[]> _sourceOfTruth;
+    private final ConcurrentHashMap<KeyValuesGenerator.BytesKey, byte[]> _sourceOfTruth;
 
     // parameters
     private final int _numEntries;
     private final int _batchSize;
 
     public IKVLatencyBenchmarkWorkflow(BenchmarkParams params) {
-        _ikvClient = IKVClient.create_new("/tmp/basic", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
+        // IKVClient.create_new("/tmp/benchmark", "/home/ubuntu/inlineio/ikv/src/schema/sample.yaml");
+        // IKVClient.create_new("/tmp/benchmark", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
+        _ikvClient = IKVClient.create_new("/tmp/benchmark", "/home/ubuntu/inlineio/ikv/src/schema/sample.yaml");
 
         _numEntries = params.getIntegerParameter("num_entries").get();
         _batchSize = params.getIntegerParameter("batch_size").get();
 
         _keyValuesGenerator = new KeyValuesGenerator(_numEntries);
-        _sourceOfTruth = Maps.newHashMapWithExpectedSize(_numEntries);
+        _sourceOfTruth = new ConcurrentHashMap<>(_numEntries);
     }
 
     @Override
@@ -40,9 +60,9 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     @Override
     public void initializeWithWrites(Histogram unused) {
         for (int i = 0; i < _numEntries; i++) {
-            String key = _keyValuesGenerator.getKey(i);
-            byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-            byte[] valueBytes = _keyValuesGenerator.getValueBytes(350);
+            KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(i);
+            byte[] keyBytes = key.getInnerBytes();
+            byte[] valueBytes = _keyValuesGenerator.getValueBytes(350, i);
 
             // Write to Inline KV
             _ikvClient.upsertFieldValue(keyBytes, valueBytes, "profile");
@@ -63,8 +83,8 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
     private void benchmarkSingleGetImpl(@Nullable Histogram histogram) {
         for (int i = 0; i < _numEntries; i++) {
-            String key = _keyValuesGenerator.getKey(i);
-            byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+            KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(i);
+            byte[] keyBytes = key.getInnerBytes();
             byte[] valueBytes = _sourceOfTruth.get(key);
 
             // IKV lookup
@@ -96,9 +116,8 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         while (i < _numEntries) {
             int startEntry = i;
             int endEntry = Math.min(i + _batchSize, _numEntries);
-            List<String> stringKeys = _keyValuesGenerator.getKeyBatch(startEntry, endEntry).stream().toList();
-            List<byte[]> bytesKeys = stringKeys.stream().map(s -> s.getBytes(StandardCharsets.UTF_8)).toList();
-            List<byte[]> bytesValues = stringKeys.stream().map(_sourceOfTruth::get).toList();
+            List<byte[]> bytesKeys = _keyValuesGenerator.getKeyBatch(startEntry, endEntry).stream()
+                    .map(KeyValuesGenerator.BytesKey::getInnerBytes).toList();
 
             Instant start = Instant.now();
             List<byte[]> returnedValues = _ikvClient.getBatchBytesFieldValue(bytesKeys, "profile");
@@ -110,8 +129,12 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
             }
 
             // assert on returned values
-            for (int j = 0; j < bytesValues.size(); j++) {
-                boolean isSame = Arrays.equals(bytesValues.get(j), returnedValues.get(j));
+            for (int j = 0; j < bytesKeys.size(); j++) {
+                byte[] key = bytesKeys.get(i);
+                byte[] expectedValue = _sourceOfTruth.get(new KeyValuesGenerator.BytesKey(key));
+                byte[] returnedValue = returnedValues.get(j);
+
+                boolean isSame = Arrays.equals(expectedValue, returnedValue);
                 Preconditions.checkArgument(isSame);
             }
 
