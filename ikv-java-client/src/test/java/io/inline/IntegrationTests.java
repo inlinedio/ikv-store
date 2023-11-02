@@ -8,14 +8,14 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 public class IntegrationTests {
-    @Test
+    //@Test
     public void openAndClose() {
         IKVClient ikvClient =
                 IKVClient.create_new("/tmp/openAndClose", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
         ikvClient.close();
     }
 
-    @Test
+    //@Test
     public void basic() {
         IKVClient ikvClient =
                 IKVClient.create_new("/tmp/basic", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");

@@ -21,7 +21,7 @@ public class Histogram {
     @Override
     public String toString() {
         if (_data.size() == 0) {
-            return String.format("[BenchmarkHistogram] %s no-entries", _name);
+            return String.format("[BenchmarkHistogram] %s no-samples", _name);
         }
 
         ArrayList<Long> sortedEntries = new ArrayList<>(_data);
@@ -38,7 +38,7 @@ public class Histogram {
         double pMax = sortedEntries.get((int) numEntries - 1);
 
         return String.format(
-                "[BenchmarkHistogram] %s num-entries: %d, avg: %.2f, p50: %.2f, p90: %.2f, p99: %.2f, pMax: %.2f",
+                "[BenchmarkHistogram] %s num-samples: %d, avg: %.2f, p50: %.2f, p90: %.2f, p99: %.2f, pMax: %.2f",
                 _name,
                 _data.size(),
                 average,
