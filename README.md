@@ -27,7 +27,7 @@ Latency measurements - we track latency at various percentiles to measure delay 
 3. Batch: return values for the specified batch of keys
    
 #### Results - 
-| Type   | Parameters                      | Latency                                                       |
+| Type   | Parameters                      | Latency (micro-seconds)                                       |
 |--------|---------------------------------|---------------------------------------------------------------|
 | SINGLE | num_samples:1000                | avg: 1.33, p50: 1.00, p90: 3.00, p99: 4.00, pMax: 9.00        |
 | BATCH  | num_samples:1000,batch_size:10  | avg: 7.65, p50: 7.00, p90: 10.00, p99: 27.00, pMax: 136.00    |
