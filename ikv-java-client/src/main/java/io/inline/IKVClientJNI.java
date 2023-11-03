@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class IKVClientJNI {
     // System.load("/home/ubuntu/inlineio/ikv/target/release/libikv.so");
-    // System.load("/Users/pushkar/projects/inlineio/ikv/target/debug/libikv.dylib");
+    // System.load("/Users/pushkar/projects/inlineio/ikv/target/release/libikv.dylib");
     static {
         System.load("/home/ubuntu/inlineio/ikv/target/release/libikv.so");
     }
