@@ -29,10 +29,10 @@ Latency measurements - we track latency at various percentiles to measure delay 
 #### Results - 
 | Type   | Parameters                      | Latency (micro-seconds)                                       |
 |--------|---------------------------------|---------------------------------------------------------------|
-| SINGLE | num_samples:1000                | avg: 1.33, p50: 1.00, p90: 3.00, p99: 4.00, pMax: 9.00        |
-| BATCH  | num_samples:1000,batch_size:10  | avg: 7.65, p50: 7.00, p90: 10.00, p99: 27.00, pMax: 136.00    |
-|        | num_samples:1000,batch_size:50  | avg: 53.26, p50: 45.00, p90: 62.00, p99: 79.00, pMax: 5234.00 |
-|        | num_samples:1000,batch_size:100 | avg: 76.05, p50: 73.00, p90: 89.00, p99: 108.00, pMax: 130.00 |
+| SINGLE | num_samples:1000                | avg: 1.33, p50: 1.00, p90: 3.00, p99: 4.00                    |
+| BATCH  | num_samples:1000,batch_size:10  | avg: 7.65, p50: 7.00, p90: 10.00, p99: 27.00                  |
+|        | num_samples:1000,batch_size:50  | avg: 53.26, p50: 45.00, p90: 62.00, p99: 79.00                |
+|        | num_samples:1000,batch_size:100 | avg: 76.05, p50: 73.00, p90: 89.00, p99: 108.00               |
 
 
 
