@@ -2,7 +2,7 @@
 Inline I/O is an **embedded database platform**, which enabled data reads in less than 100 microseconds over large datasets.
 The platform does not require any network calls (aka RPCs) and store the entire dataset in memory (with option to spill to disk).
 
-While provinding an embedded database, the following features are provided (equivalent to a remote "database as a service") - 
+While providing an embedded database, the following functionality is provided (critical for enterprise use) - 
 1. Horizontal scalability (replicas and sharding) to scale for traffic and data size.
 2. Data persistence, backup and geo-replication (write once, read everywhere semantics)
 3. Bulk loading of data and bootstrap of new instances
@@ -17,17 +17,16 @@ Written in Rust, client libraries are available in Java and Python.
 We measure read **latency** from a Java client's point of view, while accessing InlineKV.
 Latency measurements - we track latency at various percentiles to measure delay in execution time that client's can expect to see.
 
-Benchmarking environment - 
+#### Benchmarking environment - 
 1. Single threaded client JVM instance using InlineKV's Java client (see /ikv-java-client)
 2. Hardware - AWS r5.xlarge instance (4 vcpu, 32GB).
 
-Parameters - 
+#### Parameters - 
 1. We use byte arrays as the format for key and value. Key is ~ 10 bytes in size, Value is 350 bytes.
 2. Single: i.e. return value for a single key
 3. Batch: return values for the specified batch of keys
    
-
-Results - 
+#### Results - 
 | Type   | Parameters                      | Latency                                                       |
 |--------|---------------------------------|---------------------------------------------------------------|
 | SINGLE | num_samples:1000                | avg: 1.33, p50: 1.00, p90: 3.00, p99: 4.00, pMax: 9.00        |
