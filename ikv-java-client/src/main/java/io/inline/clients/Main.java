@@ -1,4 +1,4 @@
-package io.inline;
+package io.inline.clients;
 
 public class Main {
     public static void main(String[] args) {

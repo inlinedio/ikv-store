@@ -1,4 +1,4 @@
-package io.inline;
+package io.inline.clients;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -7,20 +7,20 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public final class IKVClient {
+public final class LegacyIKVClient {
     private final long _indexHandle;
 
-    public static IKVClient create_new(String mountPath, String schemaFilePath) {
+    public static LegacyIKVClient create_new(String mountPath, String schemaFilePath) {
         long indexHandle = IKVClientJNI.createNew(mountPath, schemaFilePath);
-        return new IKVClient(indexHandle);
+        return new LegacyIKVClient(indexHandle);
     }
 
-    public static IKVClient open(String mountPath) {
+    public static LegacyIKVClient open(String mountPath) {
         long indexHandle = IKVClientJNI.open(mountPath);
-        return new IKVClient(indexHandle);
+        return new LegacyIKVClient(indexHandle);
     }
 
-    private IKVClient(long indexHandle) {
+    private LegacyIKVClient(long indexHandle) {
         _indexHandle = indexHandle;
     }
 
