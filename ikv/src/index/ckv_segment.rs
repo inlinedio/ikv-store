@@ -1,3 +1,4 @@
+use core::num;
 use std::{
     collections::HashMap,
     fs::{File, OpenOptions},
@@ -14,6 +15,7 @@ const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
 pub struct CKVIndexSegment {
     // hash-table index, document_id bytes -> vector of offsets
     // offsets point into the memory map
+    // TODO: use BufWriters here.
     index_file: File,
     index: HashMap<Vec<u8>, Vec<usize>>,
 
@@ -126,6 +128,10 @@ impl CKVIndexSegment {
         })
     }
 
+    pub fn close(&self) {
+        todo!()
+    }
+
     /// Read bytes for a given key and field, and append to "dest" vector.
     /// Return length (non-zero) as a result iff the field's value exists, or 0.
     pub fn read(&self, document_id: &[u8], field: &Field, dest: &mut Vec<u8>) -> usize {
@@ -200,10 +206,140 @@ impl CKVIndexSegment {
         Ok(())
     }
 
-    /// Upsert value (bytes) for a given key.
-    pub fn upsert(
+    /// Index file format:
+    /// Upsert: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][field_value][...][...][...]
+    /// Deleted Field (field value is u64::MAX): [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id as u16][usize::MAX][...][...][...]
+    /// Deleted Document: [primary_key_value_len as u16][primary_key_value][num_fields as u16 = u16::MAX]
+
+    /// Upsert field values for a document.
+    pub fn upsert_field_values(
         &mut self,
-        document_id: &[u8],
+        primary_key: &[u8],
+        fields: Vec<&Field>,
+        field_values: Vec<&[u8]>,
+    ) -> io::Result<()> {
+        let mut total_num_bytes: usize = 0;
+        for i in 0..fields.len() {
+            let field = fields[i];
+            let field_value = field_values[i];
+            if let Some(fixed_size) = field.value_len() {
+                total_num_bytes += fixed_size;
+            } else {
+                total_num_bytes += 4 + field_value.len();
+            }
+        }
+
+        // mmap instantiation
+        self.expand_mmap_if_required(self.write_offset, total_num_bytes)?;
+        let mut mmap = self.mmap.deref_mut();
+
+        let offsets = self.index.entry(primary_key.to_vec()).or_default();
+
+        // Index file format
+        // Upsert: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][field_value][...][...][...]
+        self.index_file
+            .write(&(primary_key.len() as u16).to_le_bytes())?;
+        self.index_file.write(&primary_key)?;
+        self.index_file
+            .write(&(fields.len() as u16).to_le_bytes())?;
+
+        for i in 0..fields.len() {
+            let field = fields[i];
+            let field_id = field.id() as usize;
+            let field_value = field_values[i];
+
+            let write_offset = self.write_offset;
+
+            // write to mmap
+            let num_bytes = if let Some(fixed_size) = field.value_len() {
+                mmap[write_offset..write_offset + fixed_size].copy_from_slice(field_value);
+
+                fixed_size
+            } else {
+                let value_len = (field_value.len() as u32).to_le_bytes();
+                mmap[write_offset..write_offset + 4].copy_from_slice(&value_len[..]);
+                mmap[write_offset + 4..write_offset + 4 + field_value.len()]
+                    .copy_from_slice(field_value);
+
+                4 + field_value.len()
+            };
+
+            // write to in-memory index
+            if field_id >= offsets.len() {
+                offsets.resize(field_id + 1, usize::MAX);
+            }
+            offsets[field_id] = write_offset;
+
+            // persisted index file
+            self.index_file.write(&(field_id as u16).to_le_bytes())?;
+            self.index_file
+                .write(&(write_offset as u64).to_le_bytes())?;
+
+            // update global offset
+            self.write_offset += num_bytes;
+        }
+        mmap.flush()?;
+
+        Ok(())
+    }
+
+    /// Delete field values for a document.
+    pub fn delete_field_values(
+        &mut self,
+        primary_key: &[u8],
+        fields: Vec<&Field>,
+    ) -> io::Result<()> {
+        if fields.len() == 0 {
+            return Ok(());
+        }
+
+        let maybe_offsets = self.index.get_mut(primary_key);
+        if maybe_offsets.is_none() {
+            return Ok(());
+        }
+        let offsets = maybe_offsets.unwrap();
+
+        for field in fields.iter() {
+            let field_id = field.id() as usize;
+            if offsets.get(field_id).is_some() {
+                offsets[field_id] = usize::MAX;
+            }
+        }
+
+        // update persisted index_file
+        // Deleted Field: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][usize::MAX][...][...][...]
+        self.index_file
+            .write(&(primary_key.len() as u16).to_le_bytes())?;
+        self.index_file.write(&primary_key)?;
+        self.index_file
+            .write(&(fields.len() as u16).to_le_bytes())?;
+        for field in fields.iter() {
+            let field_id = field.id() as u16;
+            self.index_file.write(&field_id.to_le_bytes())?;
+            self.index_file.write(&usize::MAX.to_le_bytes())?;
+        }
+
+        Ok(())
+    }
+
+    /// Delete document.
+    pub fn delete_document(&mut self, primary_key: &[u8]) -> io::Result<()> {
+        // drop entry from pkey-index
+        self.index.remove(primary_key);
+
+        // update persisted index_file
+        // Deleted Document: [primary_key_value_len as u16][primary_key_value][num_fields as u16 = u16::MAX]
+        self.index_file
+            .write(&(primary_key.len() as u16).to_le_bytes())?;
+        self.index_file.write(&primary_key)?;
+        self.index_file.write(&u16::MAX.to_le_bytes())?;
+
+        Ok(())
+    }
+
+    fn legacy_upsert(
+        &mut self,
+        primary_key: &[u8],
         field_value: &[u8],
         field: &Field,
     ) -> io::Result<()> {
@@ -245,7 +381,7 @@ impl CKVIndexSegment {
         // update offset in index
         let field_id = field.id() as usize;
 
-        let offsets = self.index.entry(document_id.to_vec()).or_default();
+        let offsets = self.index.entry(primary_key.to_vec()).or_default();
         if field_id as usize >= offsets.len() {
             offsets.resize(field_id + 1, usize::MAX);
         }
@@ -259,8 +395,8 @@ impl CKVIndexSegment {
         // [(u16) document_id-size][document_id-bytes][(u16) num-fields=2][(u16) fieldid0][(u64) offset0][fieldid1][offset1]
         // document_id
         self.index_file
-            .write(&(document_id.len() as u16).to_le_bytes())?;
-        self.index_file.write(&document_id)?;
+            .write(&(primary_key.len() as u16).to_le_bytes())?;
+        self.index_file.write(&primary_key)?;
         // num fields=1
         self.index_file.write(&1u16.to_le_bytes())?;
         // field_id

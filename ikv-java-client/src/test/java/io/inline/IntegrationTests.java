@@ -3,6 +3,7 @@ package io.inline;
 import com.google.common.collect.ImmutableList;
 import io.inline.clients.LegacyIKVClient;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -11,14 +12,14 @@ public class IntegrationTests {
     //@Test
     public void openAndClose() {
         LegacyIKVClient legacyIkvClient =
-                LegacyIKVClient.create_new("/tmp/openAndClose", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
+                LegacyIKVClient.createNew("/tmp/openAndClose", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
         legacyIkvClient.close();
     }
 
     //@Test
     public void basic() {
         LegacyIKVClient legacyIkvClient =
-                LegacyIKVClient.create_new("/tmp/basic", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
+                LegacyIKVClient.createNew("/tmp/basic", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
 
         byte[] docId1 = "document1".getBytes(StandardCharsets.UTF_8);
         byte[] firstname1 = "alice".getBytes(StandardCharsets.UTF_8);

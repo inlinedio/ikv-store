@@ -43,7 +43,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     public IKVLatencyBenchmarkWorkflow(BenchmarkParams params) {
         // IKVClient.create_new("/tmp/benchmark", "/home/ubuntu/inlineio/ikv/src/schema/sample.yaml");
         // IKVClient.create_new("/tmp/benchmark", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
-        _Legacy_ikvClient = LegacyIKVClient.create_new("/tmp/benchmark", "/home/ubuntu/inlineio/ikv/src/schema/sample.yaml");
+        _Legacy_ikvClient = LegacyIKVClient.createNew("/tmp/benchmark", "/home/ubuntu/inlineio/ikv/src/schema/sample.yaml");
 
         _numEntries = params.getIntegerParameter("num_entries").get();
         _batchSize = params.getIntegerParameter("batch_size").get();
