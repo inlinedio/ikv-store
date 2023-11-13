@@ -1,5 +1,5 @@
-use jni::objects::{AutoLocal, JByteArray, JClass, JList, JObject, JString};
-use jni::sys::{jbyteArray, jlong, jobject, jstring};
+use jni::objects::{JByteArray, JClass, JList, JObject, JObjectArray, JString};
+use jni::sys::{jbyteArray, jlong, jstring};
 use jni::JNIEnv;
 
 use crate::index::ckv::CKVIndex;
@@ -9,7 +9,7 @@ use crate::jni::utils;
 const LENGTH: [u8; 4] = [0, 0, 0, 0];
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_provideHelloWorld<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_provideHelloWorld<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
 ) -> jstring {
@@ -21,7 +21,7 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_provideHelloWorld<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_createNew<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_createNew<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     mount_path: JString<'local>,
@@ -46,7 +46,7 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_createNew<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_open<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_open<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     mount_path: JString<'local>,
@@ -60,16 +60,21 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_open<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_close<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_close<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
 ) {
+    {
+        let index = external_handle::from_external_handle(index_handle);
+        index.close();
+    }
+
     external_handle::close_external_handle(index_handle);
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_getBytesFieldValue<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_getBytesFieldValue<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
@@ -96,7 +101,7 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_getBytesFieldValue<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValueV2<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_getBatchBytesFieldValueV2<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
@@ -137,7 +142,7 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValueV2<'lo
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValue<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_getBatchBytesFieldValue<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
@@ -195,17 +200,18 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_getBatchBytesFieldValue<'loca
     utils::vec_to_jbyte_array(&env, result)
 }
 
+/// DEPRECATED.
 #[no_mangle]
-pub extern "system" fn Java_io_inline_IKVClientJNI_upsertFieldValue<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValue<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
-    document_id: JByteArray<'local>,
+    primary_key: JByteArray<'local>,
     field_value: JByteArray<'local>,
     field_name: JString<'local>,
 ) {
     let index = external_handle::from_external_handle(index_handle);
-    let document_id = utils::jbyte_array_to_vec(&env, document_id);
+    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
     let field_value = utils::jbyte_array_to_vec(&env, field_value);
     let field_name: String = env
         .get_string(&field_name)
@@ -213,6 +219,63 @@ pub extern "system" fn Java_io_inline_IKVClientJNI_upsertFieldValue<'local>(
         .into();
 
     index
-        .upsert_field_value_by_name(&document_id, &field_value, &field_name)
+        .upsert_field_values(&primary_key, vec![field_name], vec![field_value])
         .unwrap();
+}
+
+#[no_mangle]
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'local>(
+    mut env: JNIEnv<'local>,
+    class: JClass<'local>,
+    index_handle: jlong,
+    primary_key: JByteArray<'local>,
+    field_names: JObject<'local>,
+    field_values: JObject<'local>,
+) -> jni::errors::Result<()> {
+    let index = external_handle::from_external_handle(index_handle);
+    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
+    let field_names = utils::jobject_to_vec_strings(&mut env, field_names);
+    let field_values: Vec<Vec<u8>> = utils::jobject_to_vec_bytes(&mut env, field_values);
+
+    let result = index.upsert_field_values(&primary_key, field_names, field_values);
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => env.throw_new("java/lang/RuntimeException", e.to_string()),
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteFieldValues<'local>(
+    mut env: JNIEnv<'local>,
+    class: JClass<'local>,
+    index_handle: jlong,
+    primary_key: JByteArray<'local>,
+    field_names: JObject<'local>,
+) -> jni::errors::Result<()> {
+    let index = external_handle::from_external_handle(index_handle);
+    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
+    let field_names = utils::jobject_to_vec_strings(&mut env, field_names);
+
+    let result = index.delete_field_values(&primary_key, field_names);
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => env.throw_new("java/lang/RuntimeException", e.to_string()),
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteDocument<'local>(
+    mut env: JNIEnv<'local>,
+    class: JClass<'local>,
+    index_handle: jlong,
+    primary_key: JByteArray<'local>,
+) -> jni::errors::Result<()> {
+    let index = external_handle::from_external_handle(index_handle);
+    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
+
+    let result = index.delete_document(&primary_key);
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => env.throw_new("java/lang/RuntimeException", e.to_string()),
+    }
 }

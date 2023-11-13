@@ -74,7 +74,9 @@ impl CKVIndex {
     }
 
     pub fn close(&self) {
-        // no op for now
+        for segment in self.segments.iter() {
+            segment.read().unwrap().close();
+        }
     }
 
     /// Fetch by field name
@@ -124,75 +126,88 @@ impl CKVIndex {
         primary_key_index.read(&document_id, field, dest)
     }
 
-    pub fn upsert_field_value_by_name(
+    /// Write APIs
+    /// 1. upsert multiple fields for a document
+    /// 2. delete multiple fields for a document
+    /// 3. delete a document
+    /// Batch APIs ie above for multiple documents - todo
+
+    pub fn upsert_field_values(
         &self,
-        document_id: &[u8],
-        field_value: &[u8],
-        field_name: &str,
+        primary_key: &[u8],
+        field_names: Vec<String>,
+        field_values: Vec<Vec<u8>>,
     ) -> io::Result<()> {
-        let field = self.fieldname_field_table.get(field_name);
-        if field.is_none() {
-            return Err(Error::new(
-                std::io::ErrorKind::InvalidData,
-                "invalid field name",
-            ));
+        if primary_key.len() == 0 {
+            return Ok(());
         }
 
-        self.upsert_field_value(document_id, field_value, field.unwrap())
-    }
-
-    pub fn upsert_field_value_by_id(
-        &self,
-        document_id: &[u8],
-        field_value: &[u8],
-        field_id: u16,
-    ) -> io::Result<()> {
-        let field = self.fieldid_field_table.get(field_id as usize);
-        if field.is_none() {
-            return Err(Error::new(
-                std::io::ErrorKind::InvalidData,
-                "invalid field id",
-            ));
-        }
-
-        self.upsert_field_value(document_id, field_value, field.unwrap())
-    }
-
-    fn upsert_field_value(
-        &self,
-        document_id: &[u8],
-        field_value: &[u8],
-        field: &Field,
-    ) -> io::Result<()> {
-        if document_id.len() == 0 {
-            return Err(Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "empty document_id not allowed",
-            ));
-        }
-        if document_id.len() > u16::MAX as usize {
+        if primary_key.len() > u16::MAX as usize {
             return Err(Error::new(
                 std::io::ErrorKind::Unsupported,
-                "document_id larger than 64KB is unsupported",
+                "primary_key larger than 64KB is unsupported",
             ));
         }
 
-        if field_value.len() == 0 {
+        if field_names.len() != field_values.len() {
             return Err(Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "empty field_value not allowed",
-            ));
-        }
-        if field_value.len() > u32::MAX as usize {
-            return Err(Error::new(
-                std::io::ErrorKind::Unsupported,
-                "value larger than 4GB is unsupported",
+                std::io::ErrorKind::InvalidData,
+                "field name and value lengths mismatch",
             ));
         }
 
-        let index_id = fxhash::hash(document_id) % NUM_SEGMENTS;
-        let mut primary_key_index = self.segments[index_id].write().unwrap();
-        primary_key_index.upsert(document_id, field_value, field)
+        // filter out unknown fields
+        let mut final_fields = Vec::with_capacity(field_names.len());
+        let mut final_field_values = Vec::with_capacity(field_values.len());
+        for i in 0..field_names.len() {
+            if let Some(field) = self.fieldname_field_table.get(&field_names[i]) {
+                final_fields.push(field);
+                final_field_values.push(field_values[i].as_slice());
+            }
+        }
+
+        if final_fields.len() == 0 {
+            return Ok(());
+        }
+
+        let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
+        let mut ckv_index_segment = self.segments[index_id].write().unwrap();
+        ckv_index_segment.upsert_field_values(primary_key, final_fields, final_field_values)
+    }
+
+    pub fn delete_field_values(
+        &self,
+        primary_key: &[u8],
+        field_names: Vec<String>,
+    ) -> io::Result<()> {
+        if primary_key.len() == 0 {
+            return Ok(());
+        }
+
+        let mut final_fields = Vec::with_capacity(field_names.len());
+        for i in 0..field_names.len() {
+            if let Some(field) = self.fieldname_field_table.get(&field_names[i]) {
+                final_fields.push(field);
+            }
+        }
+
+        if final_fields.len() == 0 {
+            return Ok(());
+        }
+
+        let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
+        let mut ckv_index_segment = self.segments[index_id].write().unwrap();
+        ckv_index_segment.delete_field_values(primary_key, final_fields)
+    }
+
+    pub fn delete_document(&self, primary_key: &[u8]) -> io::Result<()> {
+        if primary_key.len() == 0 {
+            return Ok(());
+        }
+
+        let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
+        let mut ckv_index_segment = self.segments[index_id].write().unwrap();
+        ckv_index_segment.delete_document(primary_key)
     }
 }
 

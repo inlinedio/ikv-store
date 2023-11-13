@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 fxhash = "0.2.1"
 jni = "0.21.1"
+kafka = "0.10.0"
 memmap2 = "0.9.0"
 yaml-rust = "0.4.5"
 

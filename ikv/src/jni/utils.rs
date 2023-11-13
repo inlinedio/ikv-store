@@ -1,4 +1,4 @@
-use jni::objects::JByteArray;
+use jni::objects::{JByteArray, JList, JObject, JObjectArray, JString};
 use jni::sys::jbyteArray;
 use jni::JNIEnv;
 
@@ -14,6 +14,56 @@ pub fn vec_to_jbyte_array<'local>(env: &JNIEnv<'local>, bytes: Vec<u8>) -> jbyte
     let bytes = vec_u8_into_i8(bytes);
     env.set_byte_array_region(&result, 0, &bytes).unwrap();
     result.into_raw()
+}
+
+pub fn jobject_to_vec_strings<'local>(
+    env: &mut JNIEnv<'local>,
+    input: JObject<'local>,
+) -> Vec<String> {
+    let mut results = Vec::new();
+    let jlist = JList::from_env(env, &input).unwrap();
+    let mut iterator = jlist.iter(env).unwrap();
+    while let Some(obj) = iterator.next(env).unwrap() {
+        /*
+           Each call to next creates a new local reference.
+           To prevent excessive memory usage or overflow error,
+           the local reference should be deleted using JNIEnv::delete_local_ref or JNIEnv::auto_local
+           before the next loop iteration. Alternatively,
+           if the list is known to have a small, predictable size,
+           the loop could be wrapped in JNIEnv::with_local_frame to delete all
+           of the local references at once.
+        */
+        let jstring: JString = obj.into();
+        let string = env.get_string(&jstring).unwrap().into();
+        results.push(string);
+    }
+
+    results
+}
+
+pub fn jobject_to_vec_bytes<'local>(
+    env: &mut JNIEnv<'local>,
+    input: JObject<'local>,
+) -> Vec<Vec<u8>> {
+    let mut results = Vec::new();
+    let jlist = JList::from_env(env, &input).unwrap();
+    let mut iterator = jlist.iter(env).unwrap();
+    while let Some(obj) = iterator.next(env).unwrap() {
+        /*
+           Each call to next creates a new local reference.
+           To prevent excessive memory usage or overflow error,
+           the local reference should be deleted using JNIEnv::delete_local_ref or JNIEnv::auto_local
+           before the next loop iteration. Alternatively,
+           if the list is known to have a small, predictable size,
+           the loop could be wrapped in JNIEnv::with_local_frame to delete all
+           of the local references at once.
+        */
+        let jbytearray: JByteArray = obj.into();
+        let vec_bytes = env.convert_byte_array(jbytearray).unwrap();
+        results.push(vec_bytes);
+    }
+
+    results
 }
 
 /// https://stackoverflow.com/questions/59707349/cast-vector-of-i8-to-vector-of-u8-in-rust

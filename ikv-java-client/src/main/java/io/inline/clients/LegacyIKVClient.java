@@ -10,7 +10,7 @@ import java.util.List;
 public final class LegacyIKVClient {
     private final long _indexHandle;
 
-    public static LegacyIKVClient create_new(String mountPath, String schemaFilePath) {
+    public static LegacyIKVClient createNew(String mountPath, String schemaFilePath) {
         long indexHandle = IKVClientJNI.createNew(mountPath, schemaFilePath);
         return new LegacyIKVClient(indexHandle);
     }
