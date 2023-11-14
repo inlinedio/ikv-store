@@ -151,7 +151,7 @@ impl CKVIndexSegment {
     }
 
     pub fn close(&self) {
-        todo!()
+        // no op
     }
 
     /// Read bytes for a given key and field, and append to "dest" vector.
