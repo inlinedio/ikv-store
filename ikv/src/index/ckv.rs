@@ -15,9 +15,6 @@ pub struct CKVIndex {
     // hash(key) -> PrimaryKeyIndex
     segments: Vec<RwLock<CKVIndexSegment>>,
 
-    // field-id -> Field
-    fieldid_field_table: Vec<Field>,
-
     // field-name -> Field
     fieldname_field_table: HashMap<String, Field>,
 }
@@ -45,7 +42,6 @@ impl CKVIndex {
 
         Ok(Self {
             segments,
-            fieldid_field_table,
             fieldname_field_table,
         })
     }
@@ -68,7 +64,6 @@ impl CKVIndex {
 
         Ok(Self {
             segments,
-            fieldid_field_table,
             fieldname_field_table,
         })
     }
@@ -99,12 +94,6 @@ impl CKVIndex {
         }
 
         self.append_field_value(document_id, maybe_field.unwrap(), dest)
-    }
-
-    /// Fetch by field-id
-    pub fn get_field_value_by_id(&self, document_id: &[u8], field_id: u16) -> Option<Vec<u8>> {
-        let field = self.fieldid_field_table.get(field_id as usize)?;
-        self.get_field_value(document_id, field)
     }
 
     fn get_field_value(&self, document_id: &[u8], field: &Field) -> Option<Vec<u8>> {
