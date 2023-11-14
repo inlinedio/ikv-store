@@ -200,29 +200,6 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_getBatchBytesFieldVal
     utils::vec_to_jbyte_array(&env, result)
 }
 
-/// DEPRECATED.
-#[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValue<'local>(
-    mut env: JNIEnv<'local>,
-    class: JClass<'local>,
-    index_handle: jlong,
-    primary_key: JByteArray<'local>,
-    field_value: JByteArray<'local>,
-    field_name: JString<'local>,
-) {
-    let index = external_handle::from_external_handle(index_handle);
-    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
-    let field_value = utils::jbyte_array_to_vec(&env, field_value);
-    let field_name: String = env
-        .get_string(&field_name)
-        .expect("Couldn't get field_name")
-        .into();
-
-    index
-        .upsert_field_values(&primary_key, vec![field_name], vec![field_value])
-        .unwrap();
-}
-
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'local>(
     mut env: JNIEnv<'local>,
