@@ -1,4 +1,3 @@
-use core::num;
 use std::{
     collections::HashMap,
     fs::{File, OpenOptions},
@@ -69,14 +68,22 @@ impl CKVIndexSegment {
             .open(filename)?;
         let mut index = HashMap::new();
 
+        // TODO: index file format has changed!
+
         // Recreate the hashmap
         // Entry format
         // [(u16) document_id-size][document_id-bytes][(u16) num-fields=2][(u16) fieldid0][(u64) offset0][fieldid1][offset1]
+
+        // Index file format:
+        // Upsert:           [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][u64 offset][...][...][...]
+        // Deleted Field:    [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][u64::MAX][...][...][...]
+        // Deleted Document: [primary_key_value_len as u16][primary_key_value][num_fields as u16 = u16::MAX]
+
         loop {
-            let document_id_size;
+            let primary_key_size;
             let mut buffer = vec![0 as u8; 2];
             match index_file.read_exact(&mut buffer) {
-                Ok(_) => document_id_size = u16::from_le_bytes(buffer.try_into().unwrap()),
+                Ok(_) => primary_key_size = u16::from_le_bytes(buffer.try_into().unwrap()),
                 Err(e) => {
                     match e.kind() {
                         ErrorKind::UnexpectedEof => {
@@ -88,20 +95,35 @@ impl CKVIndexSegment {
                 }
             }
 
-            let mut document_id = vec![0 as u8; document_id_size as usize];
-            index_file.read_exact(&mut document_id)?;
+            let mut primary_key = vec![0 as u8; primary_key_size as usize];
+            index_file.read_exact(&mut primary_key)?;
 
             let num_fields = read_u16_from_file(&mut index_file);
+
+            if num_fields == u16::MAX {
+                // document was deleted.
+                index.remove(&primary_key);
+                continue;
+            }
+
+            // field upserts or field deletes
             for _ in 0..num_fields {
                 let field_id = read_u16_from_file(&mut index_file) as usize;
-                let offset = read_u64_from_file(&mut index_file) as usize;
+                let offset = read_u64_from_file(&mut index_file);
 
                 // update index
-                let offsets: &mut Vec<usize> = index.entry(document_id.to_vec()).or_default();
+                let offsets: &mut Vec<usize> = index.entry(primary_key.to_vec()).or_default();
                 if field_id as usize >= offsets.len() {
                     offsets.resize(field_id + 1, usize::MAX);
                 }
-                offsets[field_id] = offset;
+
+                if offset == u64::MAX {
+                    // deleted field value
+                    offsets[field_id] = usize::MAX;
+                } else {
+                    // non-empty field value
+                    offsets[field_id] = offset as usize;
+                }
             }
         }
 
@@ -207,8 +229,8 @@ impl CKVIndexSegment {
     }
 
     /// Index file format:
-    /// Upsert: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][field_value][...][...][...]
-    /// Deleted Field (field value is u64::MAX): [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id as u16][usize::MAX][...][...][...]
+    /// Upsert: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][u64 offset]][...][...][...]
+    /// Deleted Field (field value is u64::MAX): [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id as u16][u64::MAX][...][...][...]
     /// Deleted Document: [primary_key_value_len as u16][primary_key_value][num_fields as u16 = u16::MAX]
 
     /// Upsert field values for a document.
@@ -236,7 +258,7 @@ impl CKVIndexSegment {
         let offsets = self.index.entry(primary_key.to_vec()).or_default();
 
         // Index file format
-        // Upsert: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][field_value][...][...][...]
+        // Upsert: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][u64 offset][...][...][...]
         self.index_file
             .write(&(primary_key.len() as u16).to_le_bytes())?;
         self.index_file.write(&primary_key)?;
@@ -307,7 +329,7 @@ impl CKVIndexSegment {
         }
 
         // update persisted index_file
-        // Deleted Field: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][usize::MAX][...][...][...]
+        // Deleted Field: [primary_key_value_len as u16][primary_key_value][num_fields as u16][field_id][u64::MAX][...][...][...]
         self.index_file
             .write(&(primary_key.len() as u16).to_le_bytes())?;
         self.index_file.write(&primary_key)?;
@@ -316,7 +338,7 @@ impl CKVIndexSegment {
         for field in fields.iter() {
             let field_id = field.id() as u16;
             self.index_file.write(&field_id.to_le_bytes())?;
-            self.index_file.write(&usize::MAX.to_le_bytes())?;
+            self.index_file.write(&u64::MAX.to_le_bytes())?;
         }
 
         Ok(())
