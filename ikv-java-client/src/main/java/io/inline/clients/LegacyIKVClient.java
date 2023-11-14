@@ -29,7 +29,8 @@ public final class LegacyIKVClient {
     }
 
     public void upsertFieldValue(byte[] documentId, byte[] fieldValue, String fieldName) {
-        IKVClientJNI.upsertFieldValue(_indexHandle, documentId, fieldValue, fieldName);
+        IKVClientJNI.upsertFieldValues(_indexHandle, documentId, Collections.singletonList(fieldName),
+                Collections.singletonList(fieldValue));
     }
 
     @Nullable
