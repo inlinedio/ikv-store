@@ -21,12 +21,11 @@ public final class IKVClientJNI {
     public static native void close(long indexHandle);
 
     @Nullable
-    static native byte[] getBytesFieldValue(long indexHandle, byte[] documentId, String fieldName);
-    @Nullable
-    static native byte[] getBatchBytesFieldValue(long indexHandle, byte[] documentIds, String fieldName);
+    static native byte[] readField(long indexHandle, byte[] primaryKey, String fieldName);
+    static native byte[] readFields(long indexHandle, byte[] primaryKey, List<String> fieldNames);
 
-    // WAS QUITE SLOW. AVOID.
-    static native void getBatchBytesFieldValueV2(long indexHandle, List<byte[]> documentIds, String fieldName, List<byte[]> results);
+    static native byte[] batchReadField(long indexHandle, byte[] sizePrefixedPrimaryKeys, String fieldNames);
+    static native byte[] batchReadFields(long indexHandle, byte[] sizePrefixedPrimaryKeys, List<String> fieldNames);
 
     static native void upsertFieldValues(long indexHandle, byte[] primaryKey, List<String> fieldNames, List<byte[]> fieldValues) throws RuntimeException;
 

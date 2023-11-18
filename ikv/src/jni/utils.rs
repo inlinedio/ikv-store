@@ -16,7 +16,8 @@ pub fn vec_to_jbyte_array<'local>(env: &JNIEnv<'local>, bytes: Vec<u8>) -> jbyte
     result.into_raw()
 }
 
-pub fn jobject_to_vec_strings<'local>(
+/// List<byte[]> to Vec<Vec<String>>
+pub fn jlist_to_vec_strings<'local>(
     env: &mut JNIEnv<'local>,
     input: JObject<'local>,
 ) -> Vec<String> {
@@ -41,7 +42,8 @@ pub fn jobject_to_vec_strings<'local>(
     results
 }
 
-pub fn jobject_to_vec_bytes<'local>(
+/// List<byte[]> to Vec<Vec<u8>>
+pub fn jlist_to_vec_bytes<'local>(
     env: &mut JNIEnv<'local>,
     input: JObject<'local>,
 ) -> Vec<Vec<u8>> {
@@ -64,6 +66,39 @@ pub fn jobject_to_vec_bytes<'local>(
     }
 
     results
+}
+
+/// Size prefixed concatenated byte[] to Vec<Vec<u8>>
+pub fn jbytearray_to_vec_bytes<'local>(
+    env: &mut JNIEnv<'local>,
+    input: JByteArray<'local>,
+) -> Vec<Vec<u8>> {
+    let input = jbyte_array_to_vec(&env, input);
+    if input.len() == 0 {
+        return vec![];
+    }
+
+    let mut result = Vec::new();
+
+    let mut i = 0;
+    while i < input.len() {
+        let size_prefix: [u8; 4] = input[i..i + 4]
+            .try_into()
+            .expect("size prefix must be 4 bytes wide");
+        let size_prefix = i32::from_le_bytes(size_prefix) as usize;
+        if size_prefix == 0 {
+            // filter out empty inner bytes
+            i = i + 4;
+            continue;
+        }
+
+        let inner_input_slice = &input[i + 4..i + 4 + size_prefix];
+        result.push(inner_input_slice.to_vec());
+
+        i = i + 4 + size_prefix;
+    }
+
+    result
 }
 
 /// https://stackoverflow.com/questions/59707349/cast-vector-of-i8-to-vector-of-u8-in-rust

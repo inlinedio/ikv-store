@@ -10,6 +10,7 @@ use memmap2::MmapMut;
 use crate::schema::field::Field;
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
+const ZERO_I32: [u8; 4] = 0i32.to_le_bytes();
 
 pub struct CKVIndexSegment {
     // hash-table index, document_id bytes -> vector of offsets
@@ -154,8 +155,69 @@ impl CKVIndexSegment {
         // no op
     }
 
+    pub fn read_field(&self, primary_key: &[u8], field: &Field) -> Option<Vec<u8>> {
+        let offsets = self.index.get(primary_key)?;
+
+        let maybe_offset = offsets.get(field.id() as usize).copied();
+        if maybe_offset == None || maybe_offset.unwrap() == usize::MAX {
+            return None;
+        }
+
+        let result = self.read_from_mmap(field, maybe_offset.unwrap());
+        Some(result.to_vec())
+    }
+
+    /// Read all fields for a given primary-key and push the values at the end of `dest` vector.
+    /// Values are size/length prefixed with i32 values. Size=0 for missing values.
+    ///
+    /// Format of dest: [(size)field1][(size)field2]...[(size)fieldn]
+    pub fn read_fields(&self, primary_key: &[u8], fields: &[&Field], dest: &mut Vec<u8>) {
+        let maybe_offsets = self.index.get(primary_key);
+        if maybe_offsets.is_none() {
+            for _ in 0..fields.len() {
+                dest.extend(ZERO_I32);
+            }
+            return;
+        }
+
+        let offsets = maybe_offsets.unwrap();
+        for field in fields {
+            let maybe_offset = offsets.get(field.id() as usize).copied();
+            if maybe_offset == None || maybe_offset.unwrap() == usize::MAX {
+                dest.extend(ZERO_I32);
+                continue;
+            }
+            let value = self.read_from_mmap(field, maybe_offset.unwrap());
+
+            dest.extend((value.len() as i32).to_le_bytes());
+            dest.extend_from_slice(value);
+        }
+    }
+
+    fn read_from_mmap(&self, field: &Field, mmap_offset: usize) -> &[u8] {
+        let value = match field.value_len() {
+            Some(fixed_width) => {
+                // fixed width
+                &self.mmap[mmap_offset..mmap_offset + fixed_width]
+            }
+            None => {
+                // dynamic size
+                let value_len_bytes = &self.mmap[mmap_offset..mmap_offset + 4];
+                let value_len = u32::from_le_bytes(
+                    value_len_bytes
+                        .try_into()
+                        .expect("persisted value_len must be 4 bytes in length"),
+                ) as usize;
+                &self.mmap[mmap_offset + 4..mmap_offset + 4 + value_len]
+            }
+        };
+
+        value
+    }
+
     /// Read bytes for a given key and field, and append to "dest" vector.
     /// Return length (non-zero) as a result iff the field's value exists, or 0.
+    #[deprecated]
     pub fn read(&self, document_id: &[u8], field: &Field, dest: &mut Vec<u8>) -> usize {
         let maybe_offsets = self.index.get(document_id);
         if maybe_offsets == None {
@@ -359,6 +421,7 @@ impl CKVIndexSegment {
         Ok(())
     }
 
+    #[deprecated]
     fn legacy_upsert(
         &mut self,
         primary_key: &[u8],

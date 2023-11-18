@@ -3,9 +3,8 @@ package io.inline.clients;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public final class LegacyIKVClient {
     private final long _indexHandle;
@@ -34,58 +33,101 @@ public final class LegacyIKVClient {
     }
 
     @Nullable
-    public byte[] getBytesFieldValue(byte[] documentId, String fieldName) {
-        return IKVClientJNI.getBytesFieldValue(_indexHandle, documentId, fieldName);
+    public byte[] readBytesField(byte[] primaryKey, String fieldName) {
+        return IKVClientJNI.readField(_indexHandle, primaryKey, fieldName);
     }
 
-    public List<byte[]> getBatchBytesFieldValueV2(List<byte[]> documentIds, String fieldName) {
-        if (documentIds == null || documentIds.size() == 0) {
-            return Collections.emptyList();
+    @Nullable
+    public String readStringField(byte[] primaryKey, String fieldName) {
+        byte[] utf8Bytes = IKVClientJNI.readField(_indexHandle, primaryKey, fieldName);
+        if (utf8Bytes == null) {
+            return null;
         }
 
-        List<byte[]> results = new ArrayList<>(documentIds.size());
-        IKVClientJNI.getBatchBytesFieldValueV2(_indexHandle, documentIds, fieldName, results);
-
-        return results;
+        return new String(utf8Bytes, StandardCharsets.UTF_8);
     }
 
-    public List<byte[]> getBatchBytesFieldValue(List<byte[]> documentIds, String fieldName) {
-        if (documentIds == null || documentIds.size() == 0) {
+    @Nullable
+    public Integer readI32Field(byte[] primaryKey, String fieldName) {
+        byte[] i32Bytes = IKVClientJNI.readField(_indexHandle, primaryKey, fieldName);
+        if (i32Bytes == null) {
+            return null;
+        }
+
+        return ByteBuffer.wrap(i32Bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
+    public List<byte[]> batchReadBytesField(List<byte[]> primaryKeys, String fieldName) {
+        if (primaryKeys == null || primaryKeys.size() == 0) {
             return Collections.emptyList();
         }
 
         // Concatenate and deep copy document ids
         int len = 0;
-        for (byte[] docid : documentIds) {
-            len += 4 + docid.length;
+        for (byte[] primaryKey : primaryKeys) {
+            len += 4 + primaryKey.length;
         }
 
-        ByteBuffer bb = ByteBuffer.allocate(len);
-        bb.order(ByteOrder.LITTLE_ENDIAN);
-        for (byte[] docid : documentIds) {
-            bb.putInt(docid.length);
-            bb.put(docid);
+        ByteBuffer bb = ByteBuffer.allocate(len).order(ByteOrder.LITTLE_ENDIAN);
+        for (byte[] primaryKey : primaryKeys) {
+            bb.putInt(primaryKey.length);
+            bb.put(primaryKey);
         }
 
         // IKV lookup
-        @Nullable byte[] fieldValues =
-                IKVClientJNI.getBatchBytesFieldValue(_indexHandle, bb.array(), fieldName);
-        if (fieldValues == null || fieldValues.length == 0) {
-            return Collections.emptyList();
-        }
+        byte[] fieldValues =
+                IKVClientJNI.batchReadField(_indexHandle, bb.array(), fieldName);
 
         // explode into individual byte arrays
-        List<byte[]> result = new ArrayList<>(documentIds.size());
+        List<byte[]> values = new ArrayList<>(primaryKeys.size());
 
-        bb = ByteBuffer.wrap(fieldValues);
-        bb.order(ByteOrder.LITTLE_ENDIAN);
+        bb = ByteBuffer.wrap(fieldValues).order(ByteOrder.LITTLE_ENDIAN);
         while (bb.hasRemaining()) {
             int size = bb.getInt();
-            byte[] fieldValue = new byte[size];
-            bb.get(fieldValue, 0, size);
-            result.add(fieldValue);
+            if (size == 0) {
+                continue;
+            }
+            byte[] value = new byte[size];
+            bb.get(value);
+            values.add(value);
         }
 
-        return result;
+        return values;
     }
+
+
+
+    /**
+     * Future APIs (one key, many fields)-
+
+    public Map<String, byte[]> readBytesFields(byte[] primaryKey, List<String> fieldNames) {
+        byte[] result = IKVClientJNI.readFields(_indexHandle, primaryKey, fieldNames);
+        return unpack(result, fieldNames);
+    }
+
+    public Map<String, String> readStringFields(byte[] primaryKey, List<String> fieldNames) {
+        byte[] result = IKVClientJNI.readFields(_indexHandle, primaryKey, fieldNames);
+        Map<String, byte[]> unpacked = unpack(result, fieldNames);
+        return Maps.transformValues(unpacked, utf8Bytes -> new String(utf8Bytes, StandardCharsets.UTF_8));
+    }
+
+    private static Map<String, byte[]> unpack(byte[] ikvResult, List<String> fieldNames) {
+        Objects.requireNonNull(ikvResult);
+
+        Map<String, byte[]> results = Maps.newHashMapWithExpectedSize(fieldNames.size());
+        ByteBuffer bb = ByteBuffer.wrap(ikvResult).order(ByteOrder.LITTLE_ENDIAN);
+
+        for (String fieldName : fieldNames) {
+            int size = bb.getInt();
+            if (size == 0) {
+                continue;
+            }
+            byte[] value = new byte[size];
+            bb.get(value);
+            results.put(fieldName, value);
+        }
+
+        return results;
+    }
+     */
 }

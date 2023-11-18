@@ -1,8 +1,5 @@
 package io.inline.clients;
 
-import com.inlineio.schemas.Streaming;
-import org.apache.kafka.clients.consumer.Consumer;
-
 public class InlineKVReaderClient {
     private final long _indexHandle;
 
@@ -33,9 +30,5 @@ public class InlineKVReaderClient {
     }
 
     public void shutdown() {
-    }
-
-    public byte[] getBytesFieldValue(byte[] documentId, String fieldName) {
-        return IKVClientJNI.getBytesFieldValue(_indexHandle, documentId, fieldName);
     }
 }
