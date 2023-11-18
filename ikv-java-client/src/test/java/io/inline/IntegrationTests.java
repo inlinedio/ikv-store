@@ -9,7 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 public class IntegrationTests {
-    //@Test
+    @Test
     public void openAndClose() {
         LegacyIKVClient legacyIkvClient =
                 LegacyIKVClient.createNew("/tmp/openAndClose", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
@@ -34,29 +34,30 @@ public class IntegrationTests {
         byte[] docId4 = "document4".getBytes(StandardCharsets.UTF_8);
 
         // WRITES
+        // FAILING here!!!
         legacyIkvClient.upsertFieldValue(docId1, firstname1, "firstname");
 
-        byte[] val = legacyIkvClient.getBytesFieldValue(docId1, "firstname");
+        byte[] val = legacyIkvClient.readBytesField(docId1, "firstname");
         Assertions.assertArrayEquals(val, firstname1);
 
         legacyIkvClient.upsertFieldValue(docId2, age2, "age");
         legacyIkvClient.upsertFieldValue(docId3, profile3, "profile");
 
         // READS
-        val = legacyIkvClient.getBytesFieldValue(docId1, "firstname");
+        val = legacyIkvClient.readBytesField(docId1, "firstname");
         Assertions.assertArrayEquals(val, firstname1);
 
-        val = legacyIkvClient.getBytesFieldValue(docId2, "age");
+        val = legacyIkvClient.readBytesField(docId2, "age");
         Assertions.assertArrayEquals(val, age2);
 
-        val = legacyIkvClient.getBytesFieldValue(docId3, "profile");
+        val = legacyIkvClient.readBytesField(docId3, "profile");
         Assertions.assertArrayEquals(val, profile3);
 
         Assertions.assertNotNull(
-                legacyIkvClient.getBatchBytesFieldValue(
+                legacyIkvClient.batchReadBytesField(
                         ImmutableList.of(docId1, docId2, docId3), "firstname"));
 
-        Assertions.assertNull(legacyIkvClient.getBytesFieldValue(docId4, "firstname"));
+        Assertions.assertNull(legacyIkvClient.readBytesField(docId4, "firstname"));
 
         legacyIkvClient.close();
     }

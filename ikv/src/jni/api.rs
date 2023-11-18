@@ -1,4 +1,4 @@
-use jni::objects::{JByteArray, JClass, JList, JObject, JObjectArray, JString};
+use jni::objects::{JByteArray, JClass, JObject, JString};
 use jni::sys::{jbyteArray, jlong, jstring};
 use jni::JNIEnv;
 
@@ -74,129 +74,77 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_close<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_getBytesFieldValue<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readField<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
-    document_id: JByteArray<'local>,
+    primary_key: JByteArray<'local>,
     field_name: JString<'local>,
 ) -> jbyteArray {
-    let field_name: String = env
-        .get_string(&field_name)
-        .expect("Couldn't get field_name")
-        .into();
     let index = external_handle::from_external_handle(index_handle);
+    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
+    let field_name: String = env.get_string(&field_name).unwrap().into();
 
-    let document_id = utils::jbyte_array_to_vec(&env, document_id);
-
-    let field_value = index.get_field_value_by_name(&document_id, &field_name);
-    if field_value.is_none() {
+    let maybe_field_value = index.get_field_value(&primary_key, &field_name);
+    if maybe_field_value.is_none() {
         return JObject::null().into_raw();
     }
 
-    let field_value = field_value.unwrap();
-    // TODO - assert that field_value cannot exceed i32
-
-    utils::vec_to_jbyte_array(&env, field_value)
+    // TODO - ensure we don't upsert values larger than i32
+    utils::vec_to_jbyte_array(&env, maybe_field_value.unwrap())
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_getBatchBytesFieldValueV2<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readFields<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
-    document_ids: JObject<'local>,
-    field_name: JString<'local>,
-    results: JObject<'local>,
-) {
-    let field_name: String = env
-        .get_string(&field_name)
-        .expect("Couldn't get field_name")
-        .into();
+    primary_key: JByteArray<'local>,
+    field_names: JObject<'local>,
+) -> jbyteArray {
     let index = external_handle::from_external_handle(index_handle);
+    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
+    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
 
-    let mut results = JList::from_env(&mut env, &results).unwrap();
+    let result = index.batch_get_field_values(vec![primary_key], field_names);
 
-    // get document ids
-    let document_id_jlist = JList::from_env(&mut env, &document_ids).unwrap();
-    let mut iterator = document_id_jlist.iter(&mut env).unwrap();
-    while let Some(obj) = iterator.next(&mut env).unwrap() {
-        /*
-           Each call to next creates a new local reference.
-           To prevent excessive memory usage or overflow error,
-           the local reference should be deleted using JNIEnv::delete_local_ref or JNIEnv::auto_local
-           before the next loop iteration. Alternatively,
-           if the list is known to have a small, predictable size,
-           the loop could be wrapped in JNIEnv::with_local_frame to delete all
-           of the local references at once.
-        */
-        let document_id_jbytes: JByteArray = obj.into();
-        let document_id = env.convert_byte_array(document_id_jbytes).unwrap();
-
-        let mut result = vec![];
-        let _ = index.append_field_value_by_name(&document_id, &field_name, &mut result);
-
-        let result_jbytes = env.byte_array_from_slice(&result).unwrap();
-        results.add(&mut env, &result_jbytes).unwrap();
-    }
+    // TODO - ensure we don't return batch response larger than i32
+    utils::vec_to_jbyte_array(&env, result)
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_getBatchBytesFieldValue<'local>(
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadField<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     index_handle: jlong,
-    document_ids: JByteArray<'local>,
+    primary_keys: JByteArray<'local>,
     field_name: JString<'local>,
 ) -> jbyteArray {
-    let field_name: String = env
-        .get_string(&field_name)
-        .expect("Couldn't get field_name")
-        .into();
     let index = external_handle::from_external_handle(index_handle);
+    let primary_keys = utils::jbytearray_to_vec_bytes(&mut env, primary_keys);
+    let field_name: String = env.get_string(&field_name).unwrap().into();
 
-    // size prefixed, concatenated doc-ids
-    let document_ids = utils::jbyte_array_to_vec(&env, document_ids);
-    if document_ids.len() == 0 {
-        return JObject::null().into_raw();
-    }
+    let result = index.batch_get_field_values(primary_keys, vec![field_name]);
 
-    // allocate result byte array
-    // this must be empty!!
-    let mut result = vec![];
+    // TODO - ensure we don't return batch response larger than i32
+    utils::vec_to_jbyte_array(&env, result)
+}
 
-    let mut i = 0 as usize;
-    while i < document_ids.len() {
-        // parse document id
-        // length of document id (lower endian bytes)
-        let document_id_len_bytes: [u8; 4] = document_ids[i..i + 4]
-            .try_into()
-            .expect("length must be 4 bytes");
-        let document_id_len = i32::from_le_bytes(document_id_len_bytes);
-        // value of document id
-        let start = i + 4;
-        let end = start + document_id_len as usize;
-        let document_id = &document_ids[start..end];
-        i = end;
+#[no_mangle]
+pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadFields<'local>(
+    mut env: JNIEnv<'local>,
+    class: JClass<'local>,
+    index_handle: jlong,
+    primary_keys: JObject<'local>,
+    field_names: JObject<'local>,
+) -> jbyteArray {
+    let index = external_handle::from_external_handle(index_handle);
+    let primary_keys = utils::jlist_to_vec_bytes(&mut env, primary_keys);
+    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
 
-        // fetch and append to `result` vec
+    let result = index.batch_get_field_values(primary_keys, field_names);
 
-        result.extend_from_slice(&LENGTH);
-
-        let value_len = index.append_field_value_by_name(&document_id, &field_name, &mut result);
-        // TODO - assert that field_value cannot exceed i32
-
-        // update w/ correct length
-        let end = result.len() - value_len;
-        let start = end - 4;
-        let value_len_bytes = (value_len as i32).to_le_bytes();
-        result[start..end].copy_from_slice(value_len_bytes.as_slice());
-        if value_len == 0 {
-            // strip last 4 bytes
-            let _ = result.drain(start..);
-        }
-    }
-
+    // TODO - ensure we don't return batch response larger than i32
     utils::vec_to_jbyte_array(&env, result)
 }
 
@@ -211,8 +159,8 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'lo
 ) -> jni::errors::Result<()> {
     let index = external_handle::from_external_handle(index_handle);
     let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
-    let field_names = utils::jobject_to_vec_strings(&mut env, field_names);
-    let field_values: Vec<Vec<u8>> = utils::jobject_to_vec_bytes(&mut env, field_values);
+    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
+    let field_values: Vec<Vec<u8>> = utils::jlist_to_vec_bytes(&mut env, field_values);
 
     let result = index.upsert_field_values(&primary_key, field_names, field_values);
     match result {
@@ -231,7 +179,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteFieldValues<'lo
 ) -> jni::errors::Result<()> {
     let index = external_handle::from_external_handle(index_handle);
     let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
-    let field_names = utils::jobject_to_vec_strings(&mut env, field_names);
+    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
 
     let result = index.delete_field_values(&primary_key, field_names);
     match result {

@@ -1,11 +1,14 @@
-use crate::schema::{self, field::Field};
+use crate::{
+    index::ckv_segment,
+    schema::{self, field::Field},
+};
 
 use super::ckv_segment::CKVIndexSegment;
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
     io::{self, BufReader, BufWriter, Error, Read, Write},
-    sync::RwLock,
+    sync::{RwLock, RwLockReadGuard},
 };
 
 const NUM_SEGMENTS: usize = 16;
@@ -74,45 +77,59 @@ impl CKVIndex {
         }
     }
 
-    /// Fetch by field name
-    pub fn get_field_value_by_name(&self, document_id: &[u8], field_name: &str) -> Option<Vec<u8>> {
+    /// Fetch field value for a primary key.
+    pub fn get_field_value(&self, primary_key: &[u8], field_name: &str) -> Option<Vec<u8>> {
         let field = self.fieldname_field_table.get(field_name)?;
-        self.get_field_value(document_id, field)
+
+        let index_id: usize = fxhash::hash(primary_key) % NUM_SEGMENTS;
+        let ckv_segment = self.segments[index_id].read().unwrap();
+
+        ckv_segment.read_field(primary_key, field)
     }
 
-    /// Fetch and append by field name.
-    /// Returns size of value iff non-empty, else 0.
-    pub fn append_field_value_by_name(
+    /// Fetch field values for multiple primary keys.
+    /// Result format: [(values_doc1)][(values_doc2)][(values_doc3)]
+    /// values_doc1: [(size)field1][(size)field2]...[(size)fieldn]
+    /// size: 0 for empty values
+    pub fn batch_get_field_values<'a>(
         &self,
-        document_id: &[u8],
-        field_name: &str,
-        dest: &mut Vec<u8>,
-    ) -> usize {
-        let maybe_field = self.fieldname_field_table.get(field_name);
-        if maybe_field == None {
-            return 0;
+        primary_keys: Vec<Vec<u8>>,
+        field_names: Vec<String>,
+    ) -> Vec<u8> {
+        let capacity = primary_keys.len() * field_names.len() * 16;
+        if capacity == 0 {
+            return vec![];
         }
 
-        self.append_field_value(document_id, maybe_field.unwrap(), dest)
-    }
+        let mut result: Vec<u8> = Vec::with_capacity(capacity);
 
-    fn get_field_value(&self, document_id: &[u8], field: &Field) -> Option<Vec<u8>> {
-        let mut dest = vec![];
-        let value_len = self.append_field_value(document_id, field, &mut dest);
-        if value_len == 0 {
-            return None;
+        // resolve field name strings to &Field
+        let mut fields: Vec<&Field> = Vec::with_capacity(field_names.len());
+        for field_name in field_names {
+            let field = self
+                .fieldname_field_table
+                .get(&field_name)
+                .expect("cannot handle unknonw field_names");
+            fields.push(field);
         }
 
-        Some(dest)
-    }
+        // holds read acquired locks, released when we exit function scope
+        let mut acquired_ckv_segments = Vec::with_capacity(NUM_SEGMENTS);
+        for i in 0..NUM_SEGMENTS {
+            acquired_ckv_segments[i] = None;
+        }
 
-    // Fetch and append field value as bytes into the destination vector.
-    // Return length (non-zero) as a result iff the field's value exists, or 0.
-    fn append_field_value(&self, document_id: &[u8], field: &Field, dest: &mut Vec<u8>) -> usize {
-        let index_id: usize = fxhash::hash(document_id) % NUM_SEGMENTS;
-        let primary_key_index: std::sync::RwLockReadGuard<'_, CKVIndexSegment> =
-            self.segments[index_id].read().unwrap();
-        primary_key_index.read(&document_id, field, dest)
+        for primary_key in primary_keys.iter() {
+            let index_id: usize = fxhash::hash(primary_key) % NUM_SEGMENTS;
+            if acquired_ckv_segments[index_id].is_none() {
+                acquired_ckv_segments[index_id] = Some(self.segments[index_id].read().unwrap());
+            }
+
+            let ckv_segment = acquired_ckv_segments[index_id].as_ref().unwrap();
+            ckv_segment.read_fields(primary_key, fields.as_slice(), &mut result);
+        }
+
+        result
     }
 
     /// Write APIs
