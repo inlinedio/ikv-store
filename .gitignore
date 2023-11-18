@@ -7,6 +7,9 @@ build/
 ### Rust
 ikv/target/*
 
+### Core dumps
+ikv-java-client/*.log
+
 ### IntelliJ IDEA ###
 .idea/*
 .idea/modules.xml
