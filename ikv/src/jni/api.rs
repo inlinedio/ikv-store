@@ -163,13 +163,6 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'lo
     let field_values: Vec<Vec<u8>> = utils::jlist_to_vec_bytes(&mut env, field_values);
 
     let _ = index.upsert_field_values(&primary_key, field_names, field_values);
-    /*
-    let result = index.upsert_field_values(&primary_key, field_names, field_values);
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => env.throw_new("java/lang/Exception", e.to_string()),
-    }
-    */
 }
 
 #[no_mangle]
@@ -179,16 +172,12 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteFieldValues<'lo
     index_handle: jlong,
     primary_key: JByteArray<'local>,
     field_names: JObject<'local>,
-) -> jni::errors::Result<()> {
+) {
     let index = external_handle::from_external_handle(index_handle);
     let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
     let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
 
-    let result = index.delete_field_values(&primary_key, field_names);
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => env.throw_new("java/lang/Exception", e.to_string()),
-    }
+    let _ = index.delete_field_values(&primary_key, field_names);
 }
 
 #[no_mangle]
@@ -197,13 +186,9 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteDocument<'local
     class: JClass<'local>,
     index_handle: jlong,
     primary_key: JByteArray<'local>,
-) -> jni::errors::Result<()> {
+) {
     let index = external_handle::from_external_handle(index_handle);
     let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
 
-    let result = index.delete_document(&primary_key);
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => env.throw_new("java/lang/Exception", e.to_string()),
-    }
+    let _ = index.delete_document(&primary_key);
 }
