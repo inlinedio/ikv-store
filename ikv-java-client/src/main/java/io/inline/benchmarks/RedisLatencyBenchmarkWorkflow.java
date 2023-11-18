@@ -35,6 +35,8 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         System.exit(0);
     }
 
+    private static final int MSET_BATCH_SIZE = 100;
+
     private final Set<HostAndPort> _jedisClusterNodes;
     private volatile JedisCluster _jedisCluster;
     // private volatile Jedis _jedis;  // for single node local benchmark
@@ -60,7 +62,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     @Override
     public void connect() {
         // single node testing:
-        JedisPool jedisPool = new JedisPool("localhost", 6379);
+        // JedisPool jedisPool = new JedisPool("localhost", 6379);
         // _jedis = jedisPool.getResource();
 
 
@@ -74,9 +76,10 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
     @Override
     public void initializeWithWrites(Histogram unused) {
-        List<CompletableFuture<?>> futures = new ArrayList<>();
+        System.out.println("Writes starting...");
 
-        int numThreads = 100;
+        List<CompletableFuture<?>> futures = new ArrayList<>();
+        int numThreads = 4;
         int interval = _numEntries / numThreads;
 
         for (int i = 0; i < _numEntries; ) {
@@ -94,16 +97,24 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     }
 
     private void write(int start, int end) {
-        for (int i = start; i < end; i++) {
-            KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(i);
-            byte[] keyBytes = key.getInnerBytes();
-            byte[] valueBytes = _keyValuesGenerator.getValueBytes(350, i);
+        int i = start; // points to a single key-val entry
+        while (i < end) {
+            List<byte[]> keyValues = new ArrayList<>(MSET_BATCH_SIZE * 2);
 
-            // Write to redis cluster
-            _jedisCluster.set(keyBytes, valueBytes);
+            int y = Math.min(end, i + MSET_BATCH_SIZE);
+            for (int index = i; index < y; index++) {
+                KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(index);
+                byte[] keyBytes = key.getInnerBytes();
+                byte[] valueBytes = _keyValuesGenerator.getValueBytes(350, index);
+                keyValues.add(keyBytes);
+                keyValues.add(valueBytes);
+                _sourceOfTruth.put(key, valueBytes);
+            }
 
-            // Write to internal SOT for assertions
-            _sourceOfTruth.put(key, valueBytes);
+            // write batch to redis (MSET)
+            _jedisCluster.mset(keyValues.toArray(new byte[0][]));
+
+            i = y;
         }
     }
 
