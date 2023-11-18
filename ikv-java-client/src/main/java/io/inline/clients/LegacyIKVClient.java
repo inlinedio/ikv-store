@@ -28,8 +28,12 @@ public final class LegacyIKVClient {
     }
 
     public void upsertFieldValue(byte[] documentId, byte[] fieldValue, String fieldName) {
-        IKVClientJNI.upsertFieldValues(_indexHandle, documentId, Collections.singletonList(fieldName),
-                Collections.singletonList(fieldValue));
+        try {
+            IKVClientJNI.upsertFieldValues(_indexHandle, documentId, Collections.singletonList(fieldName),
+                    Collections.singletonList(fieldValue));
+        } catch (RuntimeException e) {
+            System.out.println("New runtime exception thrown: " + e);
+        }
     }
 
     @Nullable

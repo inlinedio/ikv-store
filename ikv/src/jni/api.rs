@@ -162,7 +162,10 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'lo
     let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
     let field_values: Vec<Vec<u8>> = utils::jlist_to_vec_bytes(&mut env, field_values);
 
-    let _ = index.upsert_field_values(&primary_key, field_names, field_values);
+    let _ = match index.upsert_field_values(&primary_key, field_names, field_values) {
+        Ok(_) => jni::errors::Result::Ok(()),
+        Err(err) => env.throw_new("java/lang/RuntimeException", err.to_string()),
+    };
 }
 
 #[no_mangle]
