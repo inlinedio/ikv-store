@@ -112,11 +112,12 @@ impl CKVIndex {
                 .expect("cannot handle unknonw field_names");
             fields.push(field);
         }
+        let fields = fields.as_slice();
 
         // holds read acquired locks, released when we exit function scope
         let mut acquired_ckv_segments = Vec::with_capacity(NUM_SEGMENTS);
-        for i in 0..NUM_SEGMENTS {
-            acquired_ckv_segments[i] = None;
+        for _ in 0..NUM_SEGMENTS {
+            acquired_ckv_segments.push(None);
         }
 
         for primary_key in primary_keys.iter() {
@@ -126,7 +127,7 @@ impl CKVIndex {
             }
 
             let ckv_segment = acquired_ckv_segments[index_id].as_ref().unwrap();
-            ckv_segment.read_fields(primary_key, fields.as_slice(), &mut result);
+            ckv_segment.read_fields(primary_key, fields, &mut result);
         }
 
         result

@@ -163,10 +163,8 @@ impl CKVIndexSegment {
             return None;
         }
 
-        let mut result = Vec::new();
-        self.read_from_mmap(field, maybe_offset.unwrap(), &mut result);
-
-        Some(result)
+        let result = self.read_from_mmap(field, maybe_offset.unwrap());
+        Some(result.to_vec())
     }
 
     /// Read all fields for a given primary-key and push the values at the end of `dest` vector.
@@ -177,7 +175,7 @@ impl CKVIndexSegment {
         let maybe_offsets = self.index.get(primary_key);
         if maybe_offsets.is_none() {
             for _ in 0..fields.len() {
-                dest.extend_from_slice(ZERO_I32.as_slice());
+                dest.extend(ZERO_I32);
             }
             return;
         }
@@ -186,14 +184,17 @@ impl CKVIndexSegment {
         for field in fields {
             let maybe_offset = offsets.get(field.id() as usize).copied();
             if maybe_offset == None || maybe_offset.unwrap() == usize::MAX {
-                dest.extend_from_slice(ZERO_I32.as_slice());
+                dest.extend(ZERO_I32);
                 continue;
             }
-            self.read_from_mmap(field, maybe_offset.unwrap(), dest);
+            let value = self.read_from_mmap(field, maybe_offset.unwrap());
+
+            dest.extend((value.len() as i32).to_le_bytes());
+            dest.extend_from_slice(value);
         }
     }
 
-    fn read_from_mmap(&self, field: &Field, mmap_offset: usize, dest: &mut Vec<u8>) {
+    fn read_from_mmap(&self, field: &Field, mmap_offset: usize) -> &[u8] {
         let value = match field.value_len() {
             Some(fixed_width) => {
                 // fixed width
@@ -211,7 +212,7 @@ impl CKVIndexSegment {
             }
         };
 
-        dest.extend_from_slice(value);
+        value
     }
 
     /// Read bytes for a given key and field, and append to "dest" vector.
