@@ -16,7 +16,7 @@ public class IntegrationTests {
         legacyIkvClient.close();
     }
 
-    //@Test
+    @Test
     public void basic() {
         LegacyIKVClient legacyIkvClient =
                 LegacyIKVClient.createNew("/tmp/basic", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
@@ -53,11 +53,12 @@ public class IntegrationTests {
         val = legacyIkvClient.readBytesField(docId3, "profile");
         Assertions.assertArrayEquals(val, profile3);
 
+        Assertions.assertNull(legacyIkvClient.readBytesField(docId4, "firstname"));
+
+
         Assertions.assertNotNull(
                 legacyIkvClient.batchReadBytesField(
                         ImmutableList.of(docId1, docId2, docId3), "firstname"));
-
-        Assertions.assertNull(legacyIkvClient.readBytesField(docId4, "firstname"));
 
         legacyIkvClient.close();
     }
