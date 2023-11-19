@@ -14,7 +14,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     // java -Xms10g -Xmx10g -cp ikv-java-client-redis-single.jar io.inline.benchmarks.IKVLatencyBenchmarkWorkflow "num_entries:10000,batch_size:100"
     public static void main(String[] args) {
         // arg parsing
-        String paramString = "num_entries:100000,batch_size:100";  // default
+        String paramString = "mode:batch,num_entries:100000,batch_size:10";  // default
         if (args.length > 0) {
             paramString = args[0];
         }
@@ -24,7 +24,15 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         workflow.connect();
         Histogram histogram = new Histogram("IKVBenchmarks", 100000);
         workflow.initializeWithWrites(histogram);
-        workflow.benchmarkBatchGet(histogram);
+
+        if ("single".equals(benchmarkParams.getStringParameter("mode").get().toLowerCase())) {
+            workflow.benchmarkSingleGet(histogram);
+        } else if ("batch".equals(benchmarkParams.getStringParameter("mode").get().toLowerCase())) {
+            workflow.benchmarkBatchGet(histogram);
+        } else {
+            throw new UnsupportedOperationException();
+        }
+
         workflow.shutdown();
 
         System.out.println(histogram);
@@ -62,7 +70,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         for (int i = 0; i < _numEntries; i++) {
             KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(i);
             byte[] keyBytes = key.getInnerBytes();
-            byte[] valueBytes = _keyValuesGenerator.getValueBytes(350, i);
+            byte[] valueBytes = _keyValuesGenerator.getValueBytes(50, i);
 
             // Write to Inline KV
             _legacyIKVClient.upsertFieldValue(keyBytes, valueBytes, "profile");
