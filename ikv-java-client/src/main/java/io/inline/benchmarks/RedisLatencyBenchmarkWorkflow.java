@@ -19,7 +19,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     // java -Xms10g -Xmx10g -cp ikv-java-client-redis-single.jar io.inline.benchmarks.RedisLatencyBenchmarkWorkflow "num_entries:10000,batch_size:100"
     public static void main(String[] args) {
         // arg parsing
-        String paramString = "num_entries:100000,batch_size:100";  // default
+        String paramString = "mode:single,num_entries:100000,batch_size:10";  // default
         if (args.length > 0) {
             paramString = args[0];
         }
@@ -29,7 +29,15 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         workflow.connect();
         Histogram histogram = new Histogram("RedisBenchmarks", 100000);
         workflow.initializeWithWrites(histogram);
-        workflow.benchmarkSingleGet(histogram);
+
+        if ("single".equals(benchmarkParams.getStringParameter("mode").get().toLowerCase())) {
+            workflow.benchmarkSingleGet(histogram);
+        } else if ("batch".equals(benchmarkParams.getStringParameter("mode").get().toLowerCase())) {
+            workflow.benchmarkBatchGet(histogram);
+        } else {
+            throw new UnsupportedOperationException();
+        }
+
         workflow.shutdown();
 
         System.out.println(histogram);
@@ -107,7 +115,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
             for (int index = i; index < y; index++) {
                 KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(index);
                 byte[] keyBytes = key.getInnerBytes();
-                byte[] valueBytes = _keyValuesGenerator.getValueBytes(350, index);
+                byte[] valueBytes = _keyValuesGenerator.getValueBytes(50, index);
                 keyValues.add(keyBytes);
                 keyValues.add(valueBytes);
                 _sourceOfTruth.put(key, valueBytes);
