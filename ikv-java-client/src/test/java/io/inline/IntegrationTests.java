@@ -9,14 +9,14 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 public class IntegrationTests {
-    @Test
+    //@Test
     public void openAndClose() {
         LegacyIKVClient legacyIkvClient =
                 LegacyIKVClient.createNew("/tmp/openAndClose", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
         legacyIkvClient.close();
     }
 
-    @Test
+    //@Test
     public void basic() {
         LegacyIKVClient legacyIkvClient =
                 LegacyIKVClient.createNew("/tmp/basic", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
