@@ -6,6 +6,7 @@ import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPool;
 
 import javax.annotation.Nullable;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -28,7 +29,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         workflow.connect();
         Histogram histogram = new Histogram("RedisBenchmarks", 100000);
         workflow.initializeWithWrites(histogram);
-        workflow.benchmarkBatchGet(histogram);
+        workflow.benchmarkSingleGet(histogram);
         workflow.shutdown();
 
         System.out.println(histogram);
@@ -36,6 +37,7 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     }
 
     private static final int MSET_BATCH_SIZE = 100;
+    private static final byte[] FIELD_NAME = "profile".getBytes(StandardCharsets.UTF_8);
 
     private final Set<HostAndPort> _jedisClusterNodes;
     private volatile JedisCluster _jedisCluster;
@@ -109,10 +111,12 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
                 keyValues.add(keyBytes);
                 keyValues.add(valueBytes);
                 _sourceOfTruth.put(key, valueBytes);
+                _jedisCluster.hset(keyBytes,
+                        Collections.singletonMap(FIELD_NAME, valueBytes));
             }
 
             // write batch to redis (MSET)
-            _jedisCluster.mset(keyValues.toArray(new byte[0][]));
+            // _jedisCluster.mset(keyValues.toArray(new byte[0][]));
 
             i = y;
         }
@@ -135,7 +139,8 @@ public class RedisLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
             // redis lookup
             Instant start = Instant.now();
-            byte[] returnedValueBytes = _jedisCluster.get(keyBytes);
+            // byte[] returnedValueBytes = _jedisCluster.get(keyBytes);
+            byte[] returnedValueBytes = _jedisCluster.hget(keyBytes, FIELD_NAME);
             Instant end = Instant.now();
 
             if (histogram != null) {
