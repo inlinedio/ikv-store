@@ -27,12 +27,16 @@ Latency measurements - we track latency at various percentiles to measure delay 
 3. Batch: return values for the specified batch of keys
    
 #### Results - 
-| Type   | Parameters                      | Latency (micro-seconds)                                       |
-|--------|---------------------------------|---------------------------------------------------------------|
-| SINGLE | num_samples:1000                | avg: 1.33, p50: 1.00, p90: 3.00, p99: 4.00                    |
-| BATCH  | num_samples:1000,batch_size:10  | avg: 7.65, p50: 7.00, p90: 10.00, p99: 27.00                  |
-|        | num_samples:1000,batch_size:50  | avg: 53.26, p50: 45.00, p90: 62.00, p99: 79.00                |
-|        | num_samples:1000,batch_size:100 | avg: 76.05, p50: 73.00, p90: 89.00, p99: 108.00               |
+Instance type - r5.xlarge (4 vcpu, 32GB)
+Key: 10 bytes, Value: 50 bytes
+
+| Type   | Parameters                         | Latency (microseconds)                             |
+|--------|------------------------------------|----------------------------------------------------|
+| SINGLE | num_samples:100,000                | avg: 1.07, p50: 1.00, p90: 1.00, p99: 3.00         |
+| BATCH  | num_samples:10,000, batch_size:10  | avg: 5.40, p50: 5.00, p90: 7.00, p99: 10.00        |
+|        | num_samples:10,000, batch_size:50  | avg: 18.44, p50: 18.00, p90: 23.00, p99: 33.00     |
+|        | num_samples:10,000, batch_size:100 | avg: 32.37, p50: 31.00, p90: 39.00, p99: 51.00     |
+|        | num_samples:10,000, batch_size:500 | avg: 242.69, p50: 228.00, p90: 278.00, p99: 347.00 |
 
 
 
