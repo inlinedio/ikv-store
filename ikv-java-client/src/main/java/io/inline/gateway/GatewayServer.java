@@ -10,6 +10,12 @@ public class GatewayServer {
     private static final int DEFAULT_PORT = 8080;
     private volatile io.grpc.Server _server;
 
+    public static void main(String[] args) throws InterruptedException {
+        GatewayServer server = new GatewayServer();
+        server.startup();
+        server.blockUntilShutdown();
+    }
+
     public GatewayServer() {
     }
 

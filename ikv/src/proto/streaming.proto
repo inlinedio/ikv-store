@@ -1,0 +1,41 @@
+syntax = "proto3";
+package com.inlineio.schemas;
+
+import "services.proto";
+import "common.proto";
+import "google/protobuf/timestamp.proto";
+
+message EventHeader {
+  optional google.protobuf.Timestamp sourceTimestamp = 2;
+}
+
+message IKVDataEvent {
+  EventHeader eventHeader = 1;
+
+  // Per-field schema of all the fields in this message
+  // TODO(optimization): send once for new fields
+  repeated FieldSchema fieldSchema = 2;
+
+  // event data (upsert, delete, etc...)
+  oneof event {
+    UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 3;
+    DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 4;
+    DeleteDocumentEvent deleteDocumentEvent = 5;
+  }
+}
+
+// Upsert fields for specified document.
+message UpsertDocumentFieldsEvent {
+  MultiFieldDocument multiFieldDocument = 1;
+}
+
+// Delete specified fields for specified document.
+message DeleteDocumentFieldsEvent {
+  MultiFieldDocument documentId = 1;
+  repeated string fieldsToDelete = 2;
+}
+
+// Delete specified document.
+message DeleteDocumentEvent {
+  MultiFieldDocument documentId = 1;
+}

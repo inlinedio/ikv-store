@@ -1,14 +1,11 @@
-use crate::{
-    index::ckv_segment,
-    schema::{self, field::Field},
-};
+use crate::schema::{self, field::Field};
 
 use super::ckv_segment::CKVIndexSegment;
 use std::{
     collections::HashMap,
-    fs::{self, OpenOptions},
-    io::{self, BufReader, BufWriter, Error, Read, Write},
-    sync::{RwLock, RwLockReadGuard},
+    fs::{self},
+    io::{self, Error},
+    sync::RwLock,
 };
 
 const NUM_SEGMENTS: usize = 16;

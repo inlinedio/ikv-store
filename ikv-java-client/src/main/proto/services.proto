@@ -60,12 +60,11 @@ message MultiFieldDocument {
 
 message FieldValue {
   oneof Value {
-    bool booleanValue = 1;
-    int32 int32Value = 2;
-    int64 int64Value = 3;
-    float float32Value = 4;
-    double float64Value = 5;
-    string stringValue = 6;
-    bytes bytesValue = 7;
+    int32 int32Value = 1;
+    int64 int64Value = 2;
+    float float32Value = 3;
+    double float64Value = 4;
+    string stringValue = 5;
+    bytes bytesValue = 6;
   }
 }

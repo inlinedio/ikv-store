@@ -6,12 +6,10 @@ use crate::index::ckv::CKVIndex;
 use crate::index::external_handle;
 use crate::jni::utils;
 
-const LENGTH: [u8; 4] = [0, 0, 0, 0];
-
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_provideHelloWorld<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
 ) -> jstring {
     let output = env
         .new_string(format!("Hello world from Rust!"))
@@ -23,7 +21,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_provideHelloWorld<'lo
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_createNew<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     mount_path: JString<'local>,
     schema_path: JString<'local>,
 ) -> jlong {
@@ -48,7 +46,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_createNew<'local>(
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_open<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     mount_path: JString<'local>,
 ) -> jlong {
     let mount_path: String = env
@@ -62,7 +60,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_open<'local>(
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_close<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
 ) {
     {
@@ -76,7 +74,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_close<'local>(
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readField<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
     primary_key: JByteArray<'local>,
     field_name: JString<'local>,
@@ -97,7 +95,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readField<'local>(
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readFields<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
     primary_key: JByteArray<'local>,
     field_names: JObject<'local>,
@@ -115,7 +113,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readFields<'local>(
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadField<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
     primary_keys: JByteArray<'local>,
     field_name: JString<'local>,
@@ -133,7 +131,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadField<'local
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadFields<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
     primary_keys: JObject<'local>,
     field_names: JObject<'local>,
@@ -151,7 +149,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadFields<'loca
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
     primary_key: JByteArray<'local>,
     field_names: JObject<'local>,
@@ -171,7 +169,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'lo
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteFieldValues<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
     primary_key: JByteArray<'local>,
     field_names: JObject<'local>,
@@ -186,7 +184,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteFieldValues<'lo
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteDocument<'local>(
     mut env: JNIEnv<'local>,
-    class: JClass<'local>,
+    _class: JClass<'local>,
     index_handle: jlong,
     primary_key: JByteArray<'local>,
 ) {

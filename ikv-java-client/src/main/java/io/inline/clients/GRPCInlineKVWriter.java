@@ -30,12 +30,12 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
     }
 
     @Override
-    public void upsertFieldValues(Map<String, FieldValue> docFieldValues) {
+    public void upsertFieldValues(IKVDocument document) {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
-        Preconditions.checkArgument(docFieldValues.size() > 1, "empty docFieldValues");
+        Preconditions.checkArgument(document.accessFields().size() > 1, "empty document not allowed");
 
         MultiFieldDocument multiFieldDocument = MultiFieldDocument.newBuilder()
-                .putAllDocument(docFieldValues)
+                .putAllDocument(document.accessFields())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
@@ -57,18 +57,20 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
     }
 
     @Override
-    public void batchUpsertFieldValues(Collection<Map<String, FieldValue>> docFieldValuesCollection) {
+    public void batchUpsertFieldValues(Collection<IKVDocument> documents) {
         throw new UnsupportedOperationException("batch ops implementation pending.");
     }
 
     @Override
-    public void deleteFieldValues(Map<String, FieldValue> documentId, Collection<String> fieldsToDelete) {
+    public void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete) {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
-        Preconditions.checkArgument(documentId.size() > 1, "need document-identifiers");
-        Preconditions.checkArgument(fieldsToDelete.size() > 0, "fieldsToDelete can't be empty");
+        Preconditions.checkArgument(documentId.accessFields().size() > 1, "need document-identifiers");
+        if (fieldsToDelete.isEmpty()) {
+            return;
+        }
 
         MultiFieldDocument docId = MultiFieldDocument.newBuilder()
-                .putAllDocument(documentId)
+                .putAllDocument(documentId.accessFields())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
@@ -91,17 +93,17 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
     }
 
     @Override
-    public void batchDeleteFieldValues(Collection<Map<String, FieldValue>> documentIds, Collection<String> fieldsToDelete) {
+    public void batchDeleteFieldValues(Collection<IKVDocument> documentIds, Collection<String> fieldsToDelete) {
         throw new UnsupportedOperationException("batch ops implementation pending.");
     }
 
     @Override
-    public void deleteDocument(Map<String, FieldValue> documentId) {
+    public void deleteDocument(IKVDocument documentId) {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
-        Preconditions.checkArgument(documentId.size() > 1, "need document-identifiers");
+        Preconditions.checkArgument(documentId.accessFields().size() > 1, "need document-identifiers");
 
         MultiFieldDocument docId = MultiFieldDocument.newBuilder()
-                .putAllDocument(documentId)
+                .putAllDocument(documentId.accessFields())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
@@ -123,7 +125,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
     }
 
     @Override
-    public void batchDeleteDocuments(Collection<Map<String, FieldValue>> documentIds) {
+    public void batchDeleteDocuments(Collection<IKVDocument> documentIds) {
         throw new UnsupportedOperationException("batch ops implementation pending.");
     }
 }

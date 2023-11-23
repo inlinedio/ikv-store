@@ -10,7 +10,14 @@ fxhash = "0.2.1"
 jni = "0.21.1"
 kafka = "0.10.0"
 memmap2 = "0.9.0"
+protobuf = "3.3.0"
+protobuf-codegen = "3.3.0"
+protoc-bin-vendored = "3.0.0"
 yaml-rust = "0.4.5"
+
+[build-dependencies]
+protobuf-codegen = "3.3.0"
+protoc-bin-vendored = "3.0.0"
 
 [lib]
 crate_type = ["cdylib"]
