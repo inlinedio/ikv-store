@@ -2,6 +2,7 @@ syntax = "proto3";
 package com.inlineio.schemas;
 
 import "services.proto";
+import "common.proto";
 import "google/protobuf/timestamp.proto";
 
 message EventHeader {
@@ -10,13 +11,18 @@ message EventHeader {
 
 message IKVDataEvent {
   EventHeader eventHeader = 1;
+
+  // Per-field schema of all the fields in this message
+  // TODO(optimization): send once for new fields
+  repeated FieldSchema fieldSchema = 2;
+
+  // event data (upsert, delete, etc...)
   oneof event {
-    UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 2;
-    DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 3;
-    DeleteDocumentEvent deleteDocumentEvent = 4;
+    UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 3;
+    DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 4;
+    DeleteDocumentEvent deleteDocumentEvent = 5;
   }
 }
-
 
 // Upsert fields for specified document.
 message UpsertDocumentFieldsEvent {

@@ -1,4 +1,4 @@
-use jni::objects::{JByteArray, JList, JObject, JObjectArray, JString};
+use jni::objects::{JByteArray, JList, JObject, JString};
 use jni::sys::jbyteArray;
 use jni::JNIEnv;
 

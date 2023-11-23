@@ -62,6 +62,7 @@ protobuf {
 }
 
 // Inform IDEs like IntelliJ IDEA, Eclipse or NetBeans about the generated code.
+// Customizing source directories: https://stackoverflow.com/questions/66794075/how-to-specify-the-protobuf-path-using-protobuf-gradle-plugin
 sourceSets {
     main {
         java {

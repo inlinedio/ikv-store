@@ -1,0 +1,22 @@
+syntax = "proto3";
+package com.inlineio.schemas;
+
+message FieldSchema {
+  // the case-sensitive field name
+  string name = 1;
+
+  // unique field-id. `name` and `id`
+  // have 1:1 mappings.
+  int32 id = 2;
+
+  FieldType fieldType = 3;
+}
+
+enum FieldType {
+  INT32 = 0;
+  INT64 = 1;
+  FLOAT32 = 2;
+  FLOAT64 = 3;
+  STRING = 4;
+  BYTES = 5;
+}

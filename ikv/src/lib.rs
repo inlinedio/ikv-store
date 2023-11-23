@@ -1,7 +1,11 @@
+use proto::generated_proto::services::MultiFieldDocument;
+
 mod index;
 pub mod jni;
+mod proto;
 mod schema;
 
 pub fn hello_world() -> String {
+    let _doc: MultiFieldDocument;  // example of using proto structs
     String::from("Hello World")
 }

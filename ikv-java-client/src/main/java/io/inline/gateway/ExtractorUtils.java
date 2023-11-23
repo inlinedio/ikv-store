@@ -9,13 +9,13 @@ import java.util.Map;
 
 public class ExtractorUtils {
     public static String extractPrimaryKeyAsString(UserStoreContext context, Map<String, Services.FieldValue> fieldsMap) throws IllegalArgumentException {
-        Services.FieldValue primaryKeyFieldValue = fieldsMap.get(context.primaryKeyFieldName());
+        Services.FieldValue primaryKeyFieldValue = fieldsMap.get(context.primaryKey());
         Preconditions.checkArgument(primaryKeyFieldValue != null, "primaryKey missing");
         return stringify(primaryKeyFieldValue);
     }
 
     public static String extractPartitioningKeyAsString(UserStoreContext context, Map<String, Services.FieldValue> fieldsMap) throws IllegalArgumentException {
-        Services.FieldValue partitioningKeyFieldValue = fieldsMap.get(context.partitioningKeyFieldName());
+        Services.FieldValue partitioningKeyFieldValue = fieldsMap.get(context.partitioningKey());
         Preconditions.checkArgument(partitioningKeyFieldValue != null, "partitioningKey missing");
         return stringify(partitioningKeyFieldValue);
     }

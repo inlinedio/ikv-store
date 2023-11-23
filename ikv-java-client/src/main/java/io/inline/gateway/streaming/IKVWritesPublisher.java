@@ -1,16 +1,15 @@
 package io.inline.gateway.streaming;
 
 import com.google.common.base.Preconditions;
+import com.inlineio.schemas.Common;
 import com.inlineio.schemas.Services.*;
 import com.inlineio.schemas.Streaming.*;
 import io.inline.gateway.ExtractorUtils;
 import io.inline.gateway.UserStoreContext;
-import io.inline.gateway.streaming.KafkaProducerFactory;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
-import java.util.Collection;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 public class IKVWritesPublisher {
@@ -36,12 +35,16 @@ public class IKVWritesPublisher {
             return;
         }
 
+
+
         for (Map<String, FieldValue> fieldMap : fieldMaps) {
             // extract primary key value for validation
             Preconditions.checkNotNull(ExtractorUtils.extractPrimaryKeyAsString(context, fieldMap));
-
             String kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyAsString(context, fieldMap);
+
+            // TODO: filter out unknown fields by fetching schema
             MultiFieldDocument multiFieldDocument = MultiFieldDocument.newBuilder().putAllDocument(fieldMap).build();
+
             IKVDataEvent event = IKVDataEvent.newBuilder()
                     .setEventHeader(EventHeader
                             .newBuilder()
@@ -82,6 +85,8 @@ public class IKVWritesPublisher {
             Preconditions.checkNotNull(ExtractorUtils.extractPrimaryKeyAsString(context, documentId));
 
             String kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyAsString(context, documentId);
+
+            // TODO: filter out unknown fields by fetching schema
             MultiFieldDocument multiFieldDocument = MultiFieldDocument.newBuilder().putAllDocument(documentId).build();
 
             IKVDataEvent event = IKVDataEvent.newBuilder()
@@ -103,7 +108,20 @@ public class IKVWritesPublisher {
         }
     }
 
+    /**
+     * Construct field schema object based on the downstream event.
+     */
+    private List<Common.FieldSchema> createFieldSchemaList(UserStoreContext context, MultiFieldDocument document) {
+        Map<String, ?> documentMap = document.getDocumentMap();
+        List<Common.FieldSchema> schema = new ArrayList<>(documentMap.size());
 
+        for (String name : documentMap.keySet()) {
+            Optional<Common.FieldSchema> maybeSchema = context.fieldSchema(name);
+            maybeSchema.ifPresent(schema::add);
+        }
+
+        return schema;
+    }
 
 
     private void blockingPublishWithRetries(ProducerRecord<String, IKVDataEvent> record, int numRetries) throws InterruptedException {

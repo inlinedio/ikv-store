@@ -215,48 +215,6 @@ impl CKVIndexSegment {
         value
     }
 
-    /// Read bytes for a given key and field, and append to "dest" vector.
-    /// Return length (non-zero) as a result iff the field's value exists, or 0.
-    #[deprecated]
-    pub fn read(&self, document_id: &[u8], field: &Field, dest: &mut Vec<u8>) -> usize {
-        let maybe_offsets = self.index.get(document_id);
-        if maybe_offsets == None {
-            return 0;
-        }
-
-        let maybe_offset = maybe_offsets.unwrap().get(field.id() as usize).copied();
-        if maybe_offset == None || maybe_offset.unwrap() == usize::MAX {
-            return 0;
-        }
-
-        let offset = maybe_offset.unwrap();
-        let value_len;
-
-        let value = match field.value_len() {
-            Some(fixed_value_len) => {
-                // fixed size
-                value_len = fixed_value_len;
-                &self.mmap[offset..offset + value_len]
-            }
-            None => {
-                // dynamic size
-                let value_len_bytes = &self.mmap[offset..offset + 4];
-                value_len = u32::from_le_bytes(
-                    value_len_bytes
-                        .try_into()
-                        .expect("persisted value_len must be 4 bytes in length"),
-                ) as usize;
-                &self.mmap[offset + 4..offset + 4 + value_len]
-            }
-        };
-
-        // append value bytes to destination
-        // this can resize the vector
-        dest.extend_from_slice(&value);
-
-        return value_len;
-    }
-
     // See: https://stackoverflow.com/questions/28516996/how-to-create-and-write-to-memory-mapped-files
     fn expand_mmap_if_required(
         &mut self,
@@ -417,78 +375,6 @@ impl CKVIndexSegment {
             .write(&(primary_key.len() as u16).to_le_bytes())?;
         self.index_file.write(&primary_key)?;
         self.index_file.write(&u16::MAX.to_le_bytes())?;
-
-        Ok(())
-    }
-
-    #[deprecated]
-    fn legacy_upsert(
-        &mut self,
-        primary_key: &[u8],
-        field_value: &[u8],
-        field: &Field,
-    ) -> io::Result<()> {
-        let write_offset = self.write_offset;
-
-        // calculate number of bytes to write
-        let num_bytes_to_write: usize;
-        match field.value_len() {
-            Some(_) => {
-                // fixed size
-                num_bytes_to_write = field_value.len();
-            }
-            None => {
-                // dynamic size
-                num_bytes_to_write = 4 + field_value.len();
-            }
-        }
-
-        self.expand_mmap_if_required(write_offset, num_bytes_to_write)?;
-
-        // write persistently to mmap
-        let mut mmap = self.mmap.deref_mut();
-
-        match field.value_len() {
-            Some(value_len) => {
-                // fixed size
-                mmap[write_offset..write_offset + value_len].copy_from_slice(field_value);
-            }
-            None => {
-                // dynamic size
-                let value_len = (field_value.len() as u32).to_le_bytes();
-                mmap[write_offset..write_offset + 4].copy_from_slice(&value_len[..]);
-                mmap[write_offset + 4..write_offset + 4 + field_value.len()]
-                    .copy_from_slice(field_value);
-            }
-        }
-        mmap.flush()?;
-
-        // update offset in index
-        let field_id = field.id() as usize;
-
-        let offsets = self.index.entry(primary_key.to_vec()).or_default();
-        if field_id as usize >= offsets.len() {
-            offsets.resize(field_id + 1, usize::MAX);
-        }
-        offsets[field_id] = write_offset;
-
-        // update global write offset
-        self.write_offset += num_bytes_to_write;
-
-        // persist hashmap index to file
-        // Entry format
-        // [(u16) document_id-size][document_id-bytes][(u16) num-fields=2][(u16) fieldid0][(u64) offset0][fieldid1][offset1]
-        // document_id
-        self.index_file
-            .write(&(primary_key.len() as u16).to_le_bytes())?;
-        self.index_file.write(&primary_key)?;
-        // num fields=1
-        self.index_file.write(&1u16.to_le_bytes())?;
-        // field_id
-        self.index_file.write(&(field_id as u16).to_le_bytes())?;
-        // offset
-        self.index_file
-            .write(&(write_offset as u64).to_le_bytes())?;
 
         Ok(())
     }

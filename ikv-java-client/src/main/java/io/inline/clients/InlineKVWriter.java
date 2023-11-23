@@ -8,12 +8,12 @@ public interface InlineKVWriter {
     void startup();
     void shutdown();
 
-    void upsertFieldValues(Map<String, FieldValue> docFieldValues);
-    void batchUpsertFieldValues(Collection<Map<String, FieldValue>> docFieldValuesCollection);
+    void upsertFieldValues(IKVDocument document);
+    void batchUpsertFieldValues(Collection<IKVDocument> documents);
 
-    void deleteFieldValues(Map<String, FieldValue> documentId, Collection<String> fieldsToDelete);
-    void batchDeleteFieldValues(Collection<Map<String, FieldValue>> documentIds, Collection<String> fieldsToDelete);
+    void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete);
+    void batchDeleteFieldValues(Collection<IKVDocument> documentIds, Collection<String> fieldsToDelete);
 
-    void deleteDocument(Map<String, FieldValue> documentId);
-    void batchDeleteDocuments(Collection<Map<String, FieldValue>> documentIds);
+    void deleteDocument(IKVDocument documentId);
+    void batchDeleteDocuments(Collection<IKVDocument> documentIds);
 }
