@@ -7,7 +7,7 @@ use std::{
 
 use memmap2::MmapMut;
 
-use crate::schema::field::Field;
+use crate::schema::field::{Field, IndexedValue};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
 const ZERO_I32: [u8; 4] = 0i32.to_le_bytes();
@@ -254,16 +254,16 @@ impl CKVIndexSegment {
     /// Deleted Document: [primary_key_value_len as u16][primary_key_value][num_fields as u16 = u16::MAX]
 
     /// Upsert field values for a document.
-    pub fn upsert_field_values(
+    pub fn upsert_document(
         &mut self,
         primary_key: &[u8],
         fields: Vec<&Field>,
-        field_values: Vec<&[u8]>,
+        field_values: Vec<IndexedValue>,
     ) -> io::Result<()> {
         let mut total_num_bytes: usize = 0;
         for i in 0..fields.len() {
-            let field = fields[i];
-            let field_value = field_values[i];
+            let field: &Field = fields[i];
+            let field_value = &field_values[i];
             if let Some(fixed_size) = field.value_len() {
                 total_num_bytes += fixed_size;
             } else {
@@ -288,20 +288,21 @@ impl CKVIndexSegment {
         for i in 0..fields.len() {
             let field = fields[i];
             let field_id = field.id() as usize;
-            let field_value = field_values[i];
+            let field_value = &field_values[i];
 
             let write_offset = self.write_offset;
 
             // write to mmap
             let num_bytes = if let Some(fixed_size) = field.value_len() {
-                mmap[write_offset..write_offset + fixed_size].copy_from_slice(field_value);
+                mmap[write_offset..write_offset + fixed_size]
+                    .copy_from_slice(field_value.serialized_ref());
 
                 fixed_size
             } else {
                 let value_len = (field_value.len() as u32).to_le_bytes();
                 mmap[write_offset..write_offset + 4].copy_from_slice(&value_len[..]);
                 mmap[write_offset + 4..write_offset + 4 + field_value.len()]
-                    .copy_from_slice(field_value);
+                    .copy_from_slice(field_value.serialized_ref());
 
                 4 + field_value.len()
             };

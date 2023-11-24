@@ -103,12 +103,26 @@ impl TryFrom<String> for FieldType {
     }
 }
 
-pub struct FieldValue {
-    field_type: FieldType,
+pub struct IndexedValue {
+    _field_type: FieldType,
     value: Vec<u8>,
 }
 
-impl TryFrom<&generated_proto::services::FieldValue> for FieldValue {
+impl IndexedValue {
+    pub fn serialized_ref(&self) -> &[u8] {
+        &self.value
+    }
+
+    pub fn serialize(self) -> Vec<u8> {
+        self.value
+    }
+
+    pub fn len(&self) -> usize {
+        self.value.len()
+    }
+}
+
+impl TryFrom<&generated_proto::services::FieldValue> for IndexedValue {
     type Error = SchemaError;
 
     fn try_from(value: &generated_proto::services::FieldValue) -> Result<Self, Self::Error> {
@@ -119,27 +133,27 @@ impl TryFrom<&generated_proto::services::FieldValue> for FieldValue {
 
         let field_value = match value.Value.as_ref().unwrap() {
             generated_proto::services::field_value::Value::Int32Value(v) => Self {
-                field_type: FieldType::I32,
+                _field_type: FieldType::I32,
                 value: v.to_le_bytes().to_vec(),
             },
             generated_proto::services::field_value::Value::Int64Value(v) => Self {
-                field_type: FieldType::I64,
+                _field_type: FieldType::I64,
                 value: v.to_le_bytes().to_vec(),
             },
             generated_proto::services::field_value::Value::Float32Value(v) => Self {
-                field_type: FieldType::F32,
+                _field_type: FieldType::F32,
                 value: v.to_le_bytes().to_vec(),
             },
             generated_proto::services::field_value::Value::Float64Value(v) => Self {
-                field_type: FieldType::F64,
+                _field_type: FieldType::F64,
                 value: v.to_le_bytes().to_vec(),
             },
             generated_proto::services::field_value::Value::StringValue(v) => Self {
-                field_type: FieldType::F64,
+                _field_type: FieldType::F64,
                 value: v.clone().into_bytes(),
             },
             generated_proto::services::field_value::Value::BytesValue(v) => Self {
-                field_type: FieldType::F64,
+                _field_type: FieldType::F64,
                 value: v.clone(),
             },
         };

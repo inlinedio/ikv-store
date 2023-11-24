@@ -64,7 +64,9 @@ impl IKVKafkaConsumer {
         }
     }
 
-    pub fn stop(&mut self) {}
+    pub fn stop(&mut self) {
+        todo!()
+    }
 }
 
 pub struct IKVKafkaConsumerContext;
