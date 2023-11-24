@@ -1,5 +1,6 @@
 use proto::generated_proto::services::MultiFieldDocument;
 
+mod controller;
 mod index;
 pub mod jni;
 mod kafka;

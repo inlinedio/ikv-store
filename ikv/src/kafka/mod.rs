@@ -1,3 +1,3 @@
-mod consumer;
-mod error;
-mod processor;
+pub mod consumer;
+pub mod error;
+pub mod processor;

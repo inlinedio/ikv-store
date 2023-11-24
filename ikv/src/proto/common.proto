@@ -20,3 +20,11 @@ enum FieldType {
   STRING = 4;
   BYTES = 5;
 }
+
+message IKVStoreConfig {
+  // Map key uniquely defines a config key
+  // Config keys are unique across all typed maps
+  map<string, string> stringConfigs = 1;
+  map<string, int64> numericConfigs = 2;
+  map<string, bytes> bytesConfigs = 3;
+}

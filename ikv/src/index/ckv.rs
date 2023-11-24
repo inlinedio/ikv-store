@@ -1,5 +1,8 @@
 use crate::{
-    proto::generated_proto::{common::FieldSchema, services::FieldValue},
+    proto::generated_proto::{
+        common::{FieldSchema, IKVStoreConfig},
+        services::FieldValue,
+    },
     schema::{
         self,
         ckvindex_schema::CKVIndexSchema,
@@ -12,7 +15,7 @@ use super::{ckv_segment::CKVIndexSegment, error::IndexError};
 use std::{
     collections::HashMap,
     fs::{self},
-    io::{self},
+    io::{self, Error, ErrorKind},
     sync::RwLock,
 };
 
@@ -20,6 +23,8 @@ const NUM_SEGMENTS: usize = 16;
 
 /// Memmap based columnar key-value index.
 pub struct CKVIndex {
+    mount_directory: String,
+
     // hash(key) -> PrimaryKeyIndex
     segments: Vec<RwLock<CKVIndexSegment>>,
 
@@ -28,58 +33,65 @@ pub struct CKVIndex {
 }
 
 impl CKVIndex {
-    pub fn new(mount_directory: &str, schema_file_path: &str) -> io::Result<CKVIndex> {
+    #[deprecated]
+    pub fn new(mount_directory: String, config: &IKVStoreConfig) -> io::Result<CKVIndex> {
         // ensure mount_directory exists
         fs::create_dir_all(mount_directory.clone())?;
 
-        // copy and persist schema file
-        let mount_schema_file_path = format!("{}/schema", mount_directory);
-        fs::copy(schema_file_path, format!("{}/schema", mount_directory))?;
+        // create schema
+        let primary_key = config.stringConfigs.get("primary_key").ok_or(Error::new(
+            ErrorKind::InvalidInput,
+            "primary_key is a required config",
+        ))?;
+        let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
 
-        let schema_string = schema::read_schema_file(&mount_schema_file_path)?;
-
+        // create index segments
         let mut segments = vec![];
         for index_id in 0..NUM_SEGMENTS {
-            let segment = CKVIndexSegment::new(mount_directory, index_id)?;
+            let segment = CKVIndexSegment::open_or_create(&mount_directory, index_id)?;
             segments.push(RwLock::new(segment));
         }
 
-        let mut fieldid_field_table = schema::load_yaml_schema(&schema_string);
-        schema::sort_by_field_id(&mut fieldid_field_table);
-        let fieldname_field_table = schema::to_map(&fieldid_field_table);
-
         Ok(Self {
+            mount_directory,
             segments,
-            schema: RwLock::new(CKVIndexSchema::new(fieldname_field_table)),
+            schema: RwLock::new(schema),
         })
     }
 
-    pub fn open(mount_directory: String) -> io::Result<CKVIndex> {
-        // read persisted schema into String
-        let schema_file_path = format!("{}/schema", mount_directory);
-        let schema_string = schema::read_schema_file(&schema_file_path)?;
+    pub fn open(mount_directory: String, config: &IKVStoreConfig) -> io::Result<CKVIndex> {
+        // load schema
+        let primary_key = config.stringConfigs.get("primary_key").ok_or(Error::new(
+            ErrorKind::InvalidInput,
+            "primary_key is a required config",
+        ))?;
+        let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
 
-        let mut fieldid_field_table = schema::load_yaml_schema(&schema_string);
-        schema::sort_by_field_id(&mut fieldid_field_table);
-        let fieldname_field_table = schema::to_map(&fieldid_field_table);
-
+        // TODO: inspect if we need to load a new base index!!!
         // open index segments
         let mut segments = Vec::with_capacity(NUM_SEGMENTS);
         for index_id in 0..NUM_SEGMENTS {
-            let segment = CKVIndexSegment::open(&mount_directory, index_id)?;
+            let segment = CKVIndexSegment::open_or_create(&mount_directory, index_id)?;
             segments.push(RwLock::new(segment));
         }
 
         Ok(Self {
+            mount_directory,
             segments,
-            schema: RwLock::new(CKVIndexSchema::new(fieldname_field_table)),
+            schema: RwLock::new(schema),
         })
     }
 
-    pub fn close(&self) {
+    pub fn close(&self) -> io::Result<()> {
+        // save schema
+        self.schema.write().unwrap().save(&self.mount_directory)?;
+
+        // close segments
         for segment in self.segments.iter() {
             segment.read().unwrap().close();
         }
+
+        Ok(())
     }
 
     pub fn update_schema(&self, fields: &[FieldSchema]) -> Result<(), SchemaError> {
@@ -337,27 +349,5 @@ impl CKVIndex {
             primary_key.try_into().expect("no new field types expected"); // TODO: inspect!!
 
         Some(primary_key.serialize())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::CKVIndex;
-
-    #[test]
-    fn open() {
-        let yaml_str = "
-        document:
-        - name: firstname
-          id: 0
-          type: string
-        - name: age
-          id: 1
-          type: i32
-        - name: profile
-          id: 2
-          type: bytes";
-        let index = CKVIndex::new("/tmp/basic", yaml_str);
-        assert!(index.is_ok());
     }
 }

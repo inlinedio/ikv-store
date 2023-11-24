@@ -9,6 +9,7 @@ fn main() {
         .inputs(&[
             "src/proto/common.proto",
             "src/proto/streaming.proto",
+            "src/proto/internal.proto",
             "src/proto/services.proto",
         ])
         // Specify output directory relative to Cargo output directory.
