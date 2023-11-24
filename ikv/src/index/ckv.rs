@@ -1,13 +1,18 @@
 use crate::{
     proto::generated_proto::{common::FieldSchema, services::FieldValue},
-    schema::{self, ckvindex_schema::CKVIndexSchema, error::SchemaError, field::Field},
+    schema::{
+        self,
+        ckvindex_schema::CKVIndexSchema,
+        error::SchemaError,
+        field::{Field, IndexedValue},
+    },
 };
 
-use super::ckv_segment::CKVIndexSegment;
+use super::{ckv_segment::CKVIndexSegment, error::IndexError};
 use std::{
     collections::HashMap,
     fs::{self},
-    io::{self, Error},
+    io::{self},
     sync::RwLock,
 };
 
@@ -145,60 +150,82 @@ impl CKVIndex {
     /// 3. delete a document
     /// Batch APIs ie above for multiple documents - todo
 
-    pub fn upsert_field_values_v2(
+    /// Todo: move jni specific apis to jni module
+    #[deprecated]
+    pub fn jni_upsert_field_values(
         &self,
-        primary_key: &[u8],
-        field_names: Vec<String>,
-        field_values: Vec<FieldValue>,
-    ) -> io::Result<()> {
-        todo!()
+        primary_key: Vec<u8>,
+        mut field_names: Vec<String>,
+        mut field_values: Vec<Vec<u8>>,
+    ) -> Result<(), IndexError> {
+        let mut document: HashMap<String, FieldValue> =
+            HashMap::with_capacity(field_names.len() + 1);
+
+        let schema = self.schema.read().unwrap();
+
+        // insert primary key
+        let mut value = FieldValue::new();
+        value.set_bytesValue(primary_key);
+        document.insert(schema.primary_key_field_name().to_string(), value);
+
+        // insert other fields
+        for _ in 0..field_names.len() {
+            let mut value = FieldValue::new();
+            value.set_bytesValue(field_values.pop().unwrap());
+
+            document.insert(field_names.pop().unwrap(), value);
+        }
+
+        self.upsert_field_values(&document)
     }
 
     pub fn upsert_field_values(
         &self,
-        primary_key: &[u8],
-        field_names: Vec<String>,
-        field_values: Vec<Vec<u8>>,
-    ) -> io::Result<()> {
-        if primary_key.len() == 0 {
+        document: &HashMap<String, FieldValue>,
+    ) -> Result<(), IndexError> {
+        if document.len() == 0 {
             return Ok(());
         }
 
+        // extract primary key
+        let primary_key = self.extract_primary_key(document);
+        if primary_key.is_none() {
+            return Err(IndexError::IllegalArguments(
+                "Cannot upsert with missing primary-key".to_string(),
+            ));
+        }
+        let primary_key = &primary_key.unwrap();
         if primary_key.len() > u16::MAX as usize {
-            return Err(Error::new(
-                std::io::ErrorKind::Unsupported,
-                "primary_key larger than 64KB is unsupported",
+            return Err(IndexError::IllegalArguments(
+                "primary_key larger than 64KB is unsupported".to_string(),
             ));
         }
 
-        if field_names.len() != field_values.len() {
-            return Err(Error::new(
-                std::io::ErrorKind::InvalidData,
-                "field name and value lengths mismatch",
-            ));
-        }
-
-        // filter out unknown fields
         let schema = self.schema.read().unwrap();
-        let mut final_fields = Vec::with_capacity(field_names.len());
-        let mut final_field_values = Vec::with_capacity(field_values.len());
-        for i in 0..field_names.len() {
-            if let Some(field) = schema.fetch_field_by_name(&field_names[i]) {
-                final_fields.push(field);
-                final_field_values.push(field_values[i].as_slice());
-            }
-        }
 
-        if final_fields.len() == 0 {
-            return Ok(());
+        // flatten to vectors
+        let mut fields = Vec::with_capacity(document.len());
+        let mut values = Vec::with_capacity(document.len());
+        for (field_name, field_value) in document.iter() {
+            fields.push(
+                schema
+                    .fetch_field_by_name(field_name)
+                    .expect("no new fields expected"), // TODO: there can be a mismatch b/w rust and proto enums
+            );
+            values.push(
+                TryInto::<IndexedValue>::try_into(field_value)
+                    .expect("no new field types expected"),
+            );
         }
 
         let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
         let mut ckv_index_segment = self.segments[index_id].write().unwrap();
-        ckv_index_segment.upsert_field_values(primary_key, final_fields, final_field_values)
+        ckv_index_segment.upsert_document(primary_key, fields, values)?;
+        Ok(())
     }
 
-    pub fn delete_field_values(
+    #[deprecated]
+    pub fn legacy_delete_field_values(
         &self,
         primary_key: &[u8],
         field_names: Vec<String>,
@@ -224,7 +251,45 @@ impl CKVIndex {
         ckv_index_segment.delete_field_values(primary_key, final_fields)
     }
 
-    pub fn delete_document(&self, primary_key: &[u8]) -> io::Result<()> {
+    pub fn delete_field_values(
+        &self,
+        document: &HashMap<String, FieldValue>,
+        field_names: &[String],
+    ) -> Result<(), IndexError> {
+        if document.len() == 0 || field_names.len() == 0 {
+            return Ok(());
+        }
+
+        // extract primary key
+        let primary_key = self.extract_primary_key(document);
+        if primary_key.is_none() {
+            return Err(IndexError::IllegalArguments(
+                "Cannot delete with missing primary-key".to_string(),
+            ));
+        }
+        let primary_key = &primary_key.unwrap();
+
+        let schema = self.schema.read().unwrap();
+
+        // flatten to vectors
+        let mut fields = Vec::with_capacity(document.len());
+        for field_name in field_names.iter() {
+            fields.push(
+                schema
+                    .fetch_field_by_name(field_name)
+                    .expect("no new fields expected"), // TODO: there can be a mismatch b/w rust and proto enums
+            );
+        }
+
+        let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
+        let mut ckv_index_segment = self.segments[index_id].write().unwrap();
+        ckv_index_segment.delete_field_values(primary_key, fields)?;
+
+        Ok(())
+    }
+
+    #[deprecated]
+    pub fn legacy_delete_document(&self, primary_key: &[u8]) -> io::Result<()> {
         if primary_key.len() == 0 {
             return Ok(());
         }
@@ -232,6 +297,46 @@ impl CKVIndex {
         let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
         let mut ckv_index_segment = self.segments[index_id].write().unwrap();
         ckv_index_segment.delete_document(primary_key)
+    }
+
+    /// Delete a document, given its primary key.
+    pub fn delete_document(
+        &self,
+        document: &HashMap<String, FieldValue>,
+    ) -> Result<(), IndexError> {
+        if document.len() == 0 {
+            return Ok(());
+        }
+
+        // extract primary key
+        let primary_key = self.extract_primary_key(document);
+        if primary_key.is_none() {
+            return Err(IndexError::IllegalArguments(
+                "Cannot delete with missing primary-key".to_string(),
+            ));
+        }
+        let primary_key = &primary_key.unwrap();
+
+        let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
+        let mut ckv_index_segment = self.segments[index_id].write().unwrap();
+        ckv_index_segment.delete_document(primary_key)?;
+
+        Ok(())
+    }
+
+    fn extract_primary_key(&self, document: &HashMap<String, FieldValue>) -> Option<Vec<u8>> {
+        if document.len() == 0 {
+            return None;
+        }
+
+        let schema = self.schema.read().unwrap();
+
+        // extract primary key
+        let primary_key = schema.extract_primary_key(&document)?;
+        let primary_key: IndexedValue =
+            primary_key.try_into().expect("no new field types expected"); // TODO: inspect!!
+
+        Some(primary_key.serialize())
     }
 }
 

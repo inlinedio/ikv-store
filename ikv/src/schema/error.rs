@@ -1,5 +1,6 @@
 use core::fmt;
 
+#[derive(Debug)]
 pub enum SchemaError {
     /// Usually thrown for a new field-type
     /// which is unknown or unsuported.
