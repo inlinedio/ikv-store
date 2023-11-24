@@ -1,4 +1,7 @@
-use crate::schema::{self, field::Field};
+use crate::{
+    proto::generated_proto::{common::FieldSchema, services::FieldValue},
+    schema::{self, ckvindex_schema::CKVIndexSchema, error::SchemaError, field::Field},
+};
 
 use super::ckv_segment::CKVIndexSegment;
 use std::{
@@ -16,7 +19,7 @@ pub struct CKVIndex {
     segments: Vec<RwLock<CKVIndexSegment>>,
 
     // field-name -> Field
-    fieldname_field_table: HashMap<String, Field>,
+    schema: RwLock<CKVIndexSchema>,
 }
 
 impl CKVIndex {
@@ -42,7 +45,7 @@ impl CKVIndex {
 
         Ok(Self {
             segments,
-            fieldname_field_table,
+            schema: RwLock::new(CKVIndexSchema::new(fieldname_field_table)),
         })
     }
 
@@ -64,7 +67,7 @@ impl CKVIndex {
 
         Ok(Self {
             segments,
-            fieldname_field_table,
+            schema: RwLock::new(CKVIndexSchema::new(fieldname_field_table)),
         })
     }
 
@@ -74,9 +77,15 @@ impl CKVIndex {
         }
     }
 
+    pub fn update_schema(&self, fields: &[FieldSchema]) -> Result<(), SchemaError> {
+        let mut schema = self.schema.write().unwrap();
+        schema.update(fields)
+    }
+
     /// Fetch field value for a primary key.
     pub fn get_field_value(&self, primary_key: &[u8], field_name: &str) -> Option<Vec<u8>> {
-        let field = self.fieldname_field_table.get(field_name)?;
+        let schema = self.schema.read().unwrap();
+        let field = schema.fetch_field_by_name(field_name)?;
 
         let index_id: usize = fxhash::hash(primary_key) % NUM_SEGMENTS;
         let ckv_segment = self.segments[index_id].read().unwrap();
@@ -101,12 +110,12 @@ impl CKVIndex {
         let mut result: Vec<u8> = Vec::with_capacity(capacity);
 
         // resolve field name strings to &Field
+        let schema = self.schema.read().unwrap();
         let mut fields: Vec<&Field> = Vec::with_capacity(field_names.len());
         for field_name in field_names {
-            let field = self
-                .fieldname_field_table
-                .get(&field_name)
-                .expect("cannot handle unknonw field_names");
+            let field = schema
+                .fetch_field_by_name(&field_name)
+                .expect("cannot handle unknown field_names");
             fields.push(field);
         }
         let fields = fields.as_slice();
@@ -136,6 +145,15 @@ impl CKVIndex {
     /// 3. delete a document
     /// Batch APIs ie above for multiple documents - todo
 
+    pub fn upsert_field_values_v2(
+        &self,
+        primary_key: &[u8],
+        field_names: Vec<String>,
+        field_values: Vec<FieldValue>,
+    ) -> io::Result<()> {
+        todo!()
+    }
+
     pub fn upsert_field_values(
         &self,
         primary_key: &[u8],
@@ -161,10 +179,11 @@ impl CKVIndex {
         }
 
         // filter out unknown fields
+        let schema = self.schema.read().unwrap();
         let mut final_fields = Vec::with_capacity(field_names.len());
         let mut final_field_values = Vec::with_capacity(field_values.len());
         for i in 0..field_names.len() {
-            if let Some(field) = self.fieldname_field_table.get(&field_names[i]) {
+            if let Some(field) = schema.fetch_field_by_name(&field_names[i]) {
                 final_fields.push(field);
                 final_field_values.push(field_values[i].as_slice());
             }
@@ -188,9 +207,10 @@ impl CKVIndex {
             return Ok(());
         }
 
+        let schema = self.schema.read().unwrap();
         let mut final_fields = Vec::with_capacity(field_names.len());
         for i in 0..field_names.len() {
-            if let Some(field) = self.fieldname_field_table.get(&field_names[i]) {
+            if let Some(field) = schema.fetch_field_by_name(&field_names[i]) {
                 final_fields.push(field);
             }
         }
