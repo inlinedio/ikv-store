@@ -1,0 +1,15 @@
+syntax = "proto3";
+package com.inlineio.schemas;
+
+import "common.proto";
+
+message SavedCKVIndexSchema {
+    string primary_key_field_name = 1;
+    map<string, SavedField> fields = 2;
+}
+
+message SavedField {
+    string name = 1;
+    int32 id = 2;
+    FieldType field_type = 3;
+}

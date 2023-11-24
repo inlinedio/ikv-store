@@ -3,6 +3,7 @@ use std::{
     fs::{File, OpenOptions},
     io::{self, ErrorKind, Read, Write},
     ops::DerefMut,
+    path::Path,
 };
 
 use memmap2::MmapMut;
@@ -30,7 +31,7 @@ pub struct CKVIndexSegment {
 
 impl CKVIndexSegment {
     /// Creates a brand new empty instance of a primary-key index.
-    pub fn new(mount_directory: &str, index_id: usize) -> io::Result<CKVIndexSegment> {
+    fn new(mount_directory: &str, index_id: usize) -> io::Result<CKVIndexSegment> {
         // hash table index
         let filename = format!("{}/index_{}", mount_directory, index_id);
         let index_file = OpenOptions::new()
@@ -58,18 +59,20 @@ impl CKVIndexSegment {
         })
     }
 
-    /// Re-open a previously created index.
-    pub fn open(mount_directory: &str, index_id: usize) -> io::Result<CKVIndexSegment> {
+    pub fn open_or_create(mount_directory: &str, index_id: usize) -> io::Result<CKVIndexSegment> {
         // hash table index
         let filename = format!("{}/index_{}", mount_directory, index_id);
+        if !Path::new(&filename).exists() {
+            return CKVIndexSegment::new(mount_directory, index_id);
+        }
+
+        // index already exists on disk...
         let mut index_file = OpenOptions::new()
             .read(true)
             .append(true)
             .create(false)
             .open(filename)?;
         let mut index = HashMap::new();
-
-        // TODO: index file format has changed!
 
         // Recreate the hashmap
         // Entry format

@@ -4,6 +4,8 @@ use std::{
     io::{self, BufReader, Read},
 };
 
+use crate::proto::generated_proto;
+
 use super::field::Field;
 use yaml_rust::YamlLoader;
 
@@ -33,11 +35,16 @@ pub fn load_yaml_schema(schema_str: &str) -> Vec<Field> {
         let field_type = field["type"]
             .as_str()
             .expect("`type` is a required attribute");
-        let field = Field::new(
-            field_name.to_string(),
-            field_id as u16,
-            field_type.to_string().try_into().unwrap(),
-        );
+        let field_type = match field_type {
+            "i32" => generated_proto::common::FieldType::INT32,
+            "i64" => generated_proto::common::FieldType::INT64,
+            "f32" => generated_proto::common::FieldType::FLOAT32,
+            "f64" => generated_proto::common::FieldType::FLOAT64,
+            "string" => generated_proto::common::FieldType::STRING,
+            "bytes" => generated_proto::common::FieldType::BYTES,
+            other => panic!("Unknown field-type: {} found", other),
+        };
+        let field = Field::new(field_name.to_string(), field_id as u16, field_type);
 
         fields.push(field);
     }

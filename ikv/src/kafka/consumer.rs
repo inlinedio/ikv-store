@@ -5,7 +5,7 @@ use rdkafka::{
     ClientContext, TopicPartitionList,
 };
 
-use crate::proto::generated_proto::streaming::IKVDataEvent;
+use crate::proto::generated_proto::{common::IKVStoreConfig, streaming::IKVDataEvent};
 
 use super::processor::WritesProcessor;
 
@@ -16,17 +16,11 @@ pub struct IKVKafkaConsumer {
 
 impl IKVKafkaConsumer {
     /// Create a new processor.
-    pub fn new(
-        kafka_consumer: StreamConsumer<IKVKafkaConsumerContext>,
-        processor: WritesProcessor,
-    ) -> Self {
-        Self {
-            kafka_consumer,
-            processor,
-        }
+    pub fn new(config: &IKVStoreConfig, processor: WritesProcessor) -> Self {
+        todo!()
     }
 
-    pub fn run_in_background(&mut self) -> KafkaResult<()> {
+    pub fn run_in_background(&self) -> KafkaResult<()> {
         // TODO: add correct topic and partition
         let mut topic_partition = TopicPartitionList::new();
         topic_partition.add_partition("foo_topic", 0);
@@ -64,7 +58,7 @@ impl IKVKafkaConsumer {
         }
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(&self) {
         todo!()
     }
 }
