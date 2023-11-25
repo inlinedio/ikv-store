@@ -1,21 +1,31 @@
 package io.inline.clients;
 
+import com.inlineio.schemas.Common.IKVStoreConfig;
+
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class LegacyIKVClient {
+    public static String CFG_MOUNT_DIRECTORY = "mount_directory";
+    public static String CFG_PRIMARY_KEY = "primary_key";
+
+    @Deprecated
+    public static String CFG_KAFKA_BOOTSTRAP_SERVER = "kafka_consumer_bootstrap_server";  // comes from inline cloud
+    @Deprecated
+    public static String CFG_KAFKA_TOPIC = "kafka_topic"; // comes from inline cloud
+    @Deprecated
+    public static String CFG_KAFKA_PARTITION = "kafka_partition"; // comes from inline cloud
+
+
     private final long _indexHandle;
 
-    public static LegacyIKVClient createNew(String mountPath, String schemaFilePath) {
-        long indexHandle = IKVClientJNI.createNew(mountPath, schemaFilePath);
-        return new LegacyIKVClient(indexHandle);
-    }
-
-    public static LegacyIKVClient open(String mountPath) {
-        long indexHandle = IKVClientJNI.open(mountPath);
+    public static LegacyIKVClient open(IKVStoreConfig config) {
+        long indexHandle = IKVClientJNI.open(config.toByteArray());
         return new LegacyIKVClient(indexHandle);
     }
 

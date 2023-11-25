@@ -7,7 +7,7 @@ public final class IKVClientJNI {
     // System.load("/home/ubuntu/inlineio/ikv/target/release/libikv.so");
     // System.load("/Users/pushkar/projects/inlineio/ikv/target/release/libikv.dylib");
     static {
-        System.load("/home/ubuntu/inlineio/ikv/target/release/libikv.so");
+        System.load("/Users/pushkar/projects/inlineio/ikv/target/release/libikv.dylib");
     }
 
     /** For simple testing. */
@@ -16,8 +16,11 @@ public final class IKVClientJNI {
     private IKVClientJNI() {
     }
 
-    public static native long createNew(String mountPath, String schemaFilePath);
-    public static native long open(String mountPath);
+    // Open or create.
+    // config: Serialized IKVStoreConfig.proto
+    // RuntimeException: opening errors.
+    public static native long open(byte[] config) throws RuntimeException;
+
     public static native void close(long indexHandle);
 
     @Nullable
