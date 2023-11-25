@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use protobuf::Message;
 use rdkafka::{
@@ -17,12 +17,15 @@ pub struct IKVKafkaConsumer {
     is_running: bool,
     runtime: Runtime,
     consumer: StreamConsumer<IKVKafkaConsumerContext>,
-    processor: WritesProcessor,
+    processor: Arc<WritesProcessor>,
 }
 
 impl IKVKafkaConsumer {
     /// Create a new processor.
-    pub fn new(config: &IKVStoreConfig, processor: WritesProcessor) -> Result<Self, IKVKafkaError> {
+    pub fn new(
+        config: &IKVStoreConfig,
+        processor: Arc<WritesProcessor>,
+    ) -> Result<Self, IKVKafkaError> {
         let kafka_consumer_bootstrap_server = config
             .stringConfigs
             .get("kafka_consumer_bootstrap_server")

@@ -7,9 +7,10 @@ use crate::controller::external_handle;
 use crate::controller::main::Controller;
 use crate::jni::utils;
 use crate::proto::generated_proto::common::IKVStoreConfig;
+use crate::proto::generated_proto::streaming::IKVDataEvent;
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_provideHelloWorld<'local>(
+pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_provideHelloWorld<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
 ) -> jstring {
@@ -21,7 +22,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_provideHelloWorld<'lo
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_open<'local>(
+pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_open<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     config: JByteArray<'local>,
@@ -40,7 +41,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_open<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_close<'local>(
+pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_close<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
@@ -50,7 +51,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_close<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readField<'local>(
+pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_readField<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
@@ -73,27 +74,7 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readField<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_readFields<'local>(
-    mut env: JNIEnv<'local>,
-    _class: JClass<'local>,
-    handle: jlong,
-    primary_key: JByteArray<'local>,
-    field_names: JObject<'local>,
-) -> jbyteArray {
-    let controller = external_handle::from_external_handle(handle);
-    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
-    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
-
-    let result = controller
-        .index_ref()
-        .batch_get_field_values(vec![primary_key], field_names);
-
-    // TODO - ensure we don't return batch response larger than i32
-    utils::vec_to_jbyte_array(&env, result)
-}
-
-#[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadField<'local>(
+pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_batchReadField<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
@@ -113,75 +94,35 @@ pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadField<'local
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_batchReadFields<'local>(
+pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_processIKVDataEvent<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
-    primary_keys: JObject<'local>,
-    field_names: JObject<'local>,
-) -> jbyteArray {
-    let controller = external_handle::from_external_handle(handle);
-    let primary_keys = utils::jlist_to_vec_bytes(&mut env, primary_keys);
-    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
-
-    let result = controller
-        .index_ref()
-        .batch_get_field_values(primary_keys, field_names);
-
-    // TODO - ensure we don't return batch response larger than i32
-    utils::vec_to_jbyte_array(&env, result)
-}
-
-#[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_upsertFieldValues<'local>(
-    mut env: JNIEnv<'local>,
-    _class: JClass<'local>,
-    handle: jlong,
-    primary_key: JByteArray<'local>,
-    field_names: JObject<'local>,
-    field_values: JObject<'local>,
+    ikv_data_event_bytes: JByteArray<'local>,
 ) {
     let controller = external_handle::from_external_handle(handle);
-    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
-    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
-    let field_values: Vec<Vec<u8>> = utils::jlist_to_vec_bytes(&mut env, field_values);
+    let ikv_data_event_bytes = utils::jbyte_array_to_vec(&env, ikv_data_event_bytes);
 
-    let _ =
-        match controller
-            .index_ref()
-            .jni_upsert_field_values(primary_key, field_names, field_values)
-        {
-            Ok(_) => jni::errors::Result::Ok(()),
-            Err(err) => env.throw_new("java/lang/RuntimeException", err.to_string()),
-        };
-}
+    let maybe_ikv_data_event = IKVDataEvent::parse_from_bytes(&ikv_data_event_bytes);
+    if let Err(e) = maybe_ikv_data_event {
+        let _ = env.throw_new(
+            "java/lang/RuntimeException",
+            format!(
+                "Cannot deserialize to IKVDataEvent. Error: {}",
+                e.to_string()
+            ),
+        );
+        return;
+    }
 
-#[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteFieldValues<'local>(
-    mut env: JNIEnv<'local>,
-    _class: JClass<'local>,
-    handle: jlong,
-    primary_key: JByteArray<'local>,
-    field_names: JObject<'local>,
-) {
-    let controller = external_handle::from_external_handle(handle);
-    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
-    let field_names = utils::jlist_to_vec_strings(&mut env, field_names);
+    // Write to index
+    let ikv_data_event = maybe_ikv_data_event.unwrap();
 
-    let _ = controller
-        .index_ref()
-        .legacy_delete_field_values(&primary_key, field_names);
-}
-
-#[no_mangle]
-pub extern "system" fn Java_io_inline_clients_IKVClientJNI_deleteDocument<'local>(
-    mut env: JNIEnv<'local>,
-    _class: JClass<'local>,
-    handle: jlong,
-    primary_key: JByteArray<'local>,
-) {
-    let controller = external_handle::from_external_handle(handle);
-    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
-
-    let _ = controller.index_ref().legacy_delete_document(&primary_key);
+    let _ = match controller.writes_processor_ref().process(&ikv_data_event) {
+        Ok(_) => jni::errors::Result::Ok(()),
+        Err(e) => env.throw_new(
+            "java/lang/RuntimeException",
+            format!("Write error for IKVDataEvent. Error: {}", e.to_string()),
+        ),
+    };
 }

@@ -1,8 +1,6 @@
 package io.inline.clients;
-import com.inlineio.schemas.Services.FieldValue;
 
 import java.util.Collection;
-import java.util.Map;
 
 public interface InlineKVWriter {
     void startup();

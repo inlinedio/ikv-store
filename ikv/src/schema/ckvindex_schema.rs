@@ -69,6 +69,8 @@ impl CKVIndexSchema {
         })
     }
 
+    // TODO: we need continuous serialization - when the process getting killed abruptly.
+    // simple sol - do it when we see a new field??
     pub fn save(&self, mount_directory: &str) -> std::io::Result<()> {
         let file_path = format!("{}/schema", mount_directory);
         let file = OpenOptions::new()

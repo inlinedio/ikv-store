@@ -11,7 +11,6 @@ import io.grpc.protobuf.StatusProto;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Map;
 
 /** RPC based writer instance. */
 public class GRPCInlineKVWriter implements InlineKVWriter {
@@ -32,10 +31,10 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
     @Override
     public void upsertFieldValues(IKVDocument document) {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
-        Preconditions.checkArgument(document.accessFields().size() > 1, "empty document not allowed");
+        Preconditions.checkArgument(document.asMap().size() > 1, "empty document not allowed");
 
         MultiFieldDocument multiFieldDocument = MultiFieldDocument.newBuilder()
-                .putAllDocument(document.accessFields())
+                .putAllDocument(document.asMap())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
@@ -64,13 +63,13 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
     @Override
     public void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete) {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
-        Preconditions.checkArgument(documentId.accessFields().size() > 1, "need document-identifiers");
+        Preconditions.checkArgument(documentId.asMap().size() > 1, "need document-identifiers");
         if (fieldsToDelete.isEmpty()) {
             return;
         }
 
         MultiFieldDocument docId = MultiFieldDocument.newBuilder()
-                .putAllDocument(documentId.accessFields())
+                .putAllDocument(documentId.asMap())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
@@ -100,10 +99,10 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
     @Override
     public void deleteDocument(IKVDocument documentId) {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
-        Preconditions.checkArgument(documentId.accessFields().size() > 1, "need document-identifiers");
+        Preconditions.checkArgument(documentId.asMap().size() > 1, "need document-identifiers");
 
         MultiFieldDocument docId = MultiFieldDocument.newBuilder()
-                .putAllDocument(documentId.accessFields())
+                .putAllDocument(documentId.asMap())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 

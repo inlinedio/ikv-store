@@ -1,8 +1,7 @@
 package io.inline.benchmarks;
 
 import com.google.common.base.Preconditions;
-import com.inlineio.schemas.Common;
-import io.inline.clients.LegacyIKVClient;
+import io.inline.clients.*;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
@@ -10,14 +9,12 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.inline.clients.LegacyIKVClient.*;
-
 public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     // Usage:
     // java -Xms10g -Xmx10g -cp ikv-java-client-redis-single.jar io.inline.benchmarks.IKVLatencyBenchmarkWorkflow "num_entries:10000,batch_size:100"
     public static void main(String[] args) {
         // arg parsing
-        String paramString = "mode:batch,num_entries:100000,batch_size:10";  // default
+        String paramString = "mode:batch,num_entries:1000,batch_size:10";  // default
         if (args.length > 0) {
             paramString = args[0];
         }
@@ -42,7 +39,10 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         System.exit(0);
     }
 
-    private final LegacyIKVClient _legacyIKVClient;
+
+    private static final FieldAccessor PROFILE_FIELD_ACCESSOR = FieldAccessor.bytesFieldAccessor("profile");
+
+    private final TestingInlineKVReader _testingClient;
 
     private final KeyValuesGenerator _keyValuesGenerator;
     private final ConcurrentHashMap<KeyValuesGenerator.BytesKey, byte[]> _sourceOfTruth;
@@ -52,15 +52,16 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     private final int _batchSize;
 
     public IKVLatencyBenchmarkWorkflow(BenchmarkParams params) {
-        Common.IKVStoreConfig config = Common.IKVStoreConfig.newBuilder()
-                .putStringConfigs(CFG_MOUNT_DIRECTORY, "/tmp/JavaIntegrationTests")
-                .putStringConfigs(CFG_PRIMARY_KEY, "documentId")
-                .putStringConfigs(CFG_KAFKA_BOOTSTRAP_SERVER, "localhost")
-                .putStringConfigs(CFG_KAFKA_TOPIC, "topic")
-                .putNumericConfigs(CFG_KAFKA_PARTITION, 0L)
+        ClientOptions clientOptions = new ClientOptions.Builder()
+                .withMountDirectory("/tmp/Benchmarks")
+                .withPrimaryKeyFieldName("key")
+                .withStoreName("Benchmarks")
+                .withKafkaConsumerBootstrapServer("localhost")
+                .withKafkaConsumerTopic("Benchmarks")
+                .withKafkaConsumerPartition(0)
                 .build();
 
-        _legacyIKVClient = LegacyIKVClient.open(config);
+        _testingClient = new TestingInlineKVReader(clientOptions);
 
         _numEntries = params.getIntegerParameter("num_entries").get();
         _batchSize = params.getIntegerParameter("batch_size").get();
@@ -71,6 +72,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
     @Override
     public void connect() {
+        _testingClient.startup(null);
         // no op
     }
 
@@ -82,7 +84,11 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
             byte[] valueBytes = _keyValuesGenerator.getValueBytes(50, i);
 
             // Write to Inline KV
-            _legacyIKVClient.upsertFieldValue(keyBytes, valueBytes, "profile");
+            IKVDocument ikvDocument = new IKVDocument.Builder()
+                    .putBytesField("key", keyBytes)
+                    .putBytesField("profile", valueBytes)
+                    .build();
+            _testingClient.upsertFieldValues(ikvDocument);
 
             // Write to internal SOT for assertions
             _sourceOfTruth.put(key, valueBytes);
@@ -101,12 +107,12 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     private void benchmarkSingleGetImpl(@Nullable Histogram histogram) {
         for (int i = 0; i < _numEntries; i++) {
             KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(i);
-            byte[] keyBytes = key.getInnerBytes();
+            PrimaryKey primaryKey = PrimaryKey.from(key.getInnerBytes());
             byte[] valueBytes = _sourceOfTruth.get(key);
 
             // IKV lookup
             Instant start = Instant.now();
-            byte[] returnedValueBytes = _legacyIKVClient.readBytesField(keyBytes, "profile");
+            byte[] returnedValueBytes = _testingClient.getBytesValue(primaryKey, PROFILE_FIELD_ACCESSOR);
             Instant end = Instant.now();
 
             if (histogram != null) {
@@ -135,9 +141,10 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
             int endEntry = Math.min(i + _batchSize, _numEntries);
             List<byte[]> bytesKeys = _keyValuesGenerator.getKeyBatch(startEntry, endEntry).stream()
                     .map(KeyValuesGenerator.BytesKey::getInnerBytes).toList();
+            List<PrimaryKey> primaryKeys = bytesKeys.stream().map(PrimaryKey::from).toList();
 
             Instant start = Instant.now();
-            List<byte[]> returnedValues = _legacyIKVClient.batchReadBytesField(bytesKeys, "profile");
+            List<byte[]> returnedValues = _testingClient.multiGetBytesValue(primaryKeys, PROFILE_FIELD_ACCESSOR);
             Instant end = Instant.now();
 
             if (histogram != null) {
@@ -159,12 +166,8 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         }
     }
 
-    public List<byte[]> getValuesTemp(List<byte[]> keys) {
-        return _legacyIKVClient.batchReadBytesField(keys, "profile");
-    }
-
     @Override
     public void shutdown() {
-        _legacyIKVClient.close();
+        _testingClient.shutdown();
     }
 }
