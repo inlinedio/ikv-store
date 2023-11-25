@@ -7,16 +7,6 @@ public class InlineKVReaderClient {
         throw new UnsupportedOperationException();
     }
 
-    public static InlineKVReaderClient createNew(String mountPath, String schemaFilePath) {
-        long indexHandle = IKVClientJNI.createNew(mountPath, schemaFilePath);
-        return new InlineKVReaderClient(indexHandle);
-    }
-
-    public static InlineKVReaderClient open(String mountPath) {
-        long indexHandle = IKVClientJNI.open(mountPath);
-        return new InlineKVReaderClient(indexHandle);
-    }
-
     private InlineKVReaderClient(long indexHandle) {
         _indexHandle = indexHandle;
     }

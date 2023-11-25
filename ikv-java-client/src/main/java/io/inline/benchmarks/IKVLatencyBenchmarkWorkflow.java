@@ -1,6 +1,7 @@
 package io.inline.benchmarks;
 
 import com.google.common.base.Preconditions;
+import com.inlineio.schemas.Common;
 import io.inline.clients.LegacyIKVClient;
 
 import javax.annotation.Nullable;
@@ -8,6 +9,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static io.inline.clients.LegacyIKVClient.*;
 
 public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     // Usage:
@@ -49,9 +52,15 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     private final int _batchSize;
 
     public IKVLatencyBenchmarkWorkflow(BenchmarkParams params) {
-        // IKVClient.create_new("/tmp/benchmark", "/home/ubuntu/inlineio/ikv/src/schema/sample.yaml");
-        // IKVClient.create_new("/tmp/benchmark", "/Users/pushkar/projects/inlineio/ikv/src/schema/sample.yaml");
-        _legacyIKVClient = LegacyIKVClient.createNew("/tmp/benchmark", "/home/ubuntu/inlineio/ikv/src/schema/sample.yaml");
+        Common.IKVStoreConfig config = Common.IKVStoreConfig.newBuilder()
+                .putStringConfigs(CFG_MOUNT_DIRECTORY, "/tmp/JavaIntegrationTests")
+                .putStringConfigs(CFG_PRIMARY_KEY, "documentId")
+                .putStringConfigs(CFG_KAFKA_BOOTSTRAP_SERVER, "localhost")
+                .putStringConfigs(CFG_KAFKA_TOPIC, "topic")
+                .putNumericConfigs(CFG_KAFKA_PARTITION, 0L)
+                .build();
+
+        _legacyIKVClient = LegacyIKVClient.open(config);
 
         _numEntries = params.getIntegerParameter("num_entries").get();
         _batchSize = params.getIntegerParameter("batch_size").get();

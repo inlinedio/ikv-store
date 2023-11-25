@@ -25,10 +25,6 @@ impl Controller {
             .stringConfigs
             .get("mount_directory")
             .ok_or("mount_directory is a required config".to_string())?;
-        let primary_key = config
-            .stringConfigs
-            .get("primary_key")
-            .ok_or("primary_key is a required config".to_string())?;
 
         // 2. Open index - inspect if it exists locally, else fetch base index
         let index = match CKVIndex::open(mount_directory.clone(), &config) {
@@ -38,7 +34,11 @@ impl Controller {
         let index = Arc::new(index);
 
         // 3. Start kafka consumption
-        let kafka_consumer = IKVKafkaConsumer::new(&config, WritesProcessor::new(index.clone()));
+        let mut kafka_consumer =
+            match IKVKafkaConsumer::new(&config, WritesProcessor::new(index.clone())) {
+                Ok(kc) => kc,
+                Err(e) => return Err(e.to_string()),
+            };
         kafka_consumer.run_in_background();
 
         Ok(Controller {
