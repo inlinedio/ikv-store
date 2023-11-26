@@ -104,4 +104,6 @@ public class IntegrationTests {
 
         client.shutdown();
     }
+
+    // TODO! delete fields tests
 }
