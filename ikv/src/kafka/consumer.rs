@@ -1,4 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
+use std::time::Duration;
+use std::{thread, time};
 
 use protobuf::Message;
 use rdkafka::{
@@ -8,16 +12,23 @@ use rdkafka::{
     ClientConfig, ClientContext, TopicPartitionList,
 };
 use tokio::runtime::{Builder, Runtime};
+use tokio_util::sync::CancellationToken;
 
 use crate::proto::generated_proto::{common::IKVStoreConfig, streaming::IKVDataEvent};
 
 use super::{error::IKVKafkaError, processor::WritesProcessor};
 
 pub struct IKVKafkaConsumer {
-    is_running: bool,
-    runtime: Runtime,
-    consumer: StreamConsumer<IKVKafkaConsumerContext>,
+    tokio_runtime: Runtime,
     processor: Arc<WritesProcessor>,
+
+    // consumer thread
+    start_signal: (Sender<i32>, Receiver<i32>),
+    cancellation_token: CancellationToken,
+
+    // Consumer configuration - created in constructor
+    client_config: ClientConfig,
+    topic_partition: TopicPartitionList,
 }
 
 impl IKVKafkaConsumer {
@@ -37,17 +48,18 @@ impl IKVKafkaConsumer {
 
         // TODO: we might need SSL access
         // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
-        let consumer: StreamConsumer<IKVKafkaConsumerContext> = ClientConfig::new()
+        let client_config = ClientConfig::new()
             //.set("group.id", group_id) // we don't use offset management or automatic partition assignment
             .set("bootstrap.servers", kafka_consumer_bootstrap_server)
             .set("enable.partition.eof", "false")
-            .set("session.timeout.ms", "30000000") // ~1year
+            .set("session.timeout.ms", "3600000")
+            .set("max.poll.interval.ms", "3600000")
             .set("enable.auto.commit", "false")
             .set("auto.offset.reset", "earliest")
             .set_log_level(RDKafkaLogLevel::Debug)
-            .create_with_context(IKVKafkaConsumerContext)?;
+            .clone();
 
-        // assign topic and parition
+        // topic and parition
         let topic = config
             .stringConfigs
             .get("kafka_topic")
@@ -75,37 +87,77 @@ impl IKVKafkaConsumer {
 
         let mut topic_partition = TopicPartitionList::new();
         topic_partition.add_partition(&topic, partition);
-        consumer.assign(&topic_partition)?;
 
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)
             .thread_name("kafka-consumer-thread")
+            .enable_time()
             .build()?;
 
         Ok(IKVKafkaConsumer {
-            is_running: false,
-            consumer,
-            processor,
-            runtime,
+            tokio_runtime: runtime,
+            processor: processor,
+            start_signal: mpsc::channel(),
+            cancellation_token: CancellationToken::new(),
+            client_config: client_config,
+            topic_partition: topic_partition,
         })
     }
 
-    pub fn run_in_background(&mut self) -> KafkaResult<()> {
-        /*if !self.is_running {
-            self.is_running = true;
-            self.runtime.spawn(self.run_blocking());
-        }
-        Ok(())*/
-        todo!()
+    pub fn run_in_background(&self) -> Result<(), IKVKafkaError> {
+        // start consumer thread
+        self.tokio_runtime.spawn(IKVKafkaConsumer::run(
+            self.processor.clone(),
+            self.start_signal.0.clone(),
+            self.cancellation_token.clone(),
+            self.client_config.clone(),
+            self.topic_partition.clone(),
+        ));
+
+        // wait for status - kafka creation
+        if let Ok(signal) = self.start_signal.1.recv() {
+            if signal == 0 {
+                thread::sleep(time::Duration::from_millis(10000)); // 10s sleep
+                return Ok(());
+            } else if signal == -1 {
+                return Err(IKVKafkaError::KAFKA_ERROR(
+                    rdkafka::error::KafkaError::ClientCreation("cannot create client".to_string()),
+                ));
+            } else {
+                unreachable!()
+            }
+        };
+
+        Ok(())
     }
 
-    async fn run_blocking(&self) {
+    // blocking run.
+    async fn run(
+        processor: Arc<WritesProcessor>,
+        start_signal: Sender<i32>,
+        cancellation_token: CancellationToken,
+        client_config: ClientConfig,
+        topic_partition: TopicPartitionList,
+    ) {
+        let consumer: StreamConsumer<IKVKafkaConsumerContext> =
+            match client_config.create_with_context(IKVKafkaConsumerContext) {
+                Ok(consumer) => consumer,
+                Err(e) => {
+                    println!("{}", format!("Cannot start kafka consumer, error: {}", e));
+                    let _ = start_signal.send(-1);
+                    return;
+                }
+            };
+
+        let _ = consumer.assign(&topic_partition);
+        let _ = start_signal.send(0);
+
         loop {
-            if !self.is_running {
+            if cancellation_token.is_cancelled() {
                 break;
             }
 
-            match self.consumer.recv().await {
+            match consumer.recv().await {
                 Err(e) => {
                     // TODO: log unprocessed event and continue?
                 }
@@ -114,7 +166,7 @@ impl IKVKafkaConsumer {
                         match IKVDataEvent::parse_from_bytes(bytes) {
                             Ok(event) => {
                                 // TODO: handle errors
-                                let _ = self.processor.process(&event);
+                                let _ = processor.process(&event);
                             }
                             Err(e) => {
                                 // TODO: log deserialization errors
@@ -123,15 +175,15 @@ impl IKVKafkaConsumer {
                     }
 
                     // TODO: handle error while committing
-                    let _ = self.consumer.commit_message(&message, CommitMode::Sync);
+                    let _ = consumer.commit_message(&message, CommitMode::Sync);
                 }
             };
         }
     }
 
-    pub fn stop(mut self) {
-        self.is_running = false;
-        self.runtime.shutdown_timeout(Duration::from_secs(60));
+    pub fn stop(self) {
+        self.cancellation_token.cancel();
+        self.tokio_runtime.shutdown_timeout(Duration::from_secs(60));
     }
 }
 

@@ -110,10 +110,6 @@ impl CKVIndexSchema {
         document.get(&self.primary_key_field_name)
     }
 
-    pub fn primary_key_field_name(&self) -> &str {
-        &self.primary_key_field_name
-    }
-
     /// Update the internal fields table with new field-info if required.
     /// Known fields are skipped, new start getting tracked.
     ///
