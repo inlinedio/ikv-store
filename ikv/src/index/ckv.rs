@@ -4,7 +4,6 @@ use crate::{
         services::FieldValue,
     },
     schema::{
-        self,
         ckvindex_schema::CKVIndexSchema,
         error::SchemaError,
         field::{Field, IndexedValue},

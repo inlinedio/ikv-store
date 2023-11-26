@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, io::Error};
 
 use rdkafka::error::KafkaError;
 
@@ -8,11 +8,16 @@ use crate::schema::error::SchemaError;
 pub enum IKVKafkaError {
     KAFKA_ERROR(KafkaError),
     INDEX_WRITE_ERROR(String),
+    STDIO_ERROR(String),
 }
 
 impl fmt::Display for IKVKafkaError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        todo!()
+        match self {
+            IKVKafkaError::KAFKA_ERROR(e) => write!(f, "{}", e.to_string()),
+            IKVKafkaError::INDEX_WRITE_ERROR(e) => write!(f, "{}", e),
+            IKVKafkaError::STDIO_ERROR(e) => write!(f, "{}", e),
+        }
     }
 }
 
@@ -30,6 +35,6 @@ impl From<KafkaError> for IKVKafkaError {
 
 impl From<std::io::Error> for IKVKafkaError {
     fn from(value: std::io::Error) -> Self {
-        todo!()
+        IKVKafkaError::STDIO_ERROR(value.to_string())
     }
 }

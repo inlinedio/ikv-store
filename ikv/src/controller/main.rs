@@ -12,7 +12,7 @@ pub struct Controller {
 
     // ref to kafka consumer
     processor: Arc<WritesProcessor>,
-    // TODO: kafka_consumer: IKVKafkaConsumer,
+    kafka_consumer: IKVKafkaConsumer,
 }
 
 impl Controller {
@@ -36,18 +36,17 @@ impl Controller {
         // 3. Start kafka consumption
         let processor = Arc::new(WritesProcessor::new(index.clone()));
 
-        /*
         let mut kafka_consumer = match IKVKafkaConsumer::new(&config, processor.clone()) {
             Ok(kc) => kc,
             Err(e) => return Err(e.to_string()),
         };
-        kafka_consumer.run_in_background();
-        */
+
+        kafka_consumer.run_in_background().unwrap();
 
         Ok(Controller {
             index,
             processor,
-            //kafka_consumer,
+            kafka_consumer,
         })
     }
 
@@ -67,7 +66,7 @@ impl Controller {
     }
 
     pub fn close(self) -> Result<(), String> {
-        // self.kafka_consumer.stop();
+        self.kafka_consumer.stop();
         let _ = self.index.close();
         Ok(())
     }

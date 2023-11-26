@@ -1,5 +1,3 @@
-use protobuf::Enum;
-
 use crate::proto::generated_proto;
 use crate::proto::generated_proto::common::FieldSchema;
 
@@ -43,59 +41,6 @@ impl Field {
             generated_proto::common::FieldType::STRING
             | generated_proto::common::FieldType::BYTES => None,
         }
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut result = Vec::new();
-
-        // serialize values
-        result.extend_from_slice((self.name.len() as u64).to_le_bytes().as_slice());
-        result.extend_from_slice(self.name.as_bytes());
-
-        result.extend_from_slice(self.id.to_le_bytes().as_slice());
-
-        let field_type_i32 = self.field_type.value();
-        result.extend_from_slice(field_type_i32.to_le_bytes().as_slice());
-
-        result
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
-        if bytes.len() == 0 {
-            return Err("cannot deser from empty bytes".to_string());
-        }
-
-        let offset: usize = 0;
-
-        // deserialize values
-        let name_len = u64::from_le_bytes(match bytes[0..8].try_into() {
-            Ok(v) => v,
-            Err(_) => return Err("cannot deser name".to_string()),
-        }) as usize;
-        let name = match String::from_utf8(bytes[8..8 + name_len].to_vec()) {
-            Ok(v) => v,
-            Err(_) => return Err("cannot deser name".to_string()),
-        };
-
-        let id = u16::from_le_bytes(match bytes[8 + name_len..8 + name_len + 2].try_into() {
-            Ok(v) => v,
-            Err(_) => return Err("cannot deser id".to_string()),
-        });
-
-        let field_type_i32 = i32::from_le_bytes(
-            match bytes[8 + name_len + 2..8 + name_len + 2 + 4].try_into() {
-                Ok(v) => v,
-                Err(_) => return Err("cannot deser field_type".to_string()),
-            },
-        );
-        let field_type = generated_proto::common::FieldType::from_i32(field_type_i32)
-            .ok_or("cannot deser field_type".to_string())?;
-
-        Ok(Self {
-            name,
-            id,
-            field_type,
-        })
     }
 }
 
