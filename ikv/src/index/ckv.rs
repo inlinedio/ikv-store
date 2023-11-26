@@ -33,42 +33,22 @@ pub struct CKVIndex {
 }
 
 impl CKVIndex {
-    #[deprecated]
-    pub fn new(mount_directory: String, config: &IKVStoreConfig) -> io::Result<CKVIndex> {
+    pub fn open_or_create(
+        mount_directory: String,
+        config: &IKVStoreConfig,
+    ) -> io::Result<CKVIndex> {
+        // open_or_create saved schema
+        let primary_key = config.stringConfigs.get("primary_key").ok_or(Error::new(
+            ErrorKind::InvalidInput,
+            "primary_key is a required config",
+        ))?;
+        let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
+
         // ensure mount_directory exists
         fs::create_dir_all(mount_directory.clone())?;
 
-        // create schema
-        let primary_key = config.stringConfigs.get("primary_key").ok_or(Error::new(
-            ErrorKind::InvalidInput,
-            "primary_key is a required config",
-        ))?;
-        let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
-
-        // create index segments
-        let mut segments = vec![];
-        for index_id in 0..NUM_SEGMENTS {
-            let segment = CKVIndexSegment::open_or_create(&mount_directory, index_id)?;
-            segments.push(RwLock::new(segment));
-        }
-
-        Ok(Self {
-            mount_directory,
-            segments,
-            schema: RwLock::new(schema),
-        })
-    }
-
-    pub fn open(mount_directory: String, config: &IKVStoreConfig) -> io::Result<CKVIndex> {
-        // load schema
-        let primary_key = config.stringConfigs.get("primary_key").ok_or(Error::new(
-            ErrorKind::InvalidInput,
-            "primary_key is a required config",
-        ))?;
-        let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
-
         // TODO: inspect if we need to load a new base index!!!
-        // open index segments
+        // open_or_create index segments
         let mut segments = Vec::with_capacity(NUM_SEGMENTS);
         for index_id in 0..NUM_SEGMENTS {
             let segment = CKVIndexSegment::open_or_create(&mount_directory, index_id)?;
@@ -162,35 +142,6 @@ impl CKVIndex {
     /// 3. delete a document
     /// Batch APIs ie above for multiple documents - todo
 
-    /// Todo: move jni specific apis to jni module
-    #[deprecated]
-    pub fn jni_upsert_field_values(
-        &self,
-        primary_key: Vec<u8>,
-        mut field_names: Vec<String>,
-        mut field_values: Vec<Vec<u8>>,
-    ) -> Result<(), IndexError> {
-        let mut document: HashMap<String, FieldValue> =
-            HashMap::with_capacity(field_names.len() + 1);
-
-        let schema = self.schema.read().unwrap();
-
-        // insert primary key
-        let mut value = FieldValue::new();
-        value.set_bytesValue(primary_key);
-        document.insert(schema.primary_key_field_name().to_string(), value);
-
-        // insert other fields
-        for _ in 0..field_names.len() {
-            let mut value = FieldValue::new();
-            value.set_bytesValue(field_values.pop().unwrap());
-
-            document.insert(field_names.pop().unwrap(), value);
-        }
-
-        self.upsert_field_values(&document)
-    }
-
     pub fn upsert_field_values(
         &self,
         document: &HashMap<String, FieldValue>,
@@ -202,9 +153,14 @@ impl CKVIndex {
         // extract primary key
         let primary_key = self.extract_primary_key(document);
         if primary_key.is_none() {
-            return Err(IndexError::IllegalArguments(
-                "Cannot upsert with missing primary-key".to_string(),
-            ));
+            // TODO: remove!
+            let keys_as_string = Vec::from_iter(document.keys().into_iter().map(|x| x.as_str()));
+            let keys_as_string = keys_as_string.connect("|");
+
+            return Err(IndexError::IllegalArguments(format!(
+                "Cannot upsert with missing primary-key. Document keys: {}",
+                keys_as_string
+            )));
         }
         let primary_key = &primary_key.unwrap();
         if primary_key.len() > u16::MAX as usize {
@@ -234,33 +190,6 @@ impl CKVIndex {
         let mut ckv_index_segment = self.segments[index_id].write().unwrap();
         ckv_index_segment.upsert_document(primary_key, fields, values)?;
         Ok(())
-    }
-
-    #[deprecated]
-    pub fn legacy_delete_field_values(
-        &self,
-        primary_key: &[u8],
-        field_names: Vec<String>,
-    ) -> io::Result<()> {
-        if primary_key.len() == 0 {
-            return Ok(());
-        }
-
-        let schema = self.schema.read().unwrap();
-        let mut final_fields = Vec::with_capacity(field_names.len());
-        for i in 0..field_names.len() {
-            if let Some(field) = schema.fetch_field_by_name(&field_names[i]) {
-                final_fields.push(field);
-            }
-        }
-
-        if final_fields.len() == 0 {
-            return Ok(());
-        }
-
-        let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
-        let mut ckv_index_segment = self.segments[index_id].write().unwrap();
-        ckv_index_segment.delete_field_values(primary_key, final_fields)
     }
 
     pub fn delete_field_values(
@@ -298,17 +227,6 @@ impl CKVIndex {
         ckv_index_segment.delete_field_values(primary_key, fields)?;
 
         Ok(())
-    }
-
-    #[deprecated]
-    pub fn legacy_delete_document(&self, primary_key: &[u8]) -> io::Result<()> {
-        if primary_key.len() == 0 {
-            return Ok(());
-        }
-
-        let index_id = fxhash::hash(primary_key) % NUM_SEGMENTS;
-        let mut ckv_index_segment = self.segments[index_id].write().unwrap();
-        ckv_index_segment.delete_document(primary_key)
     }
 
     /// Delete a document, given its primary key.

@@ -1,80 +1,109 @@
 package io.inline;
 
 import com.google.common.collect.ImmutableList;
-import com.inlineio.schemas.Common.IKVStoreConfig;
-import io.inline.clients.LegacyIKVClient;
+import io.inline.clients.*;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-
-import static io.inline.clients.LegacyIKVClient.*;
+import java.util.List;
 
 public class IntegrationTests {
-    private IKVStoreConfig _config;
+    private static final FieldAccessor NAME_FIELD_ACCESSOR = FieldAccessor.stringFieldAccessor("name");
+    private static final FieldAccessor PROFILE_FIELD_ACCESSOR = FieldAccessor.bytesFieldAccessor("profile");
 
-    @BeforeAll
-    public void setup() {
-        _config = IKVStoreConfig.newBuilder()
-                .putStringConfigs(CFG_MOUNT_DIRECTORY, "/tmp/JavaIntegrationTests")
-                .putStringConfigs(CFG_PRIMARY_KEY, "documentId")
-                .putStringConfigs(CFG_KAFKA_BOOTSTRAP_SERVER, "localhost")
-                .putStringConfigs(CFG_KAFKA_TOPIC, "topic")
-                .putNumericConfigs(CFG_KAFKA_PARTITION, 0L)
-                .build();
-    }
 
-    //@Test
+    private final ClientOptions _clientOptions = new ClientOptions.Builder()
+            .withMountDirectory("/tmp/JavaIntegrationTests")
+            .withPrimaryKeyFieldName("key")
+            .withStoreName("JavaIntegrationTests")
+            .withKafkaConsumerBootstrapServer("localhost")
+            .withKafkaConsumerTopic("JavaIntegrationTests")
+            .withKafkaConsumerPartition(0)
+            .build();
+
+    @Test
     public void openAndClose() {
-        LegacyIKVClient legacyIkvClient = LegacyIKVClient.open(_config);
-        legacyIkvClient.close();
+        InlineKVReader client = new TestingInlineKVReader(_clientOptions);
+        client.startup(_clientOptions);
+        client.shutdown();
     }
 
-    //@Test
+    @Test
     public void basic() {
-        LegacyIKVClient legacyIkvClient = LegacyIKVClient.open(_config);
+        TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
+        client.startup(_clientOptions);
 
-        byte[] docId1 = "document1".getBytes(StandardCharsets.UTF_8);
-        byte[] firstname1 = "alice".getBytes(StandardCharsets.UTF_8);
+        // document1
+        byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
+        String name1 = "alice";
+        byte[] profile1 = "profile1".getBytes(StandardCharsets.UTF_8);
 
-        byte[] docId2 = "document2".getBytes(StandardCharsets.UTF_8);
-        byte[] age2 = ByteBuffer.allocate(4).putInt(25).array();
+        // document2
+        byte[] key2 = "key2".getBytes(StandardCharsets.UTF_8);
+        String name2 = "bob";
+        byte[] profile2 = "profile2".getBytes(StandardCharsets.UTF_8);
 
-        byte[] docId3 = "document3".getBytes(StandardCharsets.UTF_8);
-        byte[] profile3 = "profileBytes".getBytes(StandardCharsets.UTF_8);
+        // document3
+        byte[] key3 = "key3".getBytes(StandardCharsets.UTF_8);
+        String name3 = "sam";
+        // no profile field
 
         // not inserted
-        byte[] docId4 = "document4".getBytes(StandardCharsets.UTF_8);
+        byte[] key4 = "key4".getBytes(StandardCharsets.UTF_8);
 
-        // WRITES
-        // FAILING here!!!
-        legacyIkvClient.upsertFieldValue(docId1, firstname1, "firstname");
+        // WRITE doc1
+        IKVDocument document = new IKVDocument.Builder()
+                .putBytesField("key", key1)
+                        .putStringField("name", name1)
+                                .putBytesField("profile", profile1)
+                                        .build();
+        client.upsertFieldValues(document);
 
-        byte[] val = legacyIkvClient.readBytesField(docId1, "firstname");
-        Assertions.assertArrayEquals(val, firstname1);
+        // READS on doc1
+        Assertions.assertEquals(name1,
+                client.getStringValue(PrimaryKey.from(key1), NAME_FIELD_ACCESSOR));
+        Assertions.assertArrayEquals(profile1,
+                client.getBytesValue(PrimaryKey.from(key1), PROFILE_FIELD_ACCESSOR));
 
-        legacyIkvClient.upsertFieldValue(docId2, age2, "age");
-        legacyIkvClient.upsertFieldValue(docId3, profile3, "profile");
+        // WRITE doc2 and doc3
+        document = new IKVDocument.Builder()
+                .putBytesField("key", key2)
+                .putStringField("name", name2)
+                .putBytesField("profile", profile2)
+                .build();
+        client.upsertFieldValues(document);
 
-        // READS
-        val = legacyIkvClient.readBytesField(docId1, "firstname");
-        Assertions.assertArrayEquals(val, firstname1);
+        document = new IKVDocument.Builder()
+                .putBytesField("key", key3)
+                .putStringField("name", name3)
+                .build();
+        client.upsertFieldValues(document);
 
-        val = legacyIkvClient.readBytesField(docId2, "age");
-        Assertions.assertArrayEquals(val, age2);
+        // READS on doc2
+        Assertions.assertEquals(name2,
+                client.getStringValue(PrimaryKey.from(key2), NAME_FIELD_ACCESSOR));
+        Assertions.assertArrayEquals(profile2,
+                client.getBytesValue(PrimaryKey.from(key2), PROFILE_FIELD_ACCESSOR));
 
-        val = legacyIkvClient.readBytesField(docId3, "profile");
-        Assertions.assertArrayEquals(val, profile3);
+        // READS on doc3
+        Assertions.assertEquals(name3,
+                client.getStringValue(PrimaryKey.from(key3), NAME_FIELD_ACCESSOR));
+        Assertions.assertNull(client.getBytesValue(PrimaryKey.from(key3), PROFILE_FIELD_ACCESSOR));
 
-        Assertions.assertNull(legacyIkvClient.readBytesField(docId4, "firstname"));
 
+        // BATCH READ
+        List<PrimaryKey> keys = ImmutableList.of(PrimaryKey.from(key1), PrimaryKey.from(key2), PrimaryKey.from(key3));
 
-        Assertions.assertNotNull(
-                legacyIkvClient.batchReadBytesField(
-                        ImmutableList.of(docId1, docId2, docId3), "firstname"));
+        List<String> names = client.multiGetStringValue(keys, NAME_FIELD_ACCESSOR);
+        Assertions.assertArrayEquals(names.toArray(new String[0]), new String[]{name1, name2, name3});
 
-        legacyIkvClient.close();
+        List<byte[]> profiles = client.multiGetBytesValue(keys, PROFILE_FIELD_ACCESSOR);
+        Assertions.assertArrayEquals(profiles.toArray(new byte[0][]), new byte[][]{profile1, profile2, null});
+
+        client.shutdown();
     }
+
+    // TODO! delete fields tests
 }

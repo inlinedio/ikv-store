@@ -2,24 +2,17 @@ package io.inline.clients;
 
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
-import com.inlineio.schemas.Services.*;
+import com.inlineio.schemas.Services.FieldValue;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
-public class IKVDocument {
-    private final Map<String, FieldValue> _fields;
+public interface IKVDocument {
 
-    private IKVDocument(Map<String, FieldValue> fields) {
-        _fields = Objects.requireNonNull(fields);
-    }
+    @Deprecated
+    Map<String, FieldValue> asMap();
 
-    Map<String, FieldValue> accessFields() {
-        return _fields;
-    }
-
-    private static final class Builder {
+    final class Builder {
         private final Map<String, FieldValue> _fields;
 
         public Builder() {
@@ -40,24 +33,8 @@ public class IKVDocument {
             return this;
         }
 
-        public Builder putI32Field(String fieldName, int fieldValue) {
-            throw new UnsupportedOperationException("todo");
-        }
-
-        public Builder putI64Field(String fieldName, long fieldValue) {
-            throw new UnsupportedOperationException("todo");
-        }
-
-        public Builder putF32Field(String fieldName, float fieldValue) {
-            throw new UnsupportedOperationException("todo");
-        }
-
-        public Builder putF64Field(String fieldName, double fieldValue) {
-            throw new UnsupportedOperationException("todo");
-        }
-
         public IKVDocument build() {
-            return new IKVDocument(_fields);
+            return new MapBasedIKVDocument(_fields);
         }
     }
 }

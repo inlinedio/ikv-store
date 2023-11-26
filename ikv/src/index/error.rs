@@ -4,11 +4,15 @@ use crate::schema::error::SchemaError;
 
 pub enum IndexError {
     IllegalArguments(String),
+    SystemError(String),
 }
 
 impl fmt::Display for IndexError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        todo!()
+        match self {
+            IndexError::IllegalArguments(s) => write!(f, "{}", s),
+            IndexError::SystemError(s) => write!(f, "{}", s),
+        }
     }
 }
 
@@ -23,6 +27,6 @@ impl From<SchemaError> for IndexError {
 
 impl From<std::io::Error> for IndexError {
     fn from(value: std::io::Error) -> Self {
-        todo!()
+        IndexError::SystemError(value.to_string())
     }
 }

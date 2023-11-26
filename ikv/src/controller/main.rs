@@ -11,8 +11,8 @@ pub struct Controller {
     index: Arc<CKVIndex>,
 
     // ref to kafka consumer
-    kafka_consumer: IKVKafkaConsumer,
-    // ref (grpc client) to inline cloud
+    processor: Arc<WritesProcessor>,
+    // TODO: kafka_consumer: IKVKafkaConsumer,
 }
 
 impl Controller {
@@ -27,23 +27,27 @@ impl Controller {
             .ok_or("mount_directory is a required config".to_string())?;
 
         // 2. Open index - inspect if it exists locally, else fetch base index
-        let index = match CKVIndex::open(mount_directory.clone(), &config) {
+        let index = match CKVIndex::open_or_create(mount_directory.clone(), &config) {
             Ok(index) => index,
             Err(e) => return Err(e.to_string()),
         };
         let index = Arc::new(index);
 
         // 3. Start kafka consumption
-        let mut kafka_consumer =
-            match IKVKafkaConsumer::new(&config, WritesProcessor::new(index.clone())) {
-                Ok(kc) => kc,
-                Err(e) => return Err(e.to_string()),
-            };
+        let processor = Arc::new(WritesProcessor::new(index.clone()));
+
+        /*
+        let mut kafka_consumer = match IKVKafkaConsumer::new(&config, processor.clone()) {
+            Ok(kc) => kc,
+            Err(e) => return Err(e.to_string()),
+        };
         kafka_consumer.run_in_background();
+        */
 
         Ok(Controller {
             index,
-            kafka_consumer,
+            processor,
+            //kafka_consumer,
         })
     }
 
@@ -57,8 +61,13 @@ impl Controller {
         self.index.clone()
     }
 
+    /// Atomic reference to the writes processor.
+    pub fn writes_processor_ref(&self) -> Arc<WritesProcessor> {
+        self.processor.clone()
+    }
+
     pub fn close(self) -> Result<(), String> {
-        self.kafka_consumer.stop();
+        // self.kafka_consumer.stop();
         let _ = self.index.close();
         Ok(())
     }
