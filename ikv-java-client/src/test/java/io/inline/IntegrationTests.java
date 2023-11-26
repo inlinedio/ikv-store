@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 
 public class IntegrationTests {
@@ -31,7 +32,7 @@ public class IntegrationTests {
     }
 
     @Test
-    public void basic() {
+    public void singleAndBatchReads() {
         TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
         client.startup(_clientOptions);
 
@@ -105,5 +106,53 @@ public class IntegrationTests {
         client.shutdown();
     }
 
-    // TODO! delete fields tests
+    @Test
+    public void deletes() {
+        TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
+        client.startup(_clientOptions);
+
+        // document1
+        byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
+        String name1 = "alice";
+        byte[] profile1 = "profile1".getBytes(StandardCharsets.UTF_8);
+
+        // document2
+        byte[] key2 = "key2".getBytes(StandardCharsets.UTF_8);
+        String name2 = "bob";
+        byte[] profile2 = "profile2".getBytes(StandardCharsets.UTF_8);
+
+        // WRITE doc2 and doc3
+        IKVDocument document1 = new IKVDocument.Builder()
+                .putBytesField("key", key1)
+                .putStringField("name", name1)
+                .putBytesField("profile", profile1)
+                .build();
+        client.upsertFieldValues(document1);
+
+        IKVDocument document2 = new IKVDocument.Builder()
+                .putBytesField("key", key2)
+                .putStringField("name", name2)
+                .putBytesField("profile", profile2)
+                .build();
+        client.upsertFieldValues(document2);
+
+        // READS on doc1 and doc2
+        Assertions.assertEquals(name1,
+                client.getStringValue(PrimaryKey.from(key1), NAME_FIELD_ACCESSOR));
+        Assertions.assertEquals(name2,
+                client.getStringValue(PrimaryKey.from(key2), NAME_FIELD_ACCESSOR));
+
+        // DELETE all doc1, name for doc2
+        client.deleteDocument(document1);
+        client.deleteFieldValues(document2, Collections.singleton("name"));
+
+        // all null for doc1
+        Assertions.assertNull(client.getStringValue(PrimaryKey.from(key1), NAME_FIELD_ACCESSOR));
+        Assertions.assertNull(client.getBytesValue(PrimaryKey.from(key1), PROFILE_FIELD_ACCESSOR));
+
+        // name null, profile not-null for doc2
+        Assertions.assertNull(client.getStringValue(PrimaryKey.from(key2), NAME_FIELD_ACCESSOR));
+        Assertions.assertArrayEquals(profile2,
+                client.getBytesValue(PrimaryKey.from(key2), PROFILE_FIELD_ACCESSOR));
+    }
 }
