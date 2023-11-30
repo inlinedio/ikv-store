@@ -26,7 +26,7 @@ public class GatewayServer {
         try {
             int port = port();
             _server = ServerBuilder.forPort(port)
-                    .addService(new InlineKVWriteServiceImpl(publisher))
+                    .addService(new InlineKVWriteServiceImpl(publisher, UserStoreContextFactory.getInstance()))
                     .build()
                     .start();
         } catch (IOException e) {

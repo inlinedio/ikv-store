@@ -10,11 +10,12 @@ public class KafkaProducerFactory {
 
     public static <R> Producer<String, R> createInstance() {
         Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.StringSerializer");
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                 "io.inline.gateway.streaming.SimpleProtoSerializer");
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 0);  // TODO - remove
 
         // see props for option to add custom partitioner
         // props.put("schema.registry.url", "http://127.0.0.1:8081");

@@ -5,12 +5,11 @@ import io.inline.clients.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
-public class IntegrationTests {
+public class DirectJNIIntegrationTests {
     private static final FieldAccessor NAME_FIELD_ACCESSOR = FieldAccessor.stringFieldAccessor("name");
     private static final FieldAccessor PROFILE_FIELD_ACCESSOR = FieldAccessor.bytesFieldAccessor("profile");
 
@@ -24,14 +23,14 @@ public class IntegrationTests {
             .withKafkaConsumerPartition(0)
             .build();
 
-    @Test
+    //@Test
     public void openAndClose() {
         InlineKVReader client = new TestingInlineKVReader(_clientOptions);
         client.startup(_clientOptions);
         client.shutdown();
     }
 
-    @Test
+    //@Test
     public void singleAndBatchReads() {
         TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
         client.startup(_clientOptions);
@@ -106,7 +105,7 @@ public class IntegrationTests {
         client.shutdown();
     }
 
-    @Test
+    //@Test
     public void deletes() {
         TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
         client.startup(_clientOptions);

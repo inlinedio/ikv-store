@@ -29,6 +29,8 @@ dependencies {
     implementation "io.grpc:grpc-protobuf:${grpcVersion}"
     implementation "io.grpc:grpc-services:${grpcVersion}"
     implementation "io.grpc:grpc-stub:${grpcVersion}"
+    implementation 'com.google.protobuf:protobuf-java-util:3.0.0-beta-2'
+
     // guava
     implementation("com.google.guava:guava:32.1.2-jre")
     // redis-client

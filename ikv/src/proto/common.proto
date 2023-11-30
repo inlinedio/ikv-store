@@ -13,12 +13,16 @@ message FieldSchema {
 }
 
 enum FieldType {
-  INT32 = 0;
-  INT64 = 1;
-  FLOAT32 = 2;
-  FLOAT64 = 3;
-  STRING = 4;
-  BYTES = 5;
+  // usually signifies producer is ahead
+  // on the symbol list
+  UNKNOWN = 0;
+
+  INT32 = 1;
+  INT64 = 2;
+  FLOAT32 = 3;
+  FLOAT64 = 4;
+  STRING = 5;
+  BYTES = 6;
 }
 
 message IKVStoreConfig {
@@ -27,4 +31,9 @@ message IKVStoreConfig {
   map<string, string> stringConfigs = 1;
   map<string, int64> numericConfigs = 2;
   map<string, bytes> bytesConfigs = 3;
+}
+
+message AccountCredentials {
+  string accountId = 1;
+  string accountPasskey = 2;
 }
