@@ -10,7 +10,6 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 
 public class IKVWritesPublisher {
     private final Producer<String, IKVDataEvent> _kafkaProducer;
@@ -35,9 +34,8 @@ public class IKVWritesPublisher {
             return;
         }
 
-
-
         for (Map<String, FieldValue> fieldMap : fieldMaps) {
+
             // extract primary key value for validation
             Preconditions.checkNotNull(ExtractorUtils.extractPrimaryKeyAsString(context, fieldMap));
             String kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyAsString(context, fieldMap);
@@ -49,6 +47,7 @@ public class IKVWritesPublisher {
                     .setEventHeader(EventHeader
                             .newBuilder()
                             .build())
+                    .addAllFieldSchema(createFieldSchemaList(context, multiFieldDocument))
                     .setUpsertDocumentFieldsEvent(
                             UpsertDocumentFieldsEvent
                                     .newBuilder()
@@ -58,9 +57,11 @@ public class IKVWritesPublisher {
 
             // ProducerRecord(String topic, K key, V value)
             ProducerRecord<String, IKVDataEvent> producerRecord =
-                    new ProducerRecord<>(context.kafkaTopicName(), kafkaPartitioningKey, event);
+                    new ProducerRecord<>(context.kafkaTopic(), kafkaPartitioningKey, event);
 
             blockingPublishWithRetries(producerRecord, 3);
+
+            System.out.println("Published to kafka: " + event.toString());
         }
     }
 
@@ -93,6 +94,7 @@ public class IKVWritesPublisher {
                     .setEventHeader(EventHeader
                             .newBuilder()
                             .build())
+                    .addAllFieldSchema(createFieldSchemaList(context, multiFieldDocument))
                     .setDeleteDocumentEvent(
                             DeleteDocumentEvent
                                     .newBuilder()
@@ -102,7 +104,7 @@ public class IKVWritesPublisher {
 
             // ProducerRecord(String topic, K key, V value)
             ProducerRecord<String, IKVDataEvent> producerRecord =
-                    new ProducerRecord<>(context.kafkaTopicName(), kafkaPartitioningKey, event);
+                    new ProducerRecord<>(context.kafkaTopic(), kafkaPartitioningKey, event);
 
             blockingPublishWithRetries(producerRecord, 3);
         }
@@ -111,7 +113,7 @@ public class IKVWritesPublisher {
     /**
      * Construct field schema object based on the downstream event.
      */
-    private List<Common.FieldSchema> createFieldSchemaList(UserStoreContext context, MultiFieldDocument document) {
+    private static List<Common.FieldSchema> createFieldSchemaList(UserStoreContext context, MultiFieldDocument document) {
         Map<String, ?> documentMap = document.getDocumentMap();
         List<Common.FieldSchema> schema = new ArrayList<>(documentMap.size());
 
@@ -127,10 +129,13 @@ public class IKVWritesPublisher {
     private void blockingPublishWithRetries(ProducerRecord<String, IKVDataEvent> record, int numRetries) throws InterruptedException {
         for (int i = 0; i < numRetries; i++) {
             try {
+                // TODO block on get() - can be problematic based on batching
                 _kafkaProducer.send(record).get();
+
                 return;
-            } catch (ExecutionException ignored) {
+            } catch (Exception e) {
                 // TODO: add logging
+                System.out.println("Write to kafka error: " + e);
             }
         }
     }

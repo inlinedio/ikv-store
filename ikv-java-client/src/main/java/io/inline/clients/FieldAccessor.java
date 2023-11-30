@@ -6,7 +6,7 @@ public class FieldAccessor {
     private final String _name;
     private final FieldType _type;
 
-    private FieldAccessor(String name, FieldType type) {
+    public FieldAccessor(String name, FieldType type) {
         _name = name;
         _type = type;
     }

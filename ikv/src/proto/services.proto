@@ -2,26 +2,32 @@ syntax = "proto3";
 package com.inlineio.schemas;
 
 import "google/protobuf/timestamp.proto";
+import "common.proto";
 
 service InlineKVWriteService {
+  // Write methods
   rpc asyncUpsertFieldValues(UpsertFieldValuesRequest) returns (SuccessStatus) {}
   rpc asyncBatchUpsertFieldValues(BatchUpsertFieldValuesRequest) returns (SuccessStatus) {}
-
   rpc asyncDeleteFieldValues(DeleteFieldValueRequest) returns (SuccessStatus) {}
   rpc asyncBatchDeleteFieldValues(BatchDeleteFieldValuesRequest) returns (SuccessStatus) {}
-
   rpc asyncDeleteDocument(DeleteDocumentRequest) returns (SuccessStatus) {}
   rpc asyncBatchDeleteDocuments(BatchDeleteDocumentsRequest) returns (SuccessStatus) {}
+
+  // User-admin methods
+  rpc createStore(CreateStoreRequest) returns (SuccessStatus) {}
+  rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (SuccessStatus) {}
 }
 
 message UpsertFieldValuesRequest {
   MultiFieldDocument multiFieldDocument = 1;
   google.protobuf.Timestamp timestamp = 2;
+  UserStoreContextInitializer userStoreContextInitializer = 3;
 }
 
 message BatchUpsertFieldValuesRequest {
   repeated MultiFieldDocument multiFieldDocuments = 1;
   google.protobuf.Timestamp timestamp = 2;
+  UserStoreContextInitializer userStoreContextInitializer = 3;
 }
 
 // Delete fields from a document.
@@ -29,6 +35,7 @@ message DeleteFieldValueRequest {
   MultiFieldDocument documentId = 1;
   repeated string fieldNames = 2;
   google.protobuf.Timestamp timestamp = 3;
+  UserStoreContextInitializer userStoreContextInitializer = 4;
 }
 
 // Delete fields from a batch of documents.
@@ -36,23 +43,45 @@ message BatchDeleteFieldValuesRequest {
   repeated MultiFieldDocument documentIds = 1;
   repeated string fieldNames = 2;
   google.protobuf.Timestamp timestamp = 3;
+  UserStoreContextInitializer userStoreContextInitializer = 4;
 }
 
 // Delete a document.
 message DeleteDocumentRequest {
   MultiFieldDocument documentId = 1;
   google.protobuf.Timestamp timestamp = 2;
+  UserStoreContextInitializer userStoreContextInitializer = 3;
 }
 
 // Delete a batch of documents.
 message BatchDeleteDocumentsRequest {
   repeated MultiFieldDocument documentIds = 1;
   google.protobuf.Timestamp timestamp = 2;
+  UserStoreContextInitializer userStoreContextInitializer = 3;
+}
+
+message CreateStoreRequest {
+  AccountCredentials credentials = 1;
+  string storeName = 2;
+  FieldSchema primaryKeySchema = 3;
+
+  // non-null, when not specified client
+  // supplies primary-key as partitioning-key
+  FieldSchema partitioningKeySchema = 4;
+}
+
+message UserStoreSchemaUpdateRequest {
+  UserStoreContextInitializer userStoreContextInitializer = 1;
+
+  // duplicates (exact match) are ignored
+  // conflicts throw an error (ex. re-registering with different type)
+  repeated FieldSchema newFieldsToAdd = 2;
 }
 
 message SuccessStatus {
 }
 
+// TODO: move this to common
 message MultiFieldDocument {
   // field_name vs field_value
   map<string, FieldValue> document = 1;
@@ -67,4 +96,11 @@ message FieldValue {
     string stringValue = 5;
     bytes bytesValue = 6;
   }
+}
+
+// Used to construct UserStoreContext -
+// used for schema/configuration/etc.
+message UserStoreContextInitializer {
+  AccountCredentials credentials = 1;
+  string storeName = 2;
 }
