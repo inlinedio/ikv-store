@@ -16,7 +16,7 @@ import java.util.Collection;
 
 /** RPC based writer instance. */
 public class GRPCInlineKVWriter implements InlineKVWriter {
-    private volatile InlineKVWriteServiceGrpc.InlineKVWriteServiceFutureStub _stub;
+    private volatile InlineKVWriteServiceGrpc.InlineKVWriteServiceBlockingStub _stub;
     private final UserStoreContextInitializer _userStoreCtxInitializer;
 
     public GRPCInlineKVWriter() {
@@ -35,7 +35,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
         // TODO: stub creation- use dns
         ManagedChannelBuilder<?> channelBuilder = ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext();
         ManagedChannel channel = channelBuilder.build();
-        _stub = InlineKVWriteServiceGrpc.newFutureStub(channel);
+        _stub = InlineKVWriteServiceGrpc.newBlockingStub(channel);
     }
 
     @Override
@@ -63,7 +63,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
             System.out.println("GRPCInlineKVWriter] Making request: " + JsonFormat.printer().print(request));
 
             // make grpc call
-            SuccessStatus ignored = _stub.asyncUpsertFieldValues(request).get();
+            SuccessStatus ignored = _stub.asyncUpsertFieldValues(request);
         } catch (Throwable thrown) {
             // propagate errors
             com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);
@@ -100,7 +100,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
         try {
             // make grpc call
-            SuccessStatus _ignored = _stub.asyncDeleteFieldValues(request).get();
+            SuccessStatus _ignored = _stub.asyncDeleteFieldValues(request);
         } catch (Throwable thrown) {
             // propagate errors
             com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);
@@ -133,7 +133,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
         try {
             // make grpc call
-            SuccessStatus _ignored = _stub.asyncDeleteDocument(request).get();
+            SuccessStatus _ignored = _stub.asyncDeleteDocument(request);
         } catch (Throwable thrown) {
             // propagate errors
             com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);
