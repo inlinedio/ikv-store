@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 public class NearlineIntegrationTests {
     private final static FieldAccessor USERID_ACCESSOR =
-            new FieldAccessor("userid", Common.FieldType.BYTES);
+            new FieldAccessor("userid", Common.FieldType.STRING);
 
     private final ClientOptions _clientOptions = new ClientOptions.Builder()
             .withMountDirectory("/tmp/NearlineIntegrationTests")
@@ -29,9 +29,9 @@ public class NearlineIntegrationTests {
         IKVDocument document = new IKVDocument.Builder()
                 .putStringField("userid", "firstuserid")
                 .build();
-        _writer.upsertFieldValues(document);  // TODO: this blocks even after server returns!
+        _writer.upsertFieldValues(document);
 
-        Thread.sleep(1000 * 5);  // 5 sec sleep
+        Thread.sleep(1000 * 10);  // 5 sec sleep
 
         // Read
 

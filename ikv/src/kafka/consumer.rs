@@ -18,6 +18,10 @@ use crate::proto::generated_proto::{common::IKVStoreConfig, streaming::IKVDataEv
 
 use super::{error::IKVKafkaError, processor::WritesProcessor};
 
+#[cfg(test)]
+#[path = "consumer_test.rs"]
+mod consumer_test;
+
 pub struct IKVKafkaConsumer {
     tokio_runtime: Runtime,
     processor: Arc<WritesProcessor>,
@@ -49,14 +53,15 @@ impl IKVKafkaConsumer {
         // TODO: we might need SSL access
         // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
         let client_config = ClientConfig::new()
-            //.set("group.id", group_id) // we don't use offset management or automatic partition assignment
+            .set("group.id", "no op") // we don't use offset management or automatic partition assignment
             .set("bootstrap.servers", kafka_consumer_bootstrap_server)
             .set("enable.partition.eof", "false")
             .set("session.timeout.ms", "3600000")
             .set("max.poll.interval.ms", "3600000")
             .set("enable.auto.commit", "false")
             .set("auto.offset.reset", "earliest")
-            .set_log_level(RDKafkaLogLevel::Debug)
+            .set("enable.partition.eof", "false")
+            .set_log_level(RDKafkaLogLevel::Emerg)
             .clone();
 
         // topic and parition
@@ -86,7 +91,9 @@ impl IKVKafkaConsumer {
         };
 
         let mut topic_partition = TopicPartitionList::new();
-        topic_partition.add_partition(&topic, partition);
+        topic_partition
+            .add_partition_offset(&topic, partition, rdkafka::Offset::Offset(0))
+            .unwrap();
 
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)
@@ -159,6 +166,7 @@ impl IKVKafkaConsumer {
 
             match consumer.recv().await {
                 Err(e) => {
+                    println!("[rs-consumer] Kafka error");
                     // TODO: log unprocessed event and continue?
                 }
                 Ok(message) => {
@@ -166,10 +174,12 @@ impl IKVKafkaConsumer {
                         match IKVDataEvent::parse_from_bytes(bytes) {
                             Ok(event) => {
                                 // TODO: handle errors
+                                println!("[rs-consumer] Processing event.");
                                 let _ = processor.process(&event);
                             }
                             Err(e) => {
                                 // TODO: log deserialization errors
+                                println!("[rs-consumer] Proto deserialization error");
                             }
                         }
                     }
@@ -194,6 +204,6 @@ impl ClientContext for IKVKafkaConsumerContext {}
 impl ConsumerContext for IKVKafkaConsumerContext {
     fn commit_callback(&self, result: KafkaResult<()>, offsets: &TopicPartitionList) {
         // Store offsets on disk.
-        todo!()
+        // TODO! todo!()
     }
 }
