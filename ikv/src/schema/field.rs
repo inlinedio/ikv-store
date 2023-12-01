@@ -1,5 +1,5 @@
 use crate::proto::generated_proto;
-use crate::proto::generated_proto::common::FieldSchema;
+use crate::proto::generated_proto::common::{FieldSchema, FieldType};
 
 use super::error::SchemaError;
 
@@ -34,6 +34,7 @@ impl Field {
     /// Length of the field's value - if known (ie fixed width).
     pub fn value_len(&self) -> Option<usize> {
         match self.field_type {
+            generated_proto::common::FieldType::UNKNOWN => unreachable!(),
             generated_proto::common::FieldType::INT32 => Some(4),
             generated_proto::common::FieldType::INT64 => Some(8),
             generated_proto::common::FieldType::FLOAT32 => Some(4),
@@ -53,13 +54,10 @@ impl TryFrom<&FieldSchema> for Field {
             return Err(SchemaError::RangeExhausted);
         }
 
-        let field_type = match field_schema.fieldType.enum_value() {
-            Ok(ft) => ft,
-            Err(_) => {
-                // new unknown value
-                return Err(SchemaError::UnsupportedField);
-            }
-        };
+        let field_type = field_schema.fieldType.enum_value_or_default();
+        if field_type == FieldType::UNKNOWN {
+            return Err(SchemaError::UnsupportedField);
+        }
 
         Ok(Self {
             name: field_schema.name.to_string(),

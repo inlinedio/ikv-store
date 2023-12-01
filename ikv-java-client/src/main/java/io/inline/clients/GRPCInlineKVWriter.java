@@ -60,8 +60,6 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
                 .build();
 
         try {
-            System.out.println("GRPCInlineKVWriter] Making request: " + JsonFormat.printer().print(request));
-
             // make grpc call
             SuccessStatus ignored = _stub.asyncUpsertFieldValues(request);
         } catch (Throwable thrown) {
