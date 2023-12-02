@@ -39,7 +39,7 @@ public class UserStoreContextFactory {
         UserStoreContext context = new UserStoreContext(
                 accountName, storeName, primaryKey, partitioningKey, schema, kafkaTopic);
         Key key = new Key(accountName, storeName);
-        Value value = new Value(Common.AccountCredentials.newBuilder()
+        Value value = new Value(Services.AccountCredentials.newBuilder()
                 .setAccountId(accountName)
                 .setAccountPasskey("testing-passkey")
                 .build(), context);
@@ -90,15 +90,15 @@ public class UserStoreContextFactory {
     }
 
     private static final class Value {
-        private final Common.AccountCredentials _accountCredentials;
+        private final Services.AccountCredentials _accountCredentials;
         private final UserStoreContext _userStoreContext;
 
-        public Value(Common.AccountCredentials accountCredentials, UserStoreContext userStoreContext) {
+        public Value(Services.AccountCredentials accountCredentials, UserStoreContext userStoreContext) {
             _accountCredentials = accountCredentials;
             _userStoreContext = userStoreContext;
         }
 
-        public Common.AccountCredentials accountCredentials() {
+        public Services.AccountCredentials accountCredentials() {
             return _accountCredentials;
         }
 

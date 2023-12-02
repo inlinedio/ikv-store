@@ -1,5 +1,6 @@
 package io.inline.gateway.streaming;
 
+import com.inlineio.schemas.Common;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -8,7 +9,7 @@ import java.util.Properties;
 
 public class KafkaProducerFactory {
 
-    public static <R> Producer<String, R> createInstance() {
+    public static <R> Producer<Common.FieldValue, R> createInstance() {
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,

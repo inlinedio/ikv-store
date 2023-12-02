@@ -1,4 +1,4 @@
-use proto::generated_proto::services::MultiFieldDocument;
+use proto::generated_proto::common::IKVDocumentOnWire;
 
 mod controller;
 mod index;
@@ -8,6 +8,6 @@ mod proto;
 mod schema;
 
 pub fn hello_world() -> String {
-    let _doc: MultiFieldDocument; // example of using proto structs
+    let _doc: IKVDocumentOnWire; // example of using proto structs
     String::from("Hello World")
 }

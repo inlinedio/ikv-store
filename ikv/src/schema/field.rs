@@ -86,10 +86,10 @@ impl IndexedValue {
     }
 }
 
-impl TryFrom<&generated_proto::services::FieldValue> for IndexedValue {
+impl TryFrom<&generated_proto::common::FieldValue> for IndexedValue {
     type Error = SchemaError;
 
-    fn try_from(value: &generated_proto::services::FieldValue) -> Result<Self, Self::Error> {
+    fn try_from(value: &generated_proto::common::FieldValue) -> Result<Self, Self::Error> {
         if value.Value.is_none() {
             // new member in field-value union
             return Err(SchemaError::UnsupportedField);

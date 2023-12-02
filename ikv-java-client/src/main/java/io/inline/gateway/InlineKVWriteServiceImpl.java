@@ -1,7 +1,7 @@
 package io.inline.gateway;
 
 import com.google.rpc.Code;
-import com.inlineio.schemas.Common;
+import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
 import io.grpc.protobuf.StatusProto;
@@ -22,8 +22,8 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
     }
 
     @Override
-    public void asyncUpsertFieldValues(UpsertFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
-        MultiFieldDocument multiFieldDocument = request.getMultiFieldDocument();
+    public void upsertFieldValues(UpsertFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
+        IKVDocumentOnWire document = request.getDocument();
 
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
         Optional<UserStoreContext> maybeContext = _userStoreContextFactory.getCtx(initializer);
@@ -35,7 +35,8 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
         try {
             // write to kafka
-            _ikvWritesPublisher.publishFieldUpserts(maybeContext.get(), Collections.singletonList(multiFieldDocument.getDocumentMap()));
+            _ikvWritesPublisher.publishFieldUpserts(maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
+            _ikvWritesPublisher.publishFieldUpserts(maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -46,8 +47,8 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
     }
 
     @Override
-    public void asyncBatchUpsertFieldValues(BatchUpsertFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
-        int batchSize = request.getMultiFieldDocumentsCount();
+    public void batchUpsertFieldValues(BatchUpsertFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
+        int batchSize = request.getDocumentsCount();
         if (batchSize == 0) {
             responseObserver.onNext(SuccessStatus.newBuilder().build());
             return;
@@ -64,8 +65,8 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         // This need not be a transaction, ok for a failure to happen for certain documents
         // The client can republish the entire batch if write for any single document fails
         // We return an error as soon as a single write fails
-        Collection<Map<String, FieldValue>> fieldMaps = request.getMultiFieldDocumentsList()
-                .stream().map(MultiFieldDocument::getDocumentMap).collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
+        Collection<Map<String, FieldValue>> fieldMaps = request.getDocumentsList()
+                .stream().map(IKVDocumentOnWire::getDocumentMap).collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
         try {
             _ikvWritesPublisher.publishFieldUpserts(maybeContext.get(), fieldMaps);
         } catch (Exception e) {
@@ -78,18 +79,18 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
     }
 
     @Override
-    public void asyncDeleteFieldValues(DeleteFieldValueRequest request, StreamObserver<SuccessStatus> responseObserver) {
+    public void deleteFieldValues(DeleteFieldValueRequest request, StreamObserver<SuccessStatus> responseObserver) {
         throw new UnsupportedOperationException("todo");
     }
 
     @Override
-    public void asyncBatchDeleteFieldValues(BatchDeleteFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
+    public void batchDeleteFieldValues(BatchDeleteFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
         throw new UnsupportedOperationException("todo");
     }
 
     @Override
-    public void asyncDeleteDocument(DeleteDocumentRequest request, StreamObserver<SuccessStatus> responseObserver) {
-        MultiFieldDocument documentId = request.getDocumentId();
+    public void deleteDocument(DeleteDocumentRequest request, StreamObserver<SuccessStatus> responseObserver) {
+        IKVDocumentOnWire documentId = request.getDocumentId();
 
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
         Optional<UserStoreContext> maybeContext = _userStoreContextFactory.getCtx(initializer);
@@ -112,7 +113,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
     }
 
     @Override
-    public void asyncBatchDeleteDocuments(BatchDeleteDocumentsRequest request, StreamObserver<SuccessStatus> responseObserver) {
+    public void batchDeleteDocuments(BatchDeleteDocumentsRequest request, StreamObserver<SuccessStatus> responseObserver) {
         int batchSize = request.getDocumentIdsCount();
         if (batchSize == 0) {
             responseObserver.onNext(SuccessStatus.newBuilder().build());
@@ -131,7 +132,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         // The client can republish the entire batch if write for any single document fails
         // We return an error as soon as a single write fails
         Collection<Map<String, FieldValue>> fieldMaps = request.getDocumentIdsList()
-                .stream().map(MultiFieldDocument::getDocumentMap).collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
+                .stream().map(IKVDocumentOnWire::getDocumentMap).collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
         try {
             _ikvWritesPublisher.publishDocumentDeletes(maybeContext.get(), fieldMaps);
         } catch (Exception e) {
@@ -153,7 +154,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
             return;
         }
 
-        Collection<Common.FieldSchema> newFieldsToAdd = request.getNewFieldsToAddList();
+        Collection<FieldSchema> newFieldsToAdd = request.getNewFieldsToAddList();
         try {
             maybeContext.get().updateSchema(newFieldsToAdd);
         } catch (Exception e) {

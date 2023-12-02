@@ -6,32 +6,32 @@ import "common.proto";
 
 service InlineKVWriteService {
   // Write methods
-  rpc asyncUpsertFieldValues(UpsertFieldValuesRequest) returns (SuccessStatus) {}
-  rpc asyncBatchUpsertFieldValues(BatchUpsertFieldValuesRequest) returns (SuccessStatus) {}
-  rpc asyncDeleteFieldValues(DeleteFieldValueRequest) returns (SuccessStatus) {}
-  rpc asyncBatchDeleteFieldValues(BatchDeleteFieldValuesRequest) returns (SuccessStatus) {}
-  rpc asyncDeleteDocument(DeleteDocumentRequest) returns (SuccessStatus) {}
-  rpc asyncBatchDeleteDocuments(BatchDeleteDocumentsRequest) returns (SuccessStatus) {}
+  rpc upsertFieldValues(UpsertFieldValuesRequest) returns (SuccessStatus) {}
+  rpc batchUpsertFieldValues(BatchUpsertFieldValuesRequest) returns (SuccessStatus) {}
+  rpc deleteFieldValues(DeleteFieldValueRequest) returns (SuccessStatus) {}
+  rpc batchDeleteFieldValues(BatchDeleteFieldValuesRequest) returns (SuccessStatus) {}
+  rpc deleteDocument(DeleteDocumentRequest) returns (SuccessStatus) {}
+  rpc batchDeleteDocuments(BatchDeleteDocumentsRequest) returns (SuccessStatus) {}
 
-  // User-admin methods
+  // Store Management
   rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (SuccessStatus) {}
 }
 
 message UpsertFieldValuesRequest {
-  MultiFieldDocument multiFieldDocument = 1;
+  IKVDocumentOnWire document = 1;
   google.protobuf.Timestamp timestamp = 2;
   UserStoreContextInitializer userStoreContextInitializer = 3;
 }
 
 message BatchUpsertFieldValuesRequest {
-  repeated MultiFieldDocument multiFieldDocuments = 1;
+  repeated IKVDocumentOnWire documents = 1;
   google.protobuf.Timestamp timestamp = 2;
   UserStoreContextInitializer userStoreContextInitializer = 3;
 }
 
 // Delete fields from a document.
 message DeleteFieldValueRequest {
-  MultiFieldDocument documentId = 1;
+  IKVDocumentOnWire documentId = 1;
   repeated string fieldNames = 2;
   google.protobuf.Timestamp timestamp = 3;
   UserStoreContextInitializer userStoreContextInitializer = 4;
@@ -39,7 +39,7 @@ message DeleteFieldValueRequest {
 
 // Delete fields from a batch of documents.
 message BatchDeleteFieldValuesRequest {
-  repeated MultiFieldDocument documentIds = 1;
+  repeated IKVDocumentOnWire documentIds = 1;
   repeated string fieldNames = 2;
   google.protobuf.Timestamp timestamp = 3;
   UserStoreContextInitializer userStoreContextInitializer = 4;
@@ -47,26 +47,16 @@ message BatchDeleteFieldValuesRequest {
 
 // Delete a document.
 message DeleteDocumentRequest {
-  MultiFieldDocument documentId = 1;
+  IKVDocumentOnWire documentId = 1;
   google.protobuf.Timestamp timestamp = 2;
   UserStoreContextInitializer userStoreContextInitializer = 3;
 }
 
 // Delete a batch of documents.
 message BatchDeleteDocumentsRequest {
-  repeated MultiFieldDocument documentIds = 1;
+  repeated IKVDocumentOnWire documentIds = 1;
   google.protobuf.Timestamp timestamp = 2;
   UserStoreContextInitializer userStoreContextInitializer = 3;
-}
-
-message CreateStoreRequest {
-  AccountCredentials credentials = 1;
-  string storeName = 2;
-  FieldSchema primaryKeySchema = 3;
-
-  // non-null, when not specified client
-  // supplies primary-key as partitioning-key
-  FieldSchema partitioningKeySchema = 4;
 }
 
 message UserStoreSchemaUpdateRequest {
@@ -80,26 +70,14 @@ message UserStoreSchemaUpdateRequest {
 message SuccessStatus {
 }
 
-// TODO: move this to common
-message MultiFieldDocument {
-  // field_name vs field_value
-  map<string, FieldValue> document = 1;
-}
-
-message FieldValue {
-  oneof Value {
-    int32 int32Value = 1;
-    int64 int64Value = 2;
-    float float32Value = 3;
-    double float64Value = 4;
-    string stringValue = 5;
-    bytes bytesValue = 6;
-  }
-}
-
 // Used to construct UserStoreContext -
 // used for schema/configuration/etc.
 message UserStoreContextInitializer {
   AccountCredentials credentials = 1;
   string storeName = 2;
+}
+
+message AccountCredentials {
+  string accountId = 1;
+  string accountPasskey = 2;
 }

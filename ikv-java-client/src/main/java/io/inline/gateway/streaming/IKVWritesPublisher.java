@@ -1,8 +1,7 @@
 package io.inline.gateway.streaming;
 
 import com.google.common.base.Preconditions;
-import com.inlineio.schemas.Common;
-import com.inlineio.schemas.Services.*;
+import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.Streaming.*;
 import io.inline.gateway.ExtractorUtils;
 import io.inline.gateway.UserStoreContext;
@@ -12,7 +11,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import java.util.*;
 
 public class IKVWritesPublisher {
-    private final Producer<String, IKVDataEvent> _kafkaProducer;
+    private final Producer<FieldValue, IKVDataEvent> _kafkaProducer;
 
     public IKVWritesPublisher() {
         _kafkaProducer = KafkaProducerFactory.createInstance();
@@ -38,25 +37,25 @@ public class IKVWritesPublisher {
 
             // extract primary key value for validation
             Preconditions.checkNotNull(ExtractorUtils.extractPrimaryKeyAsString(context, fieldMap));
-            String kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyAsString(context, fieldMap);
+            FieldValue kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyValue(context, fieldMap);
 
             // TODO: filter out unknown fields by fetching schema
-            MultiFieldDocument multiFieldDocument = MultiFieldDocument.newBuilder().putAllDocument(fieldMap).build();
+            IKVDocumentOnWire document = IKVDocumentOnWire.newBuilder().putAllDocument(fieldMap).build();
 
             IKVDataEvent event = IKVDataEvent.newBuilder()
                     .setEventHeader(EventHeader
                             .newBuilder()
                             .build())
-                    .addAllFieldSchema(createFieldSchemaList(context, multiFieldDocument))
+                    .addAllFieldSchema(createFieldSchemaList(context, document))
                     .setUpsertDocumentFieldsEvent(
                             UpsertDocumentFieldsEvent
                                     .newBuilder()
-                                    .setMultiFieldDocument(multiFieldDocument)
+                                    .setDocument(document)
                                     .build())
                     .build();
 
             // ProducerRecord(String topic, K key, V value)
-            ProducerRecord<String, IKVDataEvent> producerRecord =
+            ProducerRecord<FieldValue, IKVDataEvent> producerRecord =
                     new ProducerRecord<>(context.kafkaTopic(), kafkaPartitioningKey, event);
 
             blockingPublishWithRetries(producerRecord, 3);
@@ -85,25 +84,25 @@ public class IKVWritesPublisher {
             // extract primary key value for validation
             Preconditions.checkNotNull(ExtractorUtils.extractPrimaryKeyAsString(context, documentId));
 
-            String kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyAsString(context, documentId);
+            FieldValue kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyValue(context, documentId);
 
             // TODO: filter out unknown fields by fetching schema
-            MultiFieldDocument multiFieldDocument = MultiFieldDocument.newBuilder().putAllDocument(documentId).build();
+            IKVDocumentOnWire documentIdOnWire = IKVDocumentOnWire.newBuilder().putAllDocument(documentId).build();
 
             IKVDataEvent event = IKVDataEvent.newBuilder()
                     .setEventHeader(EventHeader
                             .newBuilder()
                             .build())
-                    .addAllFieldSchema(createFieldSchemaList(context, multiFieldDocument))
+                    .addAllFieldSchema(createFieldSchemaList(context, documentIdOnWire))
                     .setDeleteDocumentEvent(
                             DeleteDocumentEvent
                                     .newBuilder()
-                                    .setDocumentId(multiFieldDocument)
+                                    .setDocumentId(documentIdOnWire)
                                     .build())
                     .build();
 
             // ProducerRecord(String topic, K key, V value)
-            ProducerRecord<String, IKVDataEvent> producerRecord =
+            ProducerRecord<FieldValue, IKVDataEvent> producerRecord =
                     new ProducerRecord<>(context.kafkaTopic(), kafkaPartitioningKey, event);
 
             blockingPublishWithRetries(producerRecord, 3);
@@ -113,12 +112,12 @@ public class IKVWritesPublisher {
     /**
      * Construct field schema object based on the downstream event.
      */
-    private static List<Common.FieldSchema> createFieldSchemaList(UserStoreContext context, MultiFieldDocument document) {
+    private static List<FieldSchema> createFieldSchemaList(UserStoreContext context, IKVDocumentOnWire document) {
         Map<String, ?> documentMap = document.getDocumentMap();
-        List<Common.FieldSchema> schema = new ArrayList<>(documentMap.size());
+        List<FieldSchema> schema = new ArrayList<>(documentMap.size());
 
         for (String name : documentMap.keySet()) {
-            Optional<Common.FieldSchema> maybeSchema = context.fieldSchema(name);
+            Optional<FieldSchema> maybeSchema = context.fieldSchema(name);
             maybeSchema.ifPresent(schema::add);
         }
 
@@ -126,7 +125,7 @@ public class IKVWritesPublisher {
     }
 
 
-    private void blockingPublishWithRetries(ProducerRecord<String, IKVDataEvent> record, int numRetries) throws InterruptedException {
+    private void blockingPublishWithRetries(ProducerRecord<FieldValue, IKVDataEvent> record, int numRetries) throws InterruptedException {
         for (int i = 0; i < numRetries; i++) {
             try {
                 // TODO block on get() - can be problematic based on batching
