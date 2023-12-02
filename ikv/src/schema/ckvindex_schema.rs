@@ -9,8 +9,8 @@ use protobuf::Message;
 
 use crate::proto::generated_proto::{
     common::FieldSchema,
-    internal::{SavedCKVIndexSchema, SavedField},
-    services::FieldValue,
+    index::{SavedCKVIndexSchema, SavedField},
+    common::FieldValue,
 };
 
 use super::{error::SchemaError, field::Field};

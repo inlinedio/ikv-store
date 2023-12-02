@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-
 use jni::objects::{JByteArray, JList, JObject, JString};
 use jni::sys::jbyteArray;
 use jni::JNIEnv;
-
-use crate::proto::generated_proto::services::FieldValue;
 
 pub fn jbyte_array_to_vec<'local>(env: &JNIEnv<'local>, jbytes: JByteArray) -> Vec<u8> {
     let size = env.get_array_length(&jbytes).unwrap();

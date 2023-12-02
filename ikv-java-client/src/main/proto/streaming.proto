@@ -1,9 +1,8 @@
 syntax = "proto3";
 package com.inlineio.schemas;
 
-import "services.proto";
-import "common.proto";
 import "google/protobuf/timestamp.proto";
+import "common.proto";
 
 message EventHeader {
   optional google.protobuf.Timestamp sourceTimestamp = 2;
@@ -26,16 +25,16 @@ message IKVDataEvent {
 
 // Upsert fields for specified document.
 message UpsertDocumentFieldsEvent {
-  MultiFieldDocument multiFieldDocument = 1;
+  IKVDocumentOnWire document = 1;
 }
 
 // Delete specified fields for specified document.
 message DeleteDocumentFieldsEvent {
-  MultiFieldDocument documentId = 1;
+  IKVDocumentOnWire documentId = 1;
   repeated string fieldsToDelete = 2;
 }
 
 // Delete specified document.
 message DeleteDocumentEvent {
-  MultiFieldDocument documentId = 1;
+  IKVDocumentOnWire documentId = 1;
 }

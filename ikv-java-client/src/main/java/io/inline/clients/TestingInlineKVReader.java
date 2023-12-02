@@ -2,7 +2,6 @@ package io.inline.clients;
 
 import com.google.common.collect.ImmutableMap;
 import com.inlineio.schemas.Common;
-import com.inlineio.schemas.Services;
 import com.inlineio.schemas.Streaming;
 import io.inline.clients.internal.IKVClientJNI;
 import org.jetbrains.annotations.Nullable;
@@ -47,8 +46,8 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
     @Override
     public void upsertFieldValues(IKVDocument document) {
-        Map<String, Services.FieldValue> fieldValues = document.asMap();
-        Services.MultiFieldDocument multiFieldDocument = Services.MultiFieldDocument.newBuilder()
+        Map<String, Common.FieldValue> fieldValues = document.asMap();
+        Common.IKVDocumentOnWire documentOnWire = Common.IKVDocumentOnWire.newBuilder()
                 .putAllDocument(fieldValues)
                 .build();
         List<Common.FieldSchema> schema = extractSchema(fieldValues);
@@ -56,7 +55,7 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
         Streaming.IKVDataEvent event = Streaming.IKVDataEvent.newBuilder()
                 .addAllFieldSchema(schema)
                 .setUpsertDocumentFieldsEvent(Streaming.UpsertDocumentFieldsEvent.newBuilder()
-                        .setMultiFieldDocument(multiFieldDocument)
+                        .setDocument(documentOnWire)
                         .build())
                 .build();
 
@@ -66,8 +65,8 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
     @Override
     public void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete) {
-        Map<String, Services.FieldValue> fieldValues = documentId.asMap();
-        Services.MultiFieldDocument multiFieldDocument = Services.MultiFieldDocument.newBuilder()
+        Map<String, Common.FieldValue> fieldValues = documentId.asMap();
+        Common.IKVDocumentOnWire documentOnWire = Common.IKVDocumentOnWire.newBuilder()
                 .putAllDocument(fieldValues)
                 .build();
         List<Common.FieldSchema> schema = extractSchema(fieldValues);
@@ -75,7 +74,7 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
         Streaming.IKVDataEvent event = Streaming.IKVDataEvent.newBuilder()
                 .addAllFieldSchema(schema)
                 .setDeleteDocumentFieldsEvent(Streaming.DeleteDocumentFieldsEvent.newBuilder()
-                        .setDocumentId(multiFieldDocument)
+                        .setDocumentId(documentOnWire)
                         .addAllFieldsToDelete(fieldsToDelete)
                         .build())
                 .build();
@@ -87,8 +86,8 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
     @Override
     public void deleteDocument(IKVDocument documentId) {
-        Map<String, Services.FieldValue> fieldValues = documentId.asMap();
-        Services.MultiFieldDocument multiFieldDocument = Services.MultiFieldDocument.newBuilder()
+        Map<String, Common.FieldValue> fieldValues = documentId.asMap();
+        Common.IKVDocumentOnWire documentOnWire = Common.IKVDocumentOnWire.newBuilder()
                 .putAllDocument(fieldValues)
                 .build();
         List<Common.FieldSchema> schema = extractSchema(fieldValues);
@@ -96,7 +95,7 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
         Streaming.IKVDataEvent event = Streaming.IKVDataEvent.newBuilder()
                 .addAllFieldSchema(schema)
                 .setDeleteDocumentEvent(Streaming.DeleteDocumentEvent.newBuilder()
-                        .setDocumentId(multiFieldDocument)
+                        .setDocumentId(documentOnWire)
                         .build())
                 .build();
 
@@ -104,20 +103,13 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
         IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
     }
 
-    private static List<Common.FieldSchema> extractSchema(Map<String, Services.FieldValue> fieldValues) {
+    private static List<Common.FieldSchema> extractSchema(Map<String, Common.FieldValue> fieldValues) {
         List<Common.FieldSchema> schema = new ArrayList<>(fieldValues.size());
-        for (Map.Entry<String, Services.FieldValue> entry: fieldValues.entrySet()) {
+        for (Map.Entry<String, Common.FieldValue> entry: fieldValues.entrySet()) {
             String name = entry.getKey();
             int id = FIELD_NAME_TO_FIELD_ID_MAPPING.get(name);
 
-            Common.FieldType fieldType;
-            if (entry.getValue().hasStringValue()) {
-                fieldType = Common.FieldType.STRING;
-            } else if (entry.getValue().hasBytesValue()) {
-                fieldType = Common.FieldType.BYTES;
-            } else {
-                throw new UnsupportedOperationException("not expecting fixed width types");
-            }
+            Common.FieldType fieldType = entry.getValue().getFieldType();
 
             Common.FieldSchema fieldSchema = Common.FieldSchema.newBuilder()
                     .setName(name)

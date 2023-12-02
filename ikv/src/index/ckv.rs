@@ -1,7 +1,7 @@
 use crate::{
     proto::generated_proto::{
         common::{FieldSchema, IKVStoreConfig},
-        services::FieldValue,
+        common::FieldValue,
     },
     schema::{
         ckvindex_schema::CKVIndexSchema,

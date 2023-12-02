@@ -1,6 +1,25 @@
 syntax = "proto3";
 package com.inlineio.schemas;
 
+message IKVDocumentOnWire {
+  // field_name vs field_value
+  map<string, FieldValue> document = 1;
+}
+
+message FieldValue {
+  FieldType fieldType = 1;
+  bytes value = 2;
+
+  //oneof Value {
+    //int32 int32Value = 1;
+    //int64 int64Value = 2;
+    //float float32Value = 3;
+    //double float64Value = 4;
+    //string stringValue = 5;
+    //bytes bytesValue = 6;
+  //}
+}
+
 message FieldSchema {
   // the case-sensitive field name
   string name = 1;
@@ -13,8 +32,8 @@ message FieldSchema {
 }
 
 enum FieldType {
-  // usually signifies producer is ahead
-  // on the symbol list
+  // usually signifies writer/producer is ahead
+  // w.r.t the symbol list
   UNKNOWN = 0;
 
   INT32 = 1;
@@ -31,9 +50,4 @@ message IKVStoreConfig {
   map<string, string> stringConfigs = 1;
   map<string, int64> numericConfigs = 2;
   map<string, bytes> bytesConfigs = 3;
-}
-
-message AccountCredentials {
-  string accountId = 1;
-  string accountPasskey = 2;
 }

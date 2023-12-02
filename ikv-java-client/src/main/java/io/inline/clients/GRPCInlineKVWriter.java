@@ -3,8 +3,7 @@ package io.inline.clients;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.JsonFormat;
-import com.inlineio.schemas.Common;
+import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
 import io.grpc.ManagedChannel;
@@ -23,7 +22,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
         // TODO: create using ClientOptions.
         _userStoreCtxInitializer = UserStoreContextInitializer.newBuilder()
                 .setStoreName("testing-store")
-                .setCredentials(Common.AccountCredentials.newBuilder()
+                .setCredentials(AccountCredentials.newBuilder()
                         .setAccountId("testing-account")
                         .setAccountPasskey("testing-passkey")
                         .build())
@@ -48,20 +47,20 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
         Preconditions.checkArgument(document.asMap().size() >= 1, "empty document not allowed");
 
-        MultiFieldDocument multiFieldDocument = MultiFieldDocument.newBuilder()
+        IKVDocumentOnWire documentOnWire = IKVDocumentOnWire.newBuilder()
                 .putAllDocument(document.asMap())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
         UpsertFieldValuesRequest request = UpsertFieldValuesRequest.newBuilder()
-                .setMultiFieldDocument(multiFieldDocument)
+                .setDocument(documentOnWire)
                 .setTimestamp(timestamp)
                 .setUserStoreContextInitializer(_userStoreCtxInitializer)
                 .build();
 
         try {
             // make grpc call
-            SuccessStatus ignored = _stub.asyncUpsertFieldValues(request);
+            SuccessStatus ignored = _stub.upsertFieldValues(request);
         } catch (Throwable thrown) {
             // propagate errors
             com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);
@@ -84,7 +83,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
             return;
         }
 
-        MultiFieldDocument docId = MultiFieldDocument.newBuilder()
+        IKVDocumentOnWire docId = IKVDocumentOnWire.newBuilder()
                 .putAllDocument(documentId.asMap())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
@@ -98,7 +97,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
         try {
             // make grpc call
-            SuccessStatus _ignored = _stub.asyncDeleteFieldValues(request);
+            SuccessStatus _ignored = _stub.deleteFieldValues(request);
         } catch (Throwable thrown) {
             // propagate errors
             com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);
@@ -118,7 +117,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
         Preconditions.checkState(_stub != null, "client cannot be used before finishing startup() or after shutdown()");
         Preconditions.checkArgument(documentId.asMap().size() >= 1, "need document-identifiers");
 
-        MultiFieldDocument docId = MultiFieldDocument.newBuilder()
+        IKVDocumentOnWire docId = IKVDocumentOnWire.newBuilder()
                 .putAllDocument(documentId.asMap())
                 .build();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
@@ -131,7 +130,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
         try {
             // make grpc call
-            SuccessStatus _ignored = _stub.asyncDeleteDocument(request);
+            SuccessStatus _ignored = _stub.deleteDocument(request);
         } catch (Throwable thrown) {
             // propagate errors
             com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);

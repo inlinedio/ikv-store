@@ -1,6 +1,6 @@
 package io.inline.clients;
 
-import com.inlineio.schemas.Services.FieldValue;
+import com.inlineio.schemas.Common.FieldValue;
 
 import java.util.Map;
 import java.util.Objects;
