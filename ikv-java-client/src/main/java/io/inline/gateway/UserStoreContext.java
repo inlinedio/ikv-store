@@ -1,96 +1,52 @@
 package io.inline.gateway;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.inlineio.schemas.Common.FieldSchema;
+import io.inline.gateway.ddb.beans.IKVStoreContext;
 
 import javax.annotation.Nullable;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.*;
 
 public class UserStoreContext {
-    private final String _accountName;
-    private final String _storeName;
+    private final IKVStoreContext _ikvStoreContext;
+    private final HashMap<String, FieldSchema> _schema;
 
-    // document schema
-    private final String _primaryKeyFieldName;
-    private final String _partitioningKeyFieldName;
+    private UserStoreContext(IKVStoreContext ikvStoreContext, HashMap<String, FieldSchema> schema) {
+        _ikvStoreContext = Objects.requireNonNull(ikvStoreContext);
+        _schema = Objects.requireNonNull(schema);
+    }
 
-    // TODO: dynamodb client to fetch schema on demand!
-    private final AtomicInteger _schemaIdGenerator; // current value is unused ID.
-    private final ConcurrentHashMap<String, FieldSchema> _schema;
+    public static UserStoreContext from(IKVStoreContext ikvStoreContext) throws InvalidProtocolBufferException {
+        HashMap<String, FieldSchema> schema = new HashMap<>();
 
-    private final String _kafkaTopic;
+        // deserialize schema
+        List<byte[]> serializedSchema = ikvStoreContext.getFieldSchema();
+        for (byte[] bytes : serializedSchema) {
+            FieldSchema fieldSchema = FieldSchema.parseFrom(bytes);
+            schema.put(fieldSchema.getName(), fieldSchema);
+        }
 
-    @Deprecated
-    // This should be created from DynamoDB object
-    public UserStoreContext(String accountName, String storeName,
-                            String primaryKeyName, String partitioningKeyName, Map<String, FieldSchema> initialSchema, String kafkaTopic) {
-        _accountName = accountName;
-        _storeName = storeName;
-        _primaryKeyFieldName = primaryKeyName;
-        _partitioningKeyFieldName = partitioningKeyName;
-        _schemaIdGenerator = new AtomicInteger(0);
-        _schema = new ConcurrentHashMap<>(initialSchema);
-        _kafkaTopic = kafkaTopic;
+        return new UserStoreContext(ikvStoreContext, schema);
     }
 
     public String kafkaTopic() {
-        return _kafkaTopic;
+        return _ikvStoreContext.getKafkaTopicName();
     }
 
-    public String primaryKey() {
-        return _primaryKeyFieldName;
+    public String primaryKeyFieldName() {
+        return _ikvStoreContext.getPrimaryKeyFieldName();
     }
 
-    public String partitioningKey() {
-        return _partitioningKeyFieldName;
+    public String partitioningKeyFieldName() {
+        return _ikvStoreContext.getPartitioningKeyFieldName();
     }
 
+    /**
+     * Fetch schema for field given it's name.
+     * Returns empty for unknown/unregistered fields.
+     */
     public Optional<FieldSchema> fieldSchema(String fieldName) {
         @Nullable FieldSchema schema = _schema.getOrDefault(fieldName, null);
-        if (schema != null) {
-            return Optional.of(schema);
-        }
-
-        // Fetch from dynamodb?
-        throw new UnsupportedOperationException();
-    }
-
-    public void updateSchema(Collection<FieldSchema> fieldsToAdd) throws IllegalArgumentException {
-        if (fieldsToAdd == null || fieldsToAdd.isEmpty()) {
-            return;
-        }
-
-        // Conflict checks
-        for (FieldSchema incomingFieldSchema : fieldsToAdd) {
-            @Nullable FieldSchema existing = _schema.get(incomingFieldSchema.getName());
-            if (existing != null) {
-                // field exists, throw if there's a type conflict
-                if (incomingFieldSchema.getFieldTypeValue() == 0) {
-                    // unknown type, throw
-                    throw new IllegalArgumentException(String.format("Field: %s has a new type which is not supported yet, try later.", incomingFieldSchema.getName()));
-                }
-                if (incomingFieldSchema.getFieldTypeValue() != existing.getFieldTypeValue()) {
-                    // type conflict, throw
-                    throw new IllegalArgumentException(String.format("Type conflict found for Field: %s Existing: %s Requested: %s",
-                            incomingFieldSchema.getName(),
-                            existing.getFieldType(),
-                            incomingFieldSchema.getFieldType()));
-                }
-            }
-        }
-
-        // Insert
-        for (FieldSchema incomingFieldSchema : fieldsToAdd) {
-            // TODO: write to DynamoDB
-            FieldSchema fieldSchema = FieldSchema.newBuilder()
-                    .setName(incomingFieldSchema.getName())
-                    .setId(_schemaIdGenerator.getAndIncrement())
-                    .setFieldType(incomingFieldSchema.getFieldType())
-                    .build();
-            _schema.put(fieldSchema.getName(), fieldSchema);
-        }
+        return Optional.ofNullable(schema);
     }
 }

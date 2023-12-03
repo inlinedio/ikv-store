@@ -6,19 +6,18 @@ import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
-import io.inline.gateway.streaming.IKVWritesPublisher;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVWriteServiceImplBase {
-    private final IKVWritesPublisher _ikvWritesPublisher;
-    private final UserStoreContextFactory _userStoreContextFactory;
+    private final IKVWriter _ikvWriter;
+    private final UserStoreContextAccessor _userStoreContextAccessor;
 
-    public InlineKVWriteServiceImpl(IKVWritesPublisher ikvWritesPublisher,
-                                    UserStoreContextFactory userStoreContextFactory) {
-        _ikvWritesPublisher = Objects.requireNonNull(ikvWritesPublisher);
-        _userStoreContextFactory = Objects.requireNonNull(userStoreContextFactory);
+    public InlineKVWriteServiceImpl(IKVWriter ikvWriter,
+                                    UserStoreContextAccessor userStoreContextAccessor) {
+        _ikvWriter = Objects.requireNonNull(ikvWriter);
+        _userStoreContextAccessor = Objects.requireNonNull(userStoreContextAccessor);
     }
 
     @Override
@@ -26,7 +25,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         IKVDocumentOnWire document = request.getDocument();
 
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-        Optional<UserStoreContext> maybeContext = _userStoreContextFactory.getCtx(initializer);
+        Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
         if (maybeContext.isEmpty()) {
             Exception e = new IllegalArgumentException(String.format("Not a valid store: %s", initializer.getStoreName()));
             propagateError(e, responseObserver);
@@ -35,8 +34,8 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
         try {
             // write to kafka
-            _ikvWritesPublisher.publishFieldUpserts(maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
-            _ikvWritesPublisher.publishFieldUpserts(maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
+            _ikvWriter.publishFieldUpserts(maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
+            _ikvWriter.publishFieldUpserts(maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -55,7 +54,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         }
 
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-        Optional<UserStoreContext> maybeContext = _userStoreContextFactory.getCtx(initializer);
+        Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
         if (maybeContext.isEmpty()) {
             Exception e = new IllegalArgumentException(String.format("Not a valid store: %s", initializer.getStoreName()));
             propagateError(e, responseObserver);
@@ -68,7 +67,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         Collection<Map<String, FieldValue>> fieldMaps = request.getDocumentsList()
                 .stream().map(IKVDocumentOnWire::getDocumentMap).collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
         try {
-            _ikvWritesPublisher.publishFieldUpserts(maybeContext.get(), fieldMaps);
+            _ikvWriter.publishFieldUpserts(maybeContext.get(), fieldMaps);
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -93,7 +92,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         IKVDocumentOnWire documentId = request.getDocumentId();
 
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-        Optional<UserStoreContext> maybeContext = _userStoreContextFactory.getCtx(initializer);
+        Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
         if (maybeContext.isEmpty()) {
             Exception e = new IllegalArgumentException(String.format("Not a valid store: %s", initializer.getStoreName()));
             propagateError(e, responseObserver);
@@ -102,7 +101,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
         try {
             // write to kafka
-            _ikvWritesPublisher.publishDocumentDeletes(maybeContext.get(), Collections.singletonList(documentId.getDocumentMap()));
+            _ikvWriter.publishDocumentDeletes(maybeContext.get(), Collections.singletonList(documentId.getDocumentMap()));
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -121,7 +120,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         }
 
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-        Optional<UserStoreContext> maybeContext = _userStoreContextFactory.getCtx(initializer);
+        Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
         if (maybeContext.isEmpty()) {
             Exception e = new IllegalArgumentException(String.format("Not a valid store: %s", initializer.getStoreName()));
             propagateError(e, responseObserver);
@@ -134,7 +133,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         Collection<Map<String, FieldValue>> fieldMaps = request.getDocumentIdsList()
                 .stream().map(IKVDocumentOnWire::getDocumentMap).collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
         try {
-            _ikvWritesPublisher.publishDocumentDeletes(maybeContext.get(), fieldMaps);
+            _ikvWriter.publishDocumentDeletes(maybeContext.get(), fieldMaps);
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -147,16 +146,9 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
     @Override
     public void userStoreSchemaUpdate(UserStoreSchemaUpdateRequest request, StreamObserver<SuccessStatus> responseObserver) {
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-        Optional<UserStoreContext> maybeContext = _userStoreContextFactory.getCtx(initializer);
-        if (maybeContext.isEmpty()) {
-            Exception e = new IllegalArgumentException(String.format("Not a valid store: %s", initializer.getStoreName()));
-            propagateError(e, responseObserver);
-            return;
-        }
-
         Collection<FieldSchema> newFieldsToAdd = request.getNewFieldsToAddList();
         try {
-            maybeContext.get().updateSchema(newFieldsToAdd);
+            _userStoreContextAccessor.registerSchemaForNewFields(initializer, newFieldsToAdd);
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -171,7 +163,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         if (e instanceof IllegalArgumentException | e instanceof NullPointerException) {
             com.google.rpc.Status status = com.google.rpc.Status.newBuilder()
                     .setCode(Code.INVALID_ARGUMENT.getNumber())
-                    .setMessage("Invalid arguments")
+                    .setMessage("Invalid arguments: " + e)
                     .build();
             responseObserver.onError(StatusProto.toStatusRuntimeException(status));
             return;
@@ -180,7 +172,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         if (e instanceof InterruptedException || e instanceof RuntimeException) {
             com.google.rpc.Status status = com.google.rpc.Status.newBuilder()
                     .setCode(Code.INTERNAL.getNumber())
-                    .setMessage("Internal Error")
+                    .setMessage("Internal Error: " + e)
                     .build();
             responseObserver.onError(StatusProto.toStatusRuntimeException(status));
             return;
@@ -189,7 +181,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         // Catch all
         com.google.rpc.Status status = com.google.rpc.Status.newBuilder()
                 .setCode(Code.UNKNOWN.getNumber())
-                .setMessage("Unknown Internal Error")
+                .setMessage("Unknown Internal Error: " + e)
                 .build();
         responseObserver.onError(StatusProto.toStatusRuntimeException(status));
     }
