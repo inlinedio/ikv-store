@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use anyhow::anyhow;
+
 use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
 use crate::kafka::processor::WritesProcessor;
@@ -16,7 +18,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn open(client_supplied_config: IKVStoreConfig) -> Result<Self, String> {
+    pub fn open(client_supplied_config: IKVStoreConfig) -> anyhow::Result<Self> {
         // TODO: Fetch cloud configs with GRPC call - ex. Kafka consumer configs
         // Assume client supplies all required configs
         let config = Controller::merged_config(client_supplied_config)?;
@@ -24,24 +26,20 @@ impl Controller {
         let mount_directory = config
             .stringConfigs
             .get("mount_directory")
-            .ok_or("mount_directory is a required config".to_string())?;
+            .ok_or(anyhow!("mount_directory is a required config"))?;
 
         // 2. Open index - inspect if it exists locally, else fetch base index
-        let index = match CKVIndex::open_or_create(mount_directory.clone(), &config) {
-            Ok(index) => index,
-            Err(e) => return Err(e.to_string()),
-        };
+        let index = CKVIndex::open_or_create(mount_directory.clone(), &config)?;
         let index = Arc::new(index);
 
         // 3. Start kafka consumption
         let processor = Arc::new(WritesProcessor::new(index.clone()));
 
-        let mut kafka_consumer = match IKVKafkaConsumer::new(&config, processor.clone()) {
-            Ok(kc) => kc,
-            Err(e) => return Err(e.to_string()),
-        };
+        let kafka_consumer = IKVKafkaConsumer::new(&config, processor.clone())?;
 
-        kafka_consumer.run_in_background().unwrap();
+        // start write processing
+        // blocks to consume pending messages
+        kafka_consumer.run_in_background()?;
 
         Ok(Controller {
             index,
@@ -50,7 +48,7 @@ impl Controller {
         })
     }
 
-    fn merged_config(client_supplied_config: IKVStoreConfig) -> Result<IKVStoreConfig, String> {
+    fn merged_config(client_supplied_config: IKVStoreConfig) -> anyhow::Result<IKVStoreConfig> {
         // TODO: fetch configs from cloud!
         Ok(client_supplied_config)
     }
