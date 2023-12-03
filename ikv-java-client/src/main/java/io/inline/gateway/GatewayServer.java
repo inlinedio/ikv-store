@@ -3,14 +3,24 @@ package io.inline.gateway;
 import com.google.common.base.Preconditions;
 import io.grpc.ServerBuilder;
 import io.inline.gateway.streaming.IKVWritesPublisher;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 
 public class GatewayServer {
-    private static final int DEFAULT_PORT = 8080;
+    private static Logger LOGGER = LogManager.getLogger(GatewayServer.class);
+    private static final int DEFAULT_PORT = 8081;
     private volatile io.grpc.Server _server;
 
     public static void main(String[] args) throws InterruptedException {
+        // Setup log4j
+        configureLog4j();
+
         GatewayServer server = new GatewayServer();
         server.startup();
         server.blockUntilShutdown();
@@ -20,6 +30,7 @@ public class GatewayServer {
     }
 
     public void startup() {
+        LOGGER.info("Starting server!");
         IKVWritesPublisher publisher = new IKVWritesPublisher();
 
         // start grpc service
@@ -53,6 +64,21 @@ public class GatewayServer {
         }
 
         return DEFAULT_PORT;
+    }
+
+    private static void configureLog4j() {
+        URL url = GatewayServer.class.getClassLoader().getResource("log4j.xml");
+        File file;
+        try {
+            file = new File(url.toURI());
+        } catch (NullPointerException e) {
+            throw e;
+        } catch (URISyntaxException e) {
+            file = new File(url.getPath());
+        }
+
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        context.setConfigLocation(file.toURI());
     }
 
 }
