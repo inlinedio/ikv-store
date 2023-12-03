@@ -1,7 +1,7 @@
+use anyhow::bail;
+
 use crate::proto::generated_proto;
 use crate::proto::generated_proto::common::{FieldSchema, FieldType};
-
-use super::error::SchemaError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field {
@@ -11,14 +11,6 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn new(name: String, id: u16, field_type: generated_proto::common::FieldType) -> Self {
-        Self {
-            name,
-            id,
-            field_type,
-        }
-    }
-
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -45,22 +37,28 @@ impl Field {
     }
 }
 
+/// Go from proto FieldSchema to Field
 impl TryFrom<&FieldSchema> for Field {
-    type Error = SchemaError;
+    type Error = anyhow::Error;
 
-    fn try_from(field_schema: &FieldSchema) -> Result<Self, SchemaError> {
+    fn try_from(field_schema: &FieldSchema) -> anyhow::Result<Self> {
+        let name = field_schema.name.to_string();
+
         let id = field_schema.id;
         if id > u16::MAX as i32 {
-            return Err(SchemaError::RangeExhausted);
+            bail!(
+                "RangeExhausted - cannot support more than 2^16 fields, rejecting field: {}",
+                name
+            );
         }
 
         let field_type = field_schema.fieldType.enum_value_or_default();
         if field_type == FieldType::UNKNOWN {
-            return Err(SchemaError::UnsupportedField);
+            bail!("Unknown FieldType, rejecting field: {}", name);
         }
 
         Ok(Self {
-            name: field_schema.name.to_string(),
+            name,
             id: field_schema.id as u16,
             field_type: field_type.into(),
         })
@@ -68,7 +66,6 @@ impl TryFrom<&FieldSchema> for Field {
 }
 
 pub struct IndexedValue {
-    _field_type: generated_proto::common::FieldType,
     value: Vec<u8>,
 }
 
@@ -87,41 +84,15 @@ impl IndexedValue {
 }
 
 impl TryFrom<&generated_proto::common::FieldValue> for IndexedValue {
-    type Error = SchemaError;
+    type Error = anyhow::Error;
 
-    fn try_from(value: &generated_proto::common::FieldValue) -> Result<Self, Self::Error> {
-        if value.Value.is_none() {
-            // new member in field-value union
-            return Err(SchemaError::UnsupportedField);
+    fn try_from(field_value: &generated_proto::common::FieldValue) -> anyhow::Result<Self> {
+        if field_value.fieldType.enum_value_or_default() == FieldType::UNKNOWN {
+            bail!("Cannot convert to IndexedValue for UnknownField");
         }
 
-        let field_value = match value.Value.as_ref().unwrap() {
-            generated_proto::services::field_value::Value::Int32Value(v) => Self {
-                _field_type: generated_proto::common::FieldType::INT32,
-                value: v.to_le_bytes().to_vec(),
-            },
-            generated_proto::services::field_value::Value::Int64Value(v) => Self {
-                _field_type: generated_proto::common::FieldType::INT64,
-                value: v.to_le_bytes().to_vec(),
-            },
-            generated_proto::services::field_value::Value::Float32Value(v) => Self {
-                _field_type: generated_proto::common::FieldType::FLOAT32,
-                value: v.to_le_bytes().to_vec(),
-            },
-            generated_proto::services::field_value::Value::Float64Value(v) => Self {
-                _field_type: generated_proto::common::FieldType::FLOAT64,
-                value: v.to_le_bytes().to_vec(),
-            },
-            generated_proto::services::field_value::Value::StringValue(v) => Self {
-                _field_type: generated_proto::common::FieldType::STRING,
-                value: v.clone().into_bytes(),
-            },
-            generated_proto::services::field_value::Value::BytesValue(v) => Self {
-                _field_type: generated_proto::common::FieldType::BYTES,
-                value: v.clone(),
-            },
-        };
-
-        Ok(field_value)
+        Ok(Self {
+            value: field_value.value.clone(),
+        })
     }
 }

@@ -2,8 +2,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 use std::time::Duration;
-use std::{thread, time};
 
+use anyhow::{anyhow, bail};
 use protobuf::Message;
 use rdkafka::{
     config::RDKafkaLogLevel,
@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::proto::generated_proto::{common::IKVStoreConfig, streaming::IKVDataEvent};
 
-use super::{error::IKVKafkaError, processor::WritesProcessor};
+use super::processor::WritesProcessor;
 
 #[cfg(test)]
 #[path = "consumer_test.rs"]
@@ -24,10 +24,10 @@ mod consumer_test;
 
 pub struct IKVKafkaConsumer {
     tokio_runtime: Runtime,
-    processor: Arc<WritesProcessor>,
+    writes_processor: Arc<WritesProcessor>,
 
     // consumer thread
-    start_signal: (Sender<i32>, Receiver<i32>),
+    async_consumer_channel: (Sender<anyhow::Result<()>>, Receiver<anyhow::Result<()>>),
     cancellation_token: CancellationToken,
 
     // Consumer configuration - created in constructor
@@ -36,24 +36,19 @@ pub struct IKVKafkaConsumer {
 }
 
 impl IKVKafkaConsumer {
-    /// Create a new processor.
-    pub fn new(
-        config: &IKVStoreConfig,
-        processor: Arc<WritesProcessor>,
-    ) -> Result<Self, IKVKafkaError> {
+    /// Create a new consumer.
+    pub fn new(config: &IKVStoreConfig, processor: Arc<WritesProcessor>) -> anyhow::Result<Self> {
         let kafka_consumer_bootstrap_server = config
             .stringConfigs
             .get("kafka_consumer_bootstrap_server")
-            .ok_or(IKVKafkaError::KAFKA_ERROR(
-                rdkafka::error::KafkaError::ClientCreation(
-                    "kafka_consumer_bootstrap_server is a required config".to_string(),
-                ),
+            .ok_or(rdkafka::error::KafkaError::ClientCreation(
+                "kafka_consumer_bootstrap_server is a required config".to_string(),
             ))?;
 
         // TODO: we might need SSL access
         // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
         let client_config = ClientConfig::new()
-            .set("group.id", "no op") // we don't use offset management or automatic partition assignment
+            .set("group.id", "ikv-default-consumer") // we don't use offset management or automatic partition assignment
             .set("bootstrap.servers", kafka_consumer_bootstrap_server)
             .set("enable.partition.eof", "false")
             .set("session.timeout.ms", "3600000")
@@ -65,31 +60,23 @@ impl IKVKafkaConsumer {
             .clone();
 
         // topic and parition
-        let topic = config
-            .stringConfigs
-            .get("kafka_topic")
-            .ok_or(IKVKafkaError::KAFKA_ERROR(
-                rdkafka::error::KafkaError::ClientCreation(
-                    "kafka_topic is a required config".to_string(),
-                ),
-            ))?;
-        let partition =
-            config
-                .numericConfigs
-                .get("kafka_partition")
-                .ok_or(IKVKafkaError::KAFKA_ERROR(
-                    rdkafka::error::KafkaError::ClientCreation(
-                        "kafka_partition is a required config".to_string(),
-                    ),
-                ))?;
+        let topic = config.stringConfigs.get("kafka_topic").ok_or(
+            rdkafka::error::KafkaError::ClientCreation(
+                "kafka_topic is a required config".to_string(),
+            ),
+        )?;
+        let partition = config.numericConfigs.get("kafka_partition").ok_or(
+            rdkafka::error::KafkaError::ClientCreation(
+                "kafka_partition is a required config".to_string(),
+            ),
+        )?;
         let partition = if (*partition > i32::MAX as i64) || (*partition < 0) {
-            return Err(IKVKafkaError::KAFKA_ERROR(
-                rdkafka::error::KafkaError::ClientCreation("kafka_partition bad value".to_string()),
-            ));
+            bail!("kafka_partition bad value: {}", partition);
         } else {
             *partition as i32
         };
 
+        // TODO: read offset from offset store
         let mut topic_partition = TopicPartitionList::new();
         topic_partition
             .add_partition_offset(&topic, partition, rdkafka::Offset::Offset(0))
@@ -103,45 +90,50 @@ impl IKVKafkaConsumer {
 
         Ok(IKVKafkaConsumer {
             tokio_runtime: runtime,
-            processor: processor,
-            start_signal: mpsc::channel(),
+            writes_processor: processor,
+            async_consumer_channel: mpsc::channel(),
             cancellation_token: CancellationToken::new(),
             client_config: client_config,
             topic_partition: topic_partition,
         })
     }
 
-    pub fn run_in_background(&self) -> Result<(), IKVKafkaError> {
+    pub fn run_in_background(&self) -> anyhow::Result<()> {
         // start consumer thread
         self.tokio_runtime.spawn(IKVKafkaConsumer::run(
-            self.processor.clone(),
-            self.start_signal.0.clone(),
+            self.writes_processor.clone(),
+            self.async_consumer_channel.0.clone(),
             self.cancellation_token.clone(),
             self.client_config.clone(),
             self.topic_partition.clone(),
         ));
 
-        // wait for status - kafka creation
-        if let Ok(signal) = self.start_signal.1.recv() {
-            if signal == 0 {
-                thread::sleep(time::Duration::from_millis(10000)); // 10s sleep
-                return Ok(());
-            } else if signal == -1 {
-                return Err(IKVKafkaError::KAFKA_ERROR(
-                    rdkafka::error::KafkaError::ClientCreation("cannot create client".to_string()),
-                ));
-            } else {
-                unreachable!()
+        // wait for startup of kafka thread
+        match self.async_consumer_channel.1.recv() {
+            Ok(signal) => {
+                if let Err(e) = signal {
+                    bail!(
+                        "Cannot initialize write ingestion, error: {}",
+                        e.to_string()
+                    );
+                } else {
+                    Ok(())
+                }
             }
-        };
-
-        Ok(())
+            Err(e) => {
+                // Async thread got killed
+                bail!(
+                    "Async writes processing thread killed, error: {}",
+                    e.to_string()
+                );
+            }
+        }
     }
 
     // blocking run.
     async fn run(
-        processor: Arc<WritesProcessor>,
-        start_signal: Sender<i32>,
+        writes_processor: Arc<WritesProcessor>,
+        async_consumer_channel: Sender<anyhow::Result<()>>,
         cancellation_token: CancellationToken,
         client_config: ClientConfig,
         topic_partition: TopicPartitionList,
@@ -150,14 +142,26 @@ impl IKVKafkaConsumer {
             match client_config.create_with_context(IKVKafkaConsumerContext) {
                 Ok(consumer) => consumer,
                 Err(e) => {
-                    println!("{}", format!("Cannot start kafka consumer, error: {}", e));
-                    let _ = start_signal.send(-1);
+                    let _ = async_consumer_channel.send(Err(anyhow!(
+                        "Cannot create kafka StreamConsumer, error: {}",
+                        e.to_string()
+                    )));
                     return;
                 }
             };
 
-        let _ = consumer.assign(&topic_partition);
-        let _ = start_signal.send(0);
+        if let Err(e) = consumer.assign(&topic_partition) {
+            let _ = async_consumer_channel.send(Err(anyhow!(
+                "Cannot assign kafka consumer to topic-partition, error: {}",
+                e.to_string()
+            )));
+            return;
+        }
+
+        // TODO: lag consumption - inspect headers, inspect time and consume till under SLA.
+
+        // Successful startup!
+        let _ = async_consumer_channel.send(Ok(()));
 
         loop {
             if cancellation_token.is_cancelled() {
@@ -166,20 +170,26 @@ impl IKVKafkaConsumer {
 
             match consumer.recv().await {
                 Err(e) => {
-                    println!("[rs-consumer] Kafka error");
-                    // TODO: log unprocessed event and continue?
+                    // Consumption initialization errors will be thrown here - ex. incorrect
+                    // topic or partition, broker not being available, etc.
+
+                    // We should inspect type of error code and see if
+                    // we need to kill startup
+
+                    // TODO: add logging for unprocessed event
+                    eprintln!(
+                        "Receiving kafka error in background loop: {}",
+                        e.to_string()
+                    )
                 }
                 Ok(message) => {
                     if let Some(bytes) = rdkafka::Message::payload(&message) {
                         match IKVDataEvent::parse_from_bytes(bytes) {
                             Ok(event) => {
-                                // TODO: handle errors
-                                println!("[rs-consumer] Processing event.");
-                                let _ = processor.process(&event);
+                                writes_processor.process(&event);
                             }
-                            Err(e) => {
-                                // TODO: log deserialization errors
-                                println!("[rs-consumer] Proto deserialization error");
+                            Err(_e) => {
+                                // TODO: add logging for unprocessed event
                             }
                         }
                     }

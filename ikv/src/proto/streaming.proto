@@ -25,7 +25,7 @@ message IKVDataEvent {
 
 // Upsert fields for specified document.
 message UpsertDocumentFieldsEvent {
-  IKVDocumentOnWire multiFieldDocument = 1;
+  IKVDocumentOnWire document = 1;
 }
 
 // Delete specified fields for specified document.

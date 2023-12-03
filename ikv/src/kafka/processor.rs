@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use anyhow::Ok;
+
 use crate::index::ckv::CKVIndex;
-use crate::index::error::IndexError;
 use crate::proto::generated_proto::streaming::ikvdata_event::Event;
 use crate::proto::generated_proto::streaming::{
     DeleteDocumentEvent, DeleteDocumentFieldsEvent, IKVDataEvent, UpsertDocumentFieldsEvent,
@@ -16,9 +17,18 @@ impl WritesProcessor {
         Self { ckv_index }
     }
 
-    pub fn process(&self, event: &IKVDataEvent) -> Result<(), IndexError> {
-        // update schema (?new fields?)
+    pub fn process(&self, event: &IKVDataEvent) {
+        if let Err(e) = self.process_or_throw(event) {
+            // TODO: log unprocessed event
+            eprintln!("[WritesProcessor] Error while processing event: {}", e);
+        }
+    }
+
+    pub fn process_or_throw(&self, event: &IKVDataEvent) -> anyhow::Result<()> {
+        // update schema
         let field_schema = event.fieldSchema.as_slice();
+
+        // usually related to unsupported field types, ok to drop this write event
         self.ckv_index.update_schema(field_schema)?;
 
         // handle UpsertDocumentFieldsEvent|DeleteDocumentFieldsEvent|DeleteDocumentEvent events
@@ -33,37 +43,37 @@ impl WritesProcessor {
         Ok(())
     }
 
-    fn process_upsert(&self, event: &UpsertDocumentFieldsEvent) -> Result<(), IndexError> {
-        if event.multiFieldDocument.is_none() {
+    fn process_upsert(&self, event: &UpsertDocumentFieldsEvent) -> anyhow::Result<()> {
+        if event.document.is_none() {
             return Ok(());
         }
 
-        let multi_field_document = event.multiFieldDocument.as_ref().unwrap();
+        let document_on_wire = event.document.as_ref().unwrap();
         self.ckv_index
-            .upsert_field_values(&multi_field_document.document)
+            .upsert_field_values(&document_on_wire.document)
     }
 
-    fn process_field_delete(&self, event: &DeleteDocumentFieldsEvent) -> Result<(), IndexError> {
+    fn process_field_delete(&self, event: &DeleteDocumentFieldsEvent) -> anyhow::Result<()> {
         if event.documentId.is_none() {
             return Ok(());
         }
 
-        let document_id = event.documentId.as_ref().unwrap();
+        let document_on_wire = event.documentId.as_ref().unwrap();
         let field_names = &event.fieldsToDelete;
         if field_names.len() == 0 {
             return Ok(());
         }
 
         self.ckv_index
-            .delete_field_values(&document_id.document, field_names)
+            .delete_field_values(&document_on_wire.document, field_names)
     }
 
-    fn process_document_delete(&self, event: &DeleteDocumentEvent) -> Result<(), IndexError> {
+    fn process_document_delete(&self, event: &DeleteDocumentEvent) -> anyhow::Result<()> {
         if event.documentId.is_none() {
             return Ok(());
         }
 
-        let document_id = event.documentId.as_ref().unwrap();
-        self.ckv_index.delete_document(&document_id.document)
+        let document_on_wire = event.documentId.as_ref().unwrap();
+        self.ckv_index.delete_document(&document_on_wire.document)
     }
 }
