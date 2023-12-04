@@ -1,19 +1,20 @@
-package io.inline.gateway.streaming;
+package io.inline.gateway;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.Streaming.*;
-import io.inline.gateway.ExtractorUtils;
-import io.inline.gateway.UserStoreContext;
+import io.inline.gateway.streaming.KafkaProducerFactory;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 import java.util.*;
 
-public class IKVWritesPublisher {
+public class IKVWriter {
     private final Producer<FieldValue, IKVDataEvent> _kafkaProducer;
 
-    public IKVWritesPublisher() {
+    public IKVWriter() {
         _kafkaProducer = KafkaProducerFactory.createInstance();
     }
 

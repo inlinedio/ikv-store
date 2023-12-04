@@ -2,7 +2,7 @@ package io.inline.gateway;
 
 import com.google.common.base.Preconditions;
 import io.grpc.ServerBuilder;
-import io.inline.gateway.streaming.IKVWritesPublisher;
+import io.inline.gateway.ddb.IKVStoreContextController;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -13,7 +13,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 
 public class GatewayServer {
-    private static Logger LOGGER = LogManager.getLogger(GatewayServer.class);
+    private static final Logger LOGGER = LogManager.getLogger(GatewayServer.class);
     private static final int DEFAULT_PORT = 8081;
     private volatile io.grpc.Server _server;
 
@@ -31,13 +31,15 @@ public class GatewayServer {
 
     public void startup() {
         LOGGER.info("Starting server!");
-        IKVWritesPublisher publisher = new IKVWritesPublisher();
+        IKVWriter publisher = new IKVWriter();
+        IKVStoreContextController ikvStoreContextController = new IKVStoreContextController();
+        UserStoreContextAccessor userStoreContextAccessor = new UserStoreContextAccessor(ikvStoreContextController);
 
         // start grpc service
         try {
             int port = port();
             _server = ServerBuilder.forPort(port)
-                    .addService(new InlineKVWriteServiceImpl(publisher, UserStoreContextFactory.getInstance()))
+                    .addService(new InlineKVWriteServiceImpl(publisher, userStoreContextAccessor))
                     .build()
                     .start();
         } catch (IOException e) {
