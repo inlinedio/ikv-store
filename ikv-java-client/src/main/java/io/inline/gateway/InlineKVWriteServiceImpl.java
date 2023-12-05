@@ -147,8 +147,21 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
     public void userStoreSchemaUpdate(UserStoreSchemaUpdateRequest request, StreamObserver<SuccessStatus> responseObserver) {
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
         Collection<FieldSchema> newFieldsToAdd = request.getNewFieldsToAddList();
+
+        // Update context
         try {
+            // TODO: this method should allow duplicate registration ie throw w/ out error?
+            // so that the kafka event can be republished again.
             _userStoreContextAccessor.registerSchemaForNewFields(initializer, newFieldsToAdd);
+        } catch (Exception e) {
+            propagateError(e, responseObserver);
+            return;
+        }
+
+        // Broadcast to all readers
+        Optional<UserStoreContext> maybeUserStoreContext = _userStoreContextAccessor.getCtx(initializer);
+        try {
+            _ikvWriter.publishFieldSchemaUpdates(maybeUserStoreContext.get(), newFieldsToAdd);
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -156,6 +169,21 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
         responseObserver.onNext(SuccessStatus.newBuilder().build());
         responseObserver.onCompleted();
+    }
+
+    /**
+     * Construct field schema object based on the downstream event.
+     */
+    private static List<FieldSchema> createFieldSchemaList(UserStoreContext context, IKVDocumentOnWire document) {
+        Map<String, ?> documentMap = document.getDocumentMap();
+        List<FieldSchema> schema = new ArrayList<>(documentMap.size());
+
+        for (String name : documentMap.keySet()) {
+            Optional<FieldSchema> maybeSchema = context.fieldSchema(name);
+            maybeSchema.ifPresent(schema::add);
+        }
+
+        return schema;
     }
 
     // TODO: better error handling

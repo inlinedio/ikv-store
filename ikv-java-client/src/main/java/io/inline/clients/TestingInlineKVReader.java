@@ -44,16 +44,29 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
         _defaultInlineKVReader.shutdown();
     }
 
+    private void updateSchema(IKVDocument document) {
+        Map<String, Common.FieldValue> fieldValues = document.asMap();
+        List<Common.FieldSchema> schema = extractSchema(fieldValues);
+
+        Streaming.IKVDataEvent event = Streaming.IKVDataEvent.newBuilder()
+                .setUpdateFieldSchemaEvent(Streaming.UpdateFieldSchemaEvent.newBuilder()
+                        .addAllNewFieldsToAdd(schema)
+                        .build())
+                .build();
+
+        IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
+    }
+
     @Override
     public void upsertFieldValues(IKVDocument document) {
+        updateSchema(document);
+
         Map<String, Common.FieldValue> fieldValues = document.asMap();
         Common.IKVDocumentOnWire documentOnWire = Common.IKVDocumentOnWire.newBuilder()
                 .putAllDocument(fieldValues)
                 .build();
-        List<Common.FieldSchema> schema = extractSchema(fieldValues);
 
         Streaming.IKVDataEvent event = Streaming.IKVDataEvent.newBuilder()
-                .addAllFieldSchema(schema)
                 .setUpsertDocumentFieldsEvent(Streaming.UpsertDocumentFieldsEvent.newBuilder()
                         .setDocument(documentOnWire)
                         .build())
@@ -69,10 +82,8 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
         Common.IKVDocumentOnWire documentOnWire = Common.IKVDocumentOnWire.newBuilder()
                 .putAllDocument(fieldValues)
                 .build();
-        List<Common.FieldSchema> schema = extractSchema(fieldValues);
 
         Streaming.IKVDataEvent event = Streaming.IKVDataEvent.newBuilder()
-                .addAllFieldSchema(schema)
                 .setDeleteDocumentFieldsEvent(Streaming.DeleteDocumentFieldsEvent.newBuilder()
                         .setDocumentId(documentOnWire)
                         .addAllFieldsToDelete(fieldsToDelete)
@@ -90,10 +101,8 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
         Common.IKVDocumentOnWire documentOnWire = Common.IKVDocumentOnWire.newBuilder()
                 .putAllDocument(fieldValues)
                 .build();
-        List<Common.FieldSchema> schema = extractSchema(fieldValues);
 
         Streaming.IKVDataEvent event = Streaming.IKVDataEvent.newBuilder()
-                .addAllFieldSchema(schema)
                 .setDeleteDocumentEvent(Streaming.DeleteDocumentEvent.newBuilder()
                         .setDocumentId(documentOnWire)
                         .build())

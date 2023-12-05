@@ -33,6 +33,8 @@ public class UserStoreContext {
         return _ikvStoreContext.getKafkaTopicName();
     }
 
+    public int numKafkaPartitions() {return _ikvStoreContext.getNumPartitions();}
+
     public String primaryKeyFieldName() {
         return _ikvStoreContext.getPrimaryKeyFieldName();
     }
