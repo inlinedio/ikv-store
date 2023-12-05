@@ -11,15 +11,12 @@ message EventHeader {
 message IKVDataEvent {
   EventHeader eventHeader = 1;
 
-  // Per-field schema of all the fields in this message
-  // TODO(optimization): send once for new fields
-  repeated FieldSchema fieldSchema = 2;
-
   // event data (upsert, delete, etc...)
   oneof event {
     UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 3;
     DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 4;
     DeleteDocumentEvent deleteDocumentEvent = 5;
+    UpdateFieldSchemaEvent updateFieldSchemaEvent = 6;
   }
 }
 
@@ -37,4 +34,9 @@ message DeleteDocumentFieldsEvent {
 // Delete specified document.
 message DeleteDocumentEvent {
   IKVDocumentOnWire documentId = 1;
+}
+
+// Changes to field schema.
+message UpdateFieldSchemaEvent {
+  repeated FieldSchema newFieldsToAdd = 2;
 }
