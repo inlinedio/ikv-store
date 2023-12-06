@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0.75"
 futures = { version = "0.3.29", features = ["thread-pool"]}
 fxhash = "0.2.1"
+integer-encoding = "4.0.0"
 jni = "0.21.1"
 kafka = "0.10.0"
 memmap2 = "0.9.0"

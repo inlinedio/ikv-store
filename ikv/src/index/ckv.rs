@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail};
 
 use crate::{
+    index::ckv_segment,
     proto::generated_proto::{
         common::FieldValue,
         common::{FieldSchema, IKVStoreConfig},
@@ -23,8 +24,6 @@ const NUM_SEGMENTS: usize = 16;
 
 /// Memmap based columnar key-value index.
 pub struct CKVIndex {
-    mount_directory: String,
-
     // hash(key) -> PrimaryKeyIndex
     segments: Vec<RwLock<CKVIndexSegment>>,
 
@@ -57,21 +56,13 @@ impl CKVIndex {
         }
 
         Ok(Self {
-            mount_directory,
             segments,
             schema: RwLock::new(schema),
         })
     }
 
     pub fn close(&self) -> io::Result<()> {
-        // save schema
-        self.schema.write().unwrap().save(&self.mount_directory)?;
-
-        // close segments
-        for segment in self.segments.iter() {
-            segment.read().unwrap().close();
-        }
-
+        // no op
         Ok(())
     }
 
@@ -161,7 +152,19 @@ impl CKVIndex {
     /// 1. upsert multiple fields for a document
     /// 2. delete multiple fields for a document
     /// 3. delete a document
-    /// Batch APIs ie above for multiple documents - todo
+
+    /// Hook to persist incremental writes to disk
+    /// ie parts of index and mmap files or schema
+    /// Implementation is free to flush and write to disk
+    /// upon each write_* invocation too.
+    pub fn flush_writes(&self) -> anyhow::Result<()> {
+        for segment in self.segments.iter() {
+            let mut ckv_segment = segment.write().unwrap();
+            ckv_segment.flush_writes()?;
+        }
+
+        Ok(())
+    }
 
     pub fn upsert_field_values(
         &self,
