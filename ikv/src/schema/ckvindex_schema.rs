@@ -66,35 +66,6 @@ impl CKVIndexSchema {
         })
     }
 
-    pub fn save(&self, mount_directory: &str) -> std::io::Result<()> {
-        // serialize with proto
-        let mut fields = HashMap::new();
-        for (fieldname, field) in self.fieldname_field_table.iter() {
-            let mut field_schema = FieldSchema::new();
-            field_schema.name = field.name().to_string();
-            field_schema.id = field.id() as i32;
-            field_schema.fieldType = field.field_type().clone().into();
-            fields.insert(fieldname.clone(), field_schema);
-        }
-
-        let mut saved_schema = SavedCKVIndexSchema::new();
-        saved_schema.primary_key_field_name = self.primary_key_field_name.clone();
-        saved_schema.fields = fields;
-
-        let contents = saved_schema.write_to_bytes()?;
-
-        // truncate existing schema file, write new version
-        let file_path = format!("{}/schema", mount_directory);
-        let file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(file_path)?;
-        let mut writer = BufWriter::new(file);
-        writer.write_all(&contents)?;
-
-        Ok(())
-    }
-
     pub fn fetch_field_by_name<'a>(&'a self, field_name: &str) -> Option<&'a Field> {
         self.fieldname_field_table.get(field_name)
     }
@@ -109,6 +80,8 @@ impl CKVIndexSchema {
     /// Update the internal fields table with new field-info if required.
     /// Known fields are skipped, new start getting tracked.
     /// This operation can fail partially - ie schema for only some fields gets updated.
+    ///
+    /// TODO: how to handle failures (ex. persisting to disk) gracefully??
     pub fn update(&mut self, fields: &[FieldSchema]) -> anyhow::Result<()> {
         let mut conversion_error: Option<anyhow::Error> = None;
         let mut updated = false;
@@ -133,6 +106,35 @@ impl CKVIndexSchema {
         if let Some(e) = conversion_error {
             return Err(e);
         }
+
+        Ok(())
+    }
+
+    fn save(&self, mount_directory: &str) -> std::io::Result<()> {
+        // serialize with proto
+        let mut fields = HashMap::new();
+        for (fieldname, field) in self.fieldname_field_table.iter() {
+            let mut field_schema = FieldSchema::new();
+            field_schema.name = field.name().to_string();
+            field_schema.id = field.id() as i32;
+            field_schema.fieldType = field.field_type().clone().into();
+            fields.insert(fieldname.clone(), field_schema);
+        }
+
+        let mut saved_schema = SavedCKVIndexSchema::new();
+        saved_schema.primary_key_field_name = self.primary_key_field_name.clone();
+        saved_schema.fields = fields;
+
+        let contents = saved_schema.write_to_bytes()?;
+
+        // truncate existing schema file, write new version
+        let file_path = format!("{}/schema", mount_directory);
+        let file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(file_path)?;
+        let mut writer = BufWriter::new(file);
+        writer.write_all(&contents)?;
 
         Ok(())
     }
