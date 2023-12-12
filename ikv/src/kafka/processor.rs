@@ -25,14 +25,7 @@ impl WritesProcessor {
         self.ckv_index.flush_writes()
     }
 
-    pub fn process(&self, event: &IKVDataEvent) {
-        if let Err(e) = self.process_or_throw(event) {
-            // TODO: log unprocessed event
-            eprintln!("[WritesProcessor] Error while processing event: {}", e);
-        }
-    }
-
-    pub fn process_or_throw(&self, event: &IKVDataEvent) -> anyhow::Result<()> {
+    pub fn process(&self, event: &IKVDataEvent) -> anyhow::Result<()> {
         // dispatch to inner event processors
         if let Some(inner_event) = event.event.as_ref() {
             match inner_event {

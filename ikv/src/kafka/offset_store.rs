@@ -2,6 +2,7 @@ use std::{
     fs::{File, OpenOptions},
     io::{self, BufReader, BufWriter, Read, Seek, Write},
     path::Path,
+    sync::RwLock,
 };
 
 use anyhow::anyhow;
@@ -11,6 +12,7 @@ use rdkafka::TopicPartitionList;
 use crate::proto::generated_proto::index::{KafkaOffsetStore, KafkaOffsetStoreEntry};
 
 pub struct OffsetStore {
+    lock: RwLock<()>,
     file: File,
 }
 
@@ -35,10 +37,15 @@ impl OffsetStore {
                 .open(filename)?;
         }
 
-        Ok(Self { file })
+        Ok(Self {
+            lock: RwLock::new(()),
+            file,
+        })
     }
 
     pub fn read_all_offsets(&self) -> anyhow::Result<Vec<KafkaOffsetStoreEntry>> {
+        let _guard = self.lock.read().unwrap();
+
         let mut bytes = Vec::new();
 
         let mut reader = BufReader::new(&self.file);
@@ -55,7 +62,12 @@ impl OffsetStore {
         Ok(entries)
     }
 
-    pub fn write_all_offsets(&mut self, topic_partition_list: &TopicPartitionList) -> anyhow::Result<()> {
+    pub fn write_all_offsets(
+        &self,
+        topic_partition_list: &TopicPartitionList,
+    ) -> anyhow::Result<()> {
+        let _guard = self.lock.write().unwrap();
+
         let mut entries = Vec::new();
         for elt in topic_partition_list.elements() {
             let mut entry = KafkaOffsetStoreEntry::new();

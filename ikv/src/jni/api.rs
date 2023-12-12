@@ -143,10 +143,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_processIKVDa
     // Write to index
     let ikv_data_event = maybe_ikv_data_event.unwrap();
 
-    let _ = match controller
-        .writes_processor_ref()
-        .process_or_throw(&ikv_data_event)
-    {
+    let _ = match controller.writes_processor_ref().process(&ikv_data_event) {
         Ok(_) => jni::errors::Result::Ok(()),
         Err(e) => env.throw_new(
             "java/lang/RuntimeException",
