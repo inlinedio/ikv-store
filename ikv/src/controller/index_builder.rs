@@ -28,7 +28,10 @@ impl IndexBuilder {
         let kafka_consumer =
             IKVKafkaConsumer::new(mount_directory.clone(), &config, processor.clone())?;
 
-        todo!()
+        Ok(Self {
+            index,
+            kafka_consumer,
+        })
     }
 
     pub fn build_and_export(&self) -> anyhow::Result<()> {
