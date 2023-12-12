@@ -4,6 +4,7 @@ use jni::JNIEnv;
 use protobuf::Message;
 
 use crate::controller::external_handle;
+use crate::controller::index_builder::IndexBuilder;
 use crate::controller::main::Controller;
 use crate::jni::utils;
 use crate::proto::generated_proto::common::IKVStoreConfig;
@@ -22,6 +23,30 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_provideHello
 }
 
 #[no_mangle]
+pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'local>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    config: JByteArray<'local>,
+) {
+    let config = utils::jbyte_array_to_vec(&env, config);
+    let ikv_config = IKVStoreConfig::parse_from_bytes(&config).expect("could not read configs");
+
+    let maybe_builder = IndexBuilder::new(ikv_config);
+    if let Err(e) = maybe_builder {
+        let exception = format!("Cannot initialize offline index builder: {}", e.to_string());
+        let _ = env.throw_new("java/lang/RuntimeException", exception);
+        return;
+    }
+
+    let index_builder = maybe_builder.unwrap();
+    if let Err(e) = index_builder.build_and_export() {
+        let exception = format!("Cannot build offline index: {}", e.to_string());
+        let _ = env.throw_new("java/lang/RuntimeException", exception);
+        return;
+    }
+}
+
+#[no_mangle]
 pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_open<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
@@ -32,7 +57,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_open<'local>
 
     let maybe_controller = Controller::open(ikv_config);
     if let Err(e) = maybe_controller {
-        env.throw_new("java/lang/RuntimeException", e.to_string());
+        let _ = env.throw_new("java/lang/RuntimeException", e.to_string());
         return 0;
     }
 
