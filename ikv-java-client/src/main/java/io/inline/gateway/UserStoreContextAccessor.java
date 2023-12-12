@@ -61,8 +61,7 @@ public class UserStoreContextAccessor {
 
 
     // @throws IllegalArgumentException if this field is already stored.
-    public void registerSchemaForNewFields(Services.UserStoreContextInitializer initializer,
-                                           Collection<Common.FieldSchema> fieldsToAdd) {
+    public void registerSchemaForNewFields(Services.UserStoreContextInitializer initializer, Collection<Common.FieldSchema> fieldsToAdd) {
         Objects.requireNonNull(initializer);
         Objects.requireNonNull(fieldsToAdd);
 
