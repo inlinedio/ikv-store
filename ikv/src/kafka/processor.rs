@@ -77,7 +77,7 @@ impl WritesProcessor {
         // update schema
         let field_schema = event.newFieldsToAdd.as_slice();
 
-        // errors usually correspond to unsupported field types, ok to ignore
+        // errors usually correspond to unsupported field types, ok to ignore???
         // TODO: add error logging
         self.ckv_index.update_schema(field_schema)
     }

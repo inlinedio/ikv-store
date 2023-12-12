@@ -52,13 +52,13 @@ public class IKVStoreContextController {
 
     /**
      * Add new field's schema to an IKV store.
-     * Throws exception if this field is already tracked in the context ie was registered previously.
+     * Does not throw exception if this field is already tracked in the context ie was registered previously.
      *
-     * @return if field was registered successfully
+     * @return true - if field was registered successfully
+     *         false - field already exists or there was an error (retries exhausted)
      *
      * @throws NullPointerException if any input args are null
      * @throws IllegalStateException if stored IKVStoreContext object in DynamoDB cannot be parsed
-     * @throws IllegalArgumentException if this field is already stored.
      * @throws InterruptedException if thread sleep b/w retries is interrupted - ok to call this method again
      */
     public synchronized boolean registerSchemaForNewField(String accountId, String storeName, Common.FieldSchema field) throws InterruptedException {
@@ -81,8 +81,10 @@ public class IKVStoreContextController {
                 try {
                     Common.FieldSchema existingFieldSchema = Common.FieldSchema.parseFrom(bytes);
                     if (field.getName().equals(existingFieldSchema.getName())) {
-                        // always throw even if types match - ie NO OP update.
-                        throw new IllegalArgumentException("Field already exists, cannot mutate schema. Field-Name: " + field.getName());
+                        // this field already exists, not an error, early return
+                        LOGGER.info("Ignoring field registration since it already exists, Field: {} AccountId: {} StoreName: {}",
+                                field.getName(), accountId, storeName);
+                        return false;
                     }
                 } catch (InvalidProtocolBufferException e) {
                     throw new IllegalStateException("Cannot deserialize existing schema. Error: ", e);
