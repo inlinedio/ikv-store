@@ -32,4 +32,12 @@ public final class IKVClientJNI {
      * Write method - only for testing.
      */
     public static native void processIKVDataEvent(long indexHandle, byte[] ikvDataEvent) throws RuntimeException;
+
+
+    /**
+     * Hook to build index by consuming nearline event stream.
+     * Index is built in-place of existing base index present
+     * in the mount directory.
+     */
+    public static native void buildIndex(byte[] config) throws RuntimeException;
 }

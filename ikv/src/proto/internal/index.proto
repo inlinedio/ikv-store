@@ -36,3 +36,13 @@ message CKVIndexSegmentMetadata {
     // defaults to 0
     uint64 mmap_write_offset = 1;
 }
+
+message KafkaOffsetStore {
+    repeated KafkaOffsetStoreEntry entries = 1;
+}
+
+message KafkaOffsetStoreEntry {
+    string topic = 1;
+    int32 partition = 2;
+    int64 offset = 3;
+}

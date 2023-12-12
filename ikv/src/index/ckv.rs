@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail};
 
 use crate::{
-    index::ckv_segment,
     proto::generated_proto::{
         common::FieldValue,
         common::{FieldSchema, IKVStoreConfig},
@@ -16,7 +15,7 @@ use super::ckv_segment::CKVIndexSegment;
 use std::{
     collections::HashMap,
     fs::{self},
-    io::{self, Error, ErrorKind},
+    io::{Error, ErrorKind},
     sync::RwLock,
 };
 
@@ -61,8 +60,22 @@ impl CKVIndex {
         })
     }
 
-    pub fn close(&self) -> io::Result<()> {
+    pub fn close(&self) -> anyhow::Result<()> {
         // no op
+        Ok(())
+    }
+
+    pub fn export(&self) -> anyhow::Result<()> {
+        // lock all
+        let mut segments = Vec::with_capacity(NUM_SEGMENTS);
+        for i in 0..NUM_SEGMENTS {
+            segments.push(self.segments[i].write().unwrap());
+        }
+
+        for mut segment in segments {
+            segment.export()?;
+        }
+
         Ok(())
     }
 

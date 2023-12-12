@@ -35,7 +35,8 @@ impl Controller {
         // 3. Start kafka consumption
         let processor = Arc::new(WritesProcessor::new(index.clone()));
 
-        let kafka_consumer = IKVKafkaConsumer::new(&config, processor.clone())?;
+        let kafka_consumer =
+            IKVKafkaConsumer::new(mount_directory.clone(), &config, processor.clone())?;
 
         // start write processing
         // blocks to consume pending messages
@@ -65,7 +66,7 @@ impl Controller {
 
     pub fn close(self) -> Result<(), String> {
         self.kafka_consumer.stop();
-        let _ = self.index.close();
+        self.index.close();
         Ok(())
     }
 }

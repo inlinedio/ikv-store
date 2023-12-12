@@ -18,6 +18,13 @@ impl WritesProcessor {
         Self { ckv_index }
     }
 
+    /// Flush all writes to disk.
+    /// Should be called before checkpointing of
+    /// incoming message stream.
+    pub fn flush_all(&self) -> anyhow::Result<()> {
+        self.ckv_index.flush_writes()
+    }
+
     pub fn process(&self, event: &IKVDataEvent) {
         if let Err(e) = self.process_or_throw(event) {
             // TODO: log unprocessed event
