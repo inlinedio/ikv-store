@@ -6,6 +6,10 @@ import io.inline.gateway.ddb.IKVStoreContextController;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.ConfigurationFactory;
+import org.apache.logging.log4j.core.config.ConfigurationSource;
+import org.apache.logging.log4j.core.config.xml.XmlConfigurationFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +21,7 @@ public class GatewayServer {
     private static final int DEFAULT_PORT = 8081;
     private volatile io.grpc.Server _server;
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         // Setup log4j
         configureLog4j();
 
@@ -68,7 +72,7 @@ public class GatewayServer {
         return DEFAULT_PORT;
     }
 
-    private static void configureLog4j() {
+    private static void configureLog4j() throws IOException {
         URL url = GatewayServer.class.getClassLoader().getResource("log4j.xml");
         File file;
         try {
@@ -78,6 +82,15 @@ public class GatewayServer {
         } catch (URISyntaxException e) {
             file = new File(url.getPath());
         }
+
+        /*
+        LoggerContext context = (LoggerContext) LogManager.getContext();
+        ConfigurationSource source = new ConfigurationSource(GatewayServer.class.getClassLoader().getResourceAsStream("log4j.xml"));
+        ConfigurationFactory factory = new XmlConfigurationFactory();
+        Configuration configuration = factory.getConfiguration(context, source);
+        context.start(configuration);
+        context.updateLoggers();
+        */
 
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
         context.setConfigLocation(file.toURI());

@@ -18,16 +18,10 @@ public class NearlineIntegrationTests {
             .withKafkaConsumerPartition(0)
             .build();
 
-    private InlineKVWriter _writer = new GRPCInlineKVWriter();
-    private InlineKVReader _reader = new DefaultInlineKVReader();
+    private final GRPCInlineKVWriter _writer = new GRPCInlineKVWriter();
+    private final InlineKVReader _reader = new DefaultInlineKVReader();
 
     @Test
-    public void failedStartup() throws InterruptedException {
-        _reader.startup(_clientOptions);
-        Thread.sleep(10 * 1000);
-    }
-
-    //@Test
     public void upsertAndRead() throws InterruptedException {
         _writer.startup();
         _reader.startup(_clientOptions);

@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 import javax.annotation.Nullable;
+import java.net.URI;
 import java.util.Optional;
 
 public class IKVStoreContextController {
@@ -27,11 +28,12 @@ public class IKVStoreContextController {
     public IKVStoreContextController() {
         _client = DynamoDbEnhancedClient.builder()
                 .dynamoDbClient(DynamoDbClient.builder()
-                        .region(Region.US_EAST_1)
+                        .endpointOverride(URI.create("http://localhost:8000"))
+                        //.region(Region.US_EAST_1)
                         .credentialsProvider(ProfileCredentialsProvider.create())
                         .build())
                 .build();
-        _table = _client.table("IKVStoreContextObjects", TABLE_SCHEMA);
+        _table = _client.table(IKVStoreContext.TABLE_NAME, TABLE_SCHEMA);
 
         // For reference, programmatically creating dynamodb tables:
         // https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/ddb-en-client-gs-ddbtable.html

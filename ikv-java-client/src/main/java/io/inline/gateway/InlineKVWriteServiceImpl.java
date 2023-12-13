@@ -6,11 +6,15 @@ import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVWriteServiceImplBase {
+    private static final Logger LOGGER = LogManager.getLogger(InlineKVWriteServiceImpl.class);
+
     private final IKVWriter _ikvWriter;
     private final UserStoreContextAccessor _userStoreContextAccessor;
 
@@ -145,6 +149,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
     @Override
     public void userStoreSchemaUpdate(UserStoreSchemaUpdateRequest request, StreamObserver<SuccessStatus> responseObserver) {
+        LOGGER.info("Received request: userStoreSchemaUpdate");
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
         Collection<FieldSchema> newFieldsToAdd = request.getNewFieldsToAddList();
 
@@ -169,21 +174,6 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
         responseObserver.onNext(SuccessStatus.newBuilder().build());
         responseObserver.onCompleted();
-    }
-
-    /**
-     * Construct field schema object based on the downstream event.
-     */
-    private static List<FieldSchema> createFieldSchemaList(UserStoreContext context, IKVDocumentOnWire document) {
-        Map<String, ?> documentMap = document.getDocumentMap();
-        List<FieldSchema> schema = new ArrayList<>(documentMap.size());
-
-        for (String name : documentMap.keySet()) {
-            Optional<FieldSchema> maybeSchema = context.fieldSchema(name);
-            maybeSchema.ifPresent(schema::add);
-        }
-
-        return schema;
     }
 
     // TODO: better error handling
