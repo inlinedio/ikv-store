@@ -16,7 +16,7 @@ service InlineKVWriteService {
   // Store Management
   rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (SuccessStatus) {}
 
-  // TODO: configuration serving endpoint.
+  // TODO: configuration serving endpoint
 }
 
 message UpsertFieldValuesRequest {

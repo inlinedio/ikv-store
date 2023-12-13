@@ -2,7 +2,9 @@ package io.inline.clients;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.JsonFormat;
 import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
@@ -23,7 +25,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
         _userStoreCtxInitializer = UserStoreContextInitializer.newBuilder()
                 .setStoreName("testing-store")
                 .setCredentials(AccountCredentials.newBuilder()
-                        .setAccountId("testing-account")
+                        .setAccountId("testing-account-v1")
                         .setAccountPasskey("testing-passkey")
                         .build())
                 .build();

@@ -128,7 +128,7 @@ public class IKVWriter {
         // Broadcast!
         int numPartitions = context.numKafkaPartitions();
         for (int i = 0; i < numPartitions; i++) {
-            ProducerRecord<FieldValue, IKVDataEvent> producerRecord = new ProducerRecord<>(context.kafkaTopic(), 0, BROADCAST_KEY, event);
+            ProducerRecord<FieldValue, IKVDataEvent> producerRecord = new ProducerRecord<>(context.kafkaTopic(), 0, null, event);
             blockingPublishWithRetries(producerRecord, 3);  // can throw
         }
     }
@@ -136,7 +136,7 @@ public class IKVWriter {
     private void blockingPublishWithRetries(ProducerRecord<FieldValue, IKVDataEvent> record, int numRetries) throws InterruptedException {
         for (int i = 0; i < numRetries; i++) {
             try {
-                _kafkaProducer.send(record);
+                _kafkaProducer.send(record).get();
                 return;
             } catch (Exception e) {
                 // TODO: add logging

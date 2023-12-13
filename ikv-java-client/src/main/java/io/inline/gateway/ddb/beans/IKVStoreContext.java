@@ -1,6 +1,7 @@
 package io.inline.gateway.ddb.beans;
 
 
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
@@ -16,96 +17,100 @@ import java.util.List;
 
 @DynamoDbBean
 public class IKVStoreContext {
-    private String accountId;
-    private String storeName;
-    private Integer numPartitions;
-    private String kafkaTopicName;
+    public static final String TABLE_NAME = "IKVStoreContextObjects";
 
-    private String primaryKeyFieldName;
-    private String partitioningKeyFieldName;
+    private String AccountId;
+    private String StoreName;
+    private Integer NumPartitions;
+    private String KafkaTopicName;
+
+    private String PrimaryKeyFieldName;
+    private String PartitioningKeyFieldName;
 
     // List of serialized FieldSchema.proto objects
-    private List<byte[]> fieldSchema;
-    private Integer fieldSchemaVersion;  // starts from 1
+    private List<byte[]> FieldSchema;
+    private Integer FieldSchemaVersion;  // starts from 1
 
     @DynamoDbPartitionKey
+    @DynamoDbAttribute("AccountId")
     public String getAccountId() {
-        return accountId;
+        return AccountId;
     }
 
     public void setAccountId(String accountId) {
-        this.accountId = accountId;
+        this.AccountId = accountId;
     }
 
 
     @DynamoDbSortKey
+    @DynamoDbAttribute("StoreName")
     public String getStoreName() {
-        return storeName;
+        return StoreName;
     }
 
     public void setStoreName(String storeName) {
-        this.storeName = storeName;
+        this.StoreName = storeName;
     }
 
     public Integer getNumPartitions() {
-        return numPartitions;
+        return NumPartitions;
     }
 
     public void setNumPartitions(Integer numPartitions) {
-        this.numPartitions = numPartitions;
+        this.NumPartitions = numPartitions;
     }
 
     public String getKafkaTopicName() {
-        return kafkaTopicName;
+        return KafkaTopicName;
     }
 
     public void setKafkaTopicName(String kafkaTopicName) {
-        this.kafkaTopicName = kafkaTopicName;
+        this.KafkaTopicName = kafkaTopicName;
     }
 
     public String getPrimaryKeyFieldName() {
-        return primaryKeyFieldName;
+        return PrimaryKeyFieldName;
     }
 
     public void setPrimaryKeyFieldName(String primaryKeyFieldName) {
-        this.primaryKeyFieldName = primaryKeyFieldName;
+        this.PrimaryKeyFieldName = primaryKeyFieldName;
     }
 
     public String getPartitioningKeyFieldName() {
-        return partitioningKeyFieldName;
+        return PartitioningKeyFieldName;
     }
 
     public void setPartitioningKeyFieldName(String partitioningKeyFieldName) {
-        this.partitioningKeyFieldName = partitioningKeyFieldName;
+        this.PartitioningKeyFieldName = partitioningKeyFieldName;
     }
 
     public List<byte[]> getFieldSchema() {
-        return fieldSchema;
+        return FieldSchema;
     }
 
     public void setFieldSchema(List<byte[]> fieldSchema) {
-        this.fieldSchema = fieldSchema;
+        this.FieldSchema = fieldSchema;
     }
 
     public Integer getFieldSchemaVersion() {
-        return fieldSchemaVersion;
+        return FieldSchemaVersion;
     }
 
     public void setFieldSchemaVersion(Integer fieldSchemaVersion) {
-        this.fieldSchemaVersion = fieldSchemaVersion;
+        this.FieldSchemaVersion = fieldSchemaVersion;
     }
 
     @Override
     public String toString() {
         return "IKVStoreContext{" +
-                "accountId='" + accountId + '\'' +
-                ", storeName='" + storeName + '\'' +
-                ", numPartitions=" + numPartitions +
-                ", kafkaTopicName='" + kafkaTopicName + '\'' +
-                ", primaryKeyFieldName='" + primaryKeyFieldName + '\'' +
-                ", partitioningKeyFieldName='" + partitioningKeyFieldName + '\'' +
-                ", fieldSchema=" + fieldSchema +
-                ", fieldSchemaVersion=" + fieldSchemaVersion +
+                "AccountId='" + AccountId + '\'' +
+                ", StoreName='" + StoreName + '\'' +
+                ", NumPartitions=" + NumPartitions +
+                ", KafkaTopicName='" + KafkaTopicName + '\'' +
+                ", PrimaryKeyFieldName='" + PrimaryKeyFieldName + '\'' +
+                ", PartitioningKeyFieldName='" + PartitioningKeyFieldName + '\'' +
+                ", FieldSchema=" + FieldSchema +
+                ", FieldSchemaVersion=" + FieldSchemaVersion +
                 '}';
     }
 }
