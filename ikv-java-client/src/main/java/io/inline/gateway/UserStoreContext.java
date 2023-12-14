@@ -36,6 +36,7 @@ public class UserStoreContext {
     public int numKafkaPartitions() {return _ikvStoreContext.getNumPartitions();}
 
     public String primaryKeyFieldName() {
+        // TODO: null handling for all field getters defined on _ikvStoreContext
         return _ikvStoreContext.getPrimaryKeyFieldName();
     }
 

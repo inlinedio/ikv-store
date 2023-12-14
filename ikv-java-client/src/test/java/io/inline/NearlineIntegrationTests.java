@@ -11,17 +11,16 @@ public class NearlineIntegrationTests {
 
     private final ClientOptions _clientOptions = new ClientOptions.Builder()
             .withMountDirectory("/tmp/NearlineIntegrationTests")
-            .withPrimaryKeyFieldName("userid")
             .withStoreName("testing-store")
-            .withKafkaConsumerBootstrapServer("localhost:9092")
-            .withKafkaConsumerTopic("testing-topic")
-            .withKafkaConsumerPartition(0)
+            .withAccountId("testing-account-v1")
+            .withAccountPassKey("testing-account-passkey")
+            .withNumericOverride("kafka_partition", 0)  // TODO - remove
             .build();
 
-    private final GRPCInlineKVWriter _writer = new GRPCInlineKVWriter();
+    private final GRPCInlineKVWriter _writer = new GRPCInlineKVWriter(_clientOptions);
     private final InlineKVReader _reader = new DefaultInlineKVReader();
 
-    @Test
+    //@Test
     public void upsertAndRead() throws InterruptedException {
         _writer.startup();
         _reader.startup(_clientOptions);

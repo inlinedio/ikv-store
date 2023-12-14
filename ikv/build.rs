@@ -1,4 +1,4 @@
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     protobuf_codegen::Codegen::new()
         // Use `protoc` parser, optional.
         .protoc()
@@ -9,9 +9,14 @@ fn main() {
         .inputs(&[
             "src/proto/common.proto",
             "src/proto/streaming.proto",
+            "src/proto/services.proto",
             "src/proto/internal/index.proto",
         ])
         // Specify output directory relative to Cargo output directory.
         .cargo_out_dir("protos")
         .run_from_script();
+
+    tonic_build::compile_protos("src/proto/common.proto")?;
+    tonic_build::compile_protos("src/proto/services.proto")?;
+    Ok(())
 }

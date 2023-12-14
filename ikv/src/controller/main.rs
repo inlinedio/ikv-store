@@ -6,6 +6,7 @@ use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
 use crate::kafka::processor::WritesProcessor;
 use crate::proto::generated_proto::common::IKVStoreConfig;
+use crate::proto::generated_proto::services::GetUserStoreConfigRequest;
 
 /// Stateful controller for managing IKV core key-val storage.
 pub struct Controller {
@@ -52,6 +53,10 @@ impl Controller {
     fn merged_config(client_supplied_config: IKVStoreConfig) -> anyhow::Result<IKVStoreConfig> {
         // TODO: fetch configs from cloud!
         Ok(client_supplied_config)
+    }
+
+    async fn fetch_config() {
+        let mut request: GetUserStoreConfigRequest;
     }
 
     /// Atomic reference to the index.

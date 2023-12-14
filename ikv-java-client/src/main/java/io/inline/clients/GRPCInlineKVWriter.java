@@ -14,19 +14,22 @@ import io.grpc.protobuf.StatusProto;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Objects;
 
 /** RPC based writer instance. */
 public class GRPCInlineKVWriter implements InlineKVWriter {
     private volatile InlineKVWriteServiceGrpc.InlineKVWriteServiceBlockingStub _stub;
     private final UserStoreContextInitializer _userStoreCtxInitializer;
 
-    public GRPCInlineKVWriter() {
+    public GRPCInlineKVWriter(ClientOptions clientOptions) {
+        Objects.requireNonNull(clientOptions);
+
         // TODO: create using ClientOptions.
         _userStoreCtxInitializer = UserStoreContextInitializer.newBuilder()
-                .setStoreName("testing-store")
+                .setStoreName(clientOptions.config().getStringConfigsOrThrow(ClientOptions.Builder.CFG_STORE_NAME))
                 .setCredentials(AccountCredentials.newBuilder()
-                        .setAccountId("testing-account-v1")
-                        .setAccountPasskey("testing-passkey")
+                        .setAccountId(clientOptions.config().getStringConfigsOrThrow(ClientOptions.Builder.CFG_ACCOUNT_ID))
+                        .setAccountPasskey(clientOptions.config().getStringConfigsOrThrow(ClientOptions.Builder.CFG_ACCOUNT_PASSKEY))
                         .build())
                 .build();
     }
