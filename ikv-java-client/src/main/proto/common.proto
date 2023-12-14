@@ -1,5 +1,8 @@
 syntax = "proto3";
-package com.inlineio.schemas;
+
+option java_package = "com.inlineio.schemas";
+
+package ikvschemas;
 
 message IKVDocumentOnWire {
   // field_name vs field_value

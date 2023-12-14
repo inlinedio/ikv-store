@@ -5,3 +5,7 @@
 pub mod generated_proto {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
+
+pub mod ikvserviceschemas {
+    tonic::include_proto!("ikvschemas");
+}

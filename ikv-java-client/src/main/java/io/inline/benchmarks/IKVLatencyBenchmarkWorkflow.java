@@ -54,11 +54,10 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     public IKVLatencyBenchmarkWorkflow(BenchmarkParams params) {
         ClientOptions clientOptions = new ClientOptions.Builder()
                 .withMountDirectory("/tmp/Benchmarks")
-                .withPrimaryKeyFieldName("key")
                 .withStoreName("Benchmarks")
-                .withKafkaConsumerBootstrapServer("localhost")
-                .withKafkaConsumerTopic("Benchmarks")
-                .withKafkaConsumerPartition(0)
+                .withAccountId("testing-account-v1")
+                .withAccountPassKey("testing-account-passkey")
+                .withNumericOverride("kafka_partition", 0)  // TODO - remove
                 .build();
 
         _testingClient = new TestingInlineKVReader(clientOptions);
