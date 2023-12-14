@@ -40,7 +40,8 @@ public class IKVWriter {
             Preconditions.checkNotNull(ExtractorUtils.extractPrimaryKeyAsString(context, fieldMap));
             FieldValue kafkaPartitioningKey = ExtractorUtils.extractPartitioningKeyValue(context, fieldMap);
 
-
+            // Very important! We need to remove unknown fields to
+            // avoid readers from halting.
             // TODO: filter out unknown fields by fetching schema
             IKVDocumentOnWire document = IKVDocumentOnWire.newBuilder().putAllDocument(fieldMap).build();
 

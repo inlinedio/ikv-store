@@ -6,6 +6,7 @@ import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
+import io.inline.gateway.streaming.KafkaProducerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -149,24 +150,26 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
     @Override
     public void userStoreSchemaUpdate(UserStoreSchemaUpdateRequest request, StreamObserver<SuccessStatus> responseObserver) {
-        LOGGER.info("Received request: userStoreSchemaUpdate");
         UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-        Collection<FieldSchema> newFieldsToAdd = request.getNewFieldsToAddList();
+        Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
+        if (maybeContext.isEmpty()) {
+            Exception e = new IllegalArgumentException(String.format("Not a valid store: %s", initializer.getStoreName()));
+            propagateError(e, responseObserver);
+            return;
+        }
 
         // Update context
         try {
-            // TODO: this method should allow duplicate registration ie throw w/ out error?
-            // so that the kafka event can be republished again.
-            _userStoreContextAccessor.registerSchemaForNewFields(initializer, newFieldsToAdd);
+            _userStoreContextAccessor.registerSchemaForNewFields(initializer, request.getNewFieldsToAddList());
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
         }
 
         // Broadcast to all readers
-        Optional<UserStoreContext> maybeUserStoreContext = _userStoreContextAccessor.getCtx(initializer);
+        maybeContext = _userStoreContextAccessor.getCtx(initializer);
         try {
-            _ikvWriter.publishFieldSchemaUpdates(maybeUserStoreContext.get(), newFieldsToAdd);
+            _ikvWriter.publishFieldSchemaUpdates(maybeContext.get(), request.getNewFieldsToAddList());
         } catch (Exception e) {
             propagateError(e, responseObserver);
             return;
@@ -176,8 +179,38 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
         responseObserver.onCompleted();
     }
 
+
+    @Override
+    public void getUserStoreConfig(GetUserStoreConfigRequest request, StreamObserver<GetUserStoreConfigResponse> responseObserver) {
+        UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
+        Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
+        if (maybeContext.isEmpty()) {
+            Exception e = new IllegalArgumentException(String.format("Not a valid store: %s", initializer.getStoreName()));
+            propagateError(e, responseObserver);
+            return;
+        }
+
+
+        UserStoreContext context = maybeContext.get();
+        IKVStoreConfig globalConfig = IKVStoreConfig.newBuilder()
+                .putStringConfigs(IKVStoreConfigConstants.STORE_NAME, initializer.getStoreName())
+                .putStringConfigs(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME, context.primaryKeyFieldName())
+                .putStringConfigs(IKVStoreConfigConstants.PARTITIONING_KEY_FIELD_NAME, context.partitioningKeyFieldName())
+                .putNumericConfigs(IKVStoreConfigConstants.NUM_KAFKA_PARTITIONS, context.numKafkaPartitions())
+                .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER, KafkaProducerFactory.KAFKA_BOOTSTRAP_SERVER)
+                .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_TOPIC_NAME, context.kafkaTopic())
+                .build();
+
+        GetUserStoreConfigResponse response = GetUserStoreConfigResponse.newBuilder()
+                .setGlobalConfig(globalConfig)
+                .build();
+
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
     // TODO: better error handling
-    private void propagateError(Exception e, StreamObserver<SuccessStatus> responseObserver) {
+    private void propagateError(Exception e, StreamObserver<?> responseObserver) {
         if (e instanceof IllegalArgumentException | e instanceof NullPointerException) {
             com.google.rpc.Status status = com.google.rpc.Status.newBuilder()
                     .setCode(Code.INVALID_ARGUMENT.getNumber())
