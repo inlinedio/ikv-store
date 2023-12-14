@@ -1,12 +1,18 @@
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use tokio::runtime::Builder;
 
 use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
 use crate::kafka::processor::WritesProcessor;
 use crate::proto::generated_proto::common::IKVStoreConfig;
-use crate::proto::generated_proto::services::GetUserStoreConfigRequest;
+use crate::proto::ikvserviceschemas::inline_kv_write_service_client::InlineKvWriteServiceClient;
+use crate::proto::ikvserviceschemas::{
+    AccountCredentials, GetUserStoreConfigRequest, UserStoreContextInitializer,
+};
+
+const SERVER_URL: &str = "localhost:8081";
 
 /// Stateful controller for managing IKV core key-val storage.
 pub struct Controller {
@@ -20,9 +26,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn open(client_supplied_config: IKVStoreConfig) -> anyhow::Result<Self> {
-        // TODO: Fetch cloud configs with GRPC call - ex. Kafka consumer configs
-        // Assume client supplies all required configs
-        let config = Controller::merged_config(client_supplied_config)?;
+        let config = Controller::merge_with_server_config(client_supplied_config)?;
 
         let mount_directory = config
             .stringConfigs
@@ -50,15 +54,6 @@ impl Controller {
         })
     }
 
-    fn merged_config(client_supplied_config: IKVStoreConfig) -> anyhow::Result<IKVStoreConfig> {
-        // TODO: fetch configs from cloud!
-        Ok(client_supplied_config)
-    }
-
-    async fn fetch_config() {
-        let mut request: GetUserStoreConfigRequest;
-    }
-
     /// Atomic reference to the index.
     pub fn index_ref(&self) -> Arc<CKVIndex> {
         self.index.clone()
@@ -69,9 +64,89 @@ impl Controller {
         self.processor.clone()
     }
 
-    pub fn close(self) -> Result<(), String> {
+    pub fn close(self) -> anyhow::Result<()> {
         self.kafka_consumer.stop();
-        self.index.close();
+        self.index.close()?;
         Ok(())
+    }
+
+    fn merge_with_server_config(
+        client_supplied_config: IKVStoreConfig,
+    ) -> anyhow::Result<IKVStoreConfig> {
+        let runtime = Builder::new_multi_thread()
+            .worker_threads(1)
+            .thread_name("grpc-client-thread")
+            .enable_time()
+            .build()?;
+
+        let mut config = runtime.block_on(Self::fetch_server_configs(&client_supplied_config))?;
+
+        // override with client_supplied_config
+        for (k, v) in client_supplied_config.stringConfigs.iter() {
+            config.stringConfigs.insert(k.to_string(), v.to_string());
+        }
+        for (k, v) in client_supplied_config.numericConfigs.iter() {
+            config.numericConfigs.insert(k.to_string(), *v);
+        }
+        for (k, v) in client_supplied_config.bytesConfigs.iter() {
+            config.bytesConfigs.insert(k.to_string(), v.clone());
+        }
+
+        Ok(config)
+    }
+
+    async fn fetch_server_configs(
+        client_supplied_config: &IKVStoreConfig,
+    ) -> anyhow::Result<IKVStoreConfig> {
+        // Build request
+        let account_id = client_supplied_config
+            .stringConfigs
+            .get("account_id")
+            .ok_or(anyhow!("account_id is a required config"))?;
+
+        let account_passkey = client_supplied_config
+            .stringConfigs
+            .get("account_passkey")
+            .ok_or(anyhow!("account_passkey is a required config"))?;
+
+        let store_name = client_supplied_config
+            .stringConfigs
+            .get("store_name")
+            .ok_or(anyhow!("store_name is a required config"))?;
+
+        let request = tonic::Request::new(GetUserStoreConfigRequest {
+            user_store_context_initializer: Some(UserStoreContextInitializer {
+                credentials: Some(AccountCredentials {
+                    account_id: account_id.to_string(),
+                    account_passkey: account_passkey.to_string(),
+                }),
+                store_name: store_name.to_string(),
+            }),
+        });
+
+        let mut client = InlineKvWriteServiceClient::connect(SERVER_URL).await?;
+        let tonic_response = client.get_user_store_config(request).await?;
+
+        let response = tonic_response.get_ref();
+
+        // TODO: remove and log
+        println!(
+            "InlineKvWriteServiceClient#GetUserStoreConfigResponse = {:?}",
+            response
+        );
+
+        if response.global_config.is_none() {
+            return Ok(IKVStoreConfig::default());
+        }
+
+        let server_config = response.global_config.clone().unwrap();
+
+        // TODO: resolve multiple proto objects from protoc and tonic
+        let mut copied_config = IKVStoreConfig::new();
+        copied_config.stringConfigs = server_config.string_configs;
+        copied_config.numericConfigs = server_config.numeric_configs;
+        copied_config.bytesConfigs = server_config.bytes_configs;
+
+        Ok(copied_config)
     }
 }

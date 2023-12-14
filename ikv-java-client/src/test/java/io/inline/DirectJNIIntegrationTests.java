@@ -16,11 +16,10 @@ public class DirectJNIIntegrationTests {
 
     private final ClientOptions _clientOptions = new ClientOptions.Builder()
             .withMountDirectory("/tmp/JavaIntegrationTests")
-            .withPrimaryKeyFieldName("key")
             .withStoreName("JavaIntegrationTests")
-            .withKafkaConsumerBootstrapServer("localhost")
-            .withKafkaConsumerTopic("JavaIntegrationTests")
-            .withKafkaConsumerPartition(0)
+            .withAccountId("testing-account-v1")
+            .withAccountPassKey("testing-account-passkey")
+            .withNumericOverride("kafka_partition", 0)  // TODO - remove
             .build();
 
     //@Test

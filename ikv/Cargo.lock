@@ -530,6 +530,7 @@ dependencies = [
  "jni",
  "kafka",
  "memmap2",
+ "prost",
  "protobuf",
  "protobuf-codegen",
  "protoc-bin-vendored",

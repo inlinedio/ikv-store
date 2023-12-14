@@ -9,7 +9,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .inputs(&[
             "src/proto/common.proto",
             "src/proto/streaming.proto",
-            "src/proto/services.proto",
             "src/proto/internal/index.proto",
         ])
         // Specify output directory relative to Cargo output directory.
