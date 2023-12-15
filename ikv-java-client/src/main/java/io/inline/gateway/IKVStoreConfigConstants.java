@@ -3,6 +3,7 @@ package io.inline.gateway;
 
 /** Config key strings. */
 public class IKVStoreConfigConstants {
+    public static final String MOUNT_DIRECTORY = "mount_directory";
     public static final String PRIMARY_KEY_FIELD_NAME = "primary_key_field_name";
     public static final String PARTITIONING_KEY_FIELD_NAME = "partitioning_key_field_name";
 
