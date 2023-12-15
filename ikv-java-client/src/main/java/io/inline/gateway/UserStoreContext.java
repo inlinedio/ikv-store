@@ -1,8 +1,9 @@
 package io.inline.gateway;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.inlineio.schemas.Common.FieldSchema;
+import com.inlineio.schemas.Common.*;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
+import io.inline.gateway.streaming.KafkaProducerFactory;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -51,5 +52,15 @@ public class UserStoreContext {
     public Optional<FieldSchema> fieldSchema(String fieldName) {
         @Nullable FieldSchema schema = _schema.getOrDefault(fieldName, null);
         return Optional.ofNullable(schema);
+    }
+
+    public IKVStoreConfig createConfig() {
+        return IKVStoreConfig.newBuilder()
+                .putStringConfigs(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME, primaryKeyFieldName())
+                .putStringConfigs(IKVStoreConfigConstants.PARTITIONING_KEY_FIELD_NAME, partitioningKeyFieldName())
+                .putNumericConfigs(IKVStoreConfigConstants.NUM_KAFKA_PARTITIONS, numKafkaPartitions())
+                .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER, KafkaProducerFactory.KAFKA_BOOTSTRAP_SERVER)
+                .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_TOPIC_NAME, kafkaTopic())
+                .build();
     }
 }

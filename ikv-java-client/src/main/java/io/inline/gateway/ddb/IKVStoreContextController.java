@@ -26,6 +26,7 @@ public class IKVStoreContextController {
     private final DynamoDbTable<IKVStoreContext> _table;
 
     public IKVStoreContextController() {
+        // TODO: this needs a singleton pattern?
         _client = DynamoDbEnhancedClient.builder()
                 .dynamoDbClient(DynamoDbClient.builder()
                         .endpointOverride(URI.create("http://localhost:8000"))

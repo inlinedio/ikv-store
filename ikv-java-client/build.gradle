@@ -1,10 +1,9 @@
 plugins {
     id 'java'
-
     // See: https://github.com/melix/jmh-gradle-plugin
     id "me.champeau.jmh" version "0.7.2"
-
     id 'com.google.protobuf' version '0.9.1'
+    id "com.diffplug.spotless" version "6.23.3"
 }
 
 group = 'io.inline'

@@ -192,13 +192,7 @@ public class InlineKVWriteServiceImpl extends InlineKVWriteServiceGrpc.InlineKVW
 
 
         UserStoreContext context = maybeContext.get();
-        IKVStoreConfig globalConfig = IKVStoreConfig.newBuilder()
-                .putStringConfigs(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME, context.primaryKeyFieldName())
-                .putStringConfigs(IKVStoreConfigConstants.PARTITIONING_KEY_FIELD_NAME, context.partitioningKeyFieldName())
-                .putNumericConfigs(IKVStoreConfigConstants.NUM_KAFKA_PARTITIONS, context.numKafkaPartitions())
-                .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER, KafkaProducerFactory.KAFKA_BOOTSTRAP_SERVER)
-                .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_TOPIC_NAME, context.kafkaTopic())
-                .build();
+        IKVStoreConfig globalConfig = context.createConfig();
 
         GetUserStoreConfigResponse response = GetUserStoreConfigResponse.newBuilder()
                 .setGlobalConfig(globalConfig)
