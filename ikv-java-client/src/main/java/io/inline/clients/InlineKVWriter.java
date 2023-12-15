@@ -3,15 +3,20 @@ package io.inline.clients;
 import java.util.Collection;
 
 public interface InlineKVWriter {
-    void startup();
-    void shutdown();
+  void startup();
 
-    void upsertFieldValues(IKVDocument document);
-    void batchUpsertFieldValues(Collection<IKVDocument> documents);
+  void shutdown();
 
-    void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete);
-    void batchDeleteFieldValues(Collection<IKVDocument> documentIds, Collection<String> fieldsToDelete);
+  void upsertFieldValues(IKVDocument document);
 
-    void deleteDocument(IKVDocument documentId);
-    void batchDeleteDocuments(Collection<IKVDocument> documentIds);
+  void batchUpsertFieldValues(Collection<IKVDocument> documents);
+
+  void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete);
+
+  void batchDeleteFieldValues(
+      Collection<IKVDocument> documentIds, Collection<String> fieldsToDelete);
+
+  void deleteDocument(IKVDocument documentId);
+
+  void batchDeleteDocuments(Collection<IKVDocument> documentIds);
 }
