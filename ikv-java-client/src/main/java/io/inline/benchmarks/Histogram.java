@@ -19,7 +19,7 @@ public class Histogram {
 
   @Override
   public String toString() {
-    if (_data.size() == 0) {
+    if (_data.isEmpty()) {
       return String.format("[BenchmarkHistogram] %s no-samples", _name);
     }
 

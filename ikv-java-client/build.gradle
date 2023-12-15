@@ -104,6 +104,10 @@ jmh {
 
 spotless {
     java {
+        importOrder()
+        removeUnusedImports()
+        cleanthat()
         googleJavaFormat()
+        indentWithSpaces(4)
     }
 }
