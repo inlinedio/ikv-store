@@ -1,22 +1,22 @@
 package io.inline.clients;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public interface InlineKVReader {
-    void startup(ClientOptions options) throws RuntimeException;
-    void shutdown() throws RuntimeException;
+  void startup(ClientOptions options) throws RuntimeException;
 
-    @Nullable
-    byte[] getBytesValue(PrimaryKey key, FieldAccessor fieldAccessor);
+  void shutdown() throws RuntimeException;
 
-    List<byte[]> multiGetBytesValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor);
+  @Nullable
+  byte[] getBytesValue(PrimaryKey key, FieldAccessor fieldAccessor);
 
-    @Nullable
-    String getStringValue(PrimaryKey key, FieldAccessor fieldAccessor);
+  List<byte[]> multiGetBytesValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor);
 
-    List<String> multiGetStringValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor);
+  @Nullable
+  String getStringValue(PrimaryKey key, FieldAccessor fieldAccessor);
 
+  List<String> multiGetStringValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor);
 
-    // TODO - batch gets? Multi documents, multi fields
+  // TODO - batch gets? Multi documents, multi fields
 }

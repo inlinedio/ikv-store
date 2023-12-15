@@ -101,3 +101,9 @@ jmh {
     fork = 1
     threads = 1
 }
+
+spotless {
+    java {
+        googleJavaFormat()
+    }
+}
