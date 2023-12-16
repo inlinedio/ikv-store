@@ -32,10 +32,12 @@ pub struct CKVIndex {
 }
 
 impl CKVIndex {
-    pub fn open_or_create(
-        mount_directory: String,
-        config: &IKVStoreConfig,
-    ) -> anyhow::Result<Self> {
+    pub fn open_or_create(config: &IKVStoreConfig) -> anyhow::Result<Self> {
+        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+
+        // create mount directory if it does not exist
+        fs::create_dir_all(mount_directory.clone())?;
+
         // open_or_create saved schema
         let primary_key = config.stringConfigs.get("primary_key").ok_or(Error::new(
             ErrorKind::InvalidInput,
@@ -43,10 +45,6 @@ impl CKVIndex {
         ))?;
         let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
 
-        // ensure mount_directory exists
-        fs::create_dir_all(mount_directory.clone())?;
-
-        // TODO: inspect if we need to load a new base index!!!
         // open_or_create index segments
         let mut segments = Vec::with_capacity(NUM_SEGMENTS);
         for index_id in 0..NUM_SEGMENTS {
@@ -65,7 +63,7 @@ impl CKVIndex {
         Ok(())
     }
 
-    pub fn export(&self) -> anyhow::Result<()> {
+    pub fn compact(&self) -> anyhow::Result<()> {
         // lock all
         let mut segments = Vec::with_capacity(NUM_SEGMENTS);
         for i in 0..NUM_SEGMENTS {
@@ -73,7 +71,7 @@ impl CKVIndex {
         }
 
         for mut segment in segments {
-            segment.export()?;
+            segment.compact()?;
         }
 
         Ok(())

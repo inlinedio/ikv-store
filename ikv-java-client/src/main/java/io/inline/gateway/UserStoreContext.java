@@ -30,6 +30,10 @@ public class UserStoreContext {
     return new UserStoreContext(ikvStoreContext, schema);
   }
 
+  public String storeName() {
+    return _ikvStoreContext.getStoreName();
+  }
+
   public String kafkaTopic() {
     return _ikvStoreContext.getKafkaTopicName();
   }
@@ -54,7 +58,11 @@ public class UserStoreContext {
   }
 
   public IKVStoreConfig createConfig() {
+    String storeName = _ikvStoreContext.getStoreName();
+    String accountId = _ikvStoreContext.getAccountId();
+
     return IKVStoreConfig.newBuilder()
+        .putStringConfigs(IKVStoreConfigConstants.STORE_NAME, storeName)
         .putStringConfigs(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME, primaryKeyFieldName())
         .putStringConfigs(
             IKVStoreConfigConstants.PARTITIONING_KEY_FIELD_NAME, partitioningKeyFieldName())
@@ -63,6 +71,10 @@ public class UserStoreContext {
             IKVStoreConfigConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER,
             KafkaProducerFactory.KAFKA_BOOTSTRAP_SERVER)
         .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_TOPIC_NAME, kafkaTopic())
+        .putStringConfigs(
+            IKVStoreConfigConstants.BASE_INDEX_S3_BUCKET_PREFIX,
+            String.format("%s/%s", accountId, storeName))
+        .putStringConfigs(IKVStoreConfigConstants.BASE_INDEX_S3_BUCKET_NAME, "ikv-base-indexes-v1")
         .build();
   }
 }
