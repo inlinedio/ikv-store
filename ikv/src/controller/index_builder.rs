@@ -7,26 +7,25 @@ use crate::kafka::consumer::IKVKafkaConsumer;
 use crate::kafka::processor::WritesProcessor;
 use crate::proto::generated_proto::common::IKVStoreConfig;
 
+use super::index_loader;
+
 pub struct IndexBuilder {
     index: Arc<CKVIndex>,
     kafka_consumer: IKVKafkaConsumer,
 }
 
 impl IndexBuilder {
-    pub fn new(config: IKVStoreConfig) -> anyhow::Result<Self> {
-        let mount_directory = config
-            .stringConfigs
-            .get("mount_directory")
-            .ok_or(anyhow!("mount_directory is a required config"))?;
+    pub fn new(config: &IKVStoreConfig) -> anyhow::Result<Self> {
+        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
 
-        // 2. Open index
-        let index = CKVIndex::open_or_create(mount_directory.clone(), &config)?;
-        let index = Arc::new(index);
+        // Load index
+        index_loader::load_index(&config)?;
+        let index = Arc::new(CKVIndex::open_or_create(config)?);
 
-        // 3. Initialize kafka consumer
+        // Initialize kafka consumer
         let processor = Arc::new(WritesProcessor::new(index.clone()));
         let kafka_consumer =
-            IKVKafkaConsumer::new(mount_directory.clone(), &config, processor.clone())?;
+            IKVKafkaConsumer::new(mount_directory.clone(), config, processor.clone())?;
 
         Ok(Self {
             index,
@@ -34,11 +33,16 @@ impl IndexBuilder {
         })
     }
 
-    pub fn build_and_export(&self) -> anyhow::Result<()> {
+    // NOTE: callers must cleanup their working directories
+    pub fn build_and_export(&self, config: &IKVStoreConfig) -> anyhow::Result<()> {
         // start write processing
         // blocks to consume pending messages
         self.kafka_consumer.blocking_run_till_completion()?;
-        self.index.export()?;
+        self.index.compact()?;
+
+        // TODO! upload index back to S3
+        index_loader::upload_index(config)?;
+
         Ok(())
     }
 }

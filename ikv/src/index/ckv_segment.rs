@@ -186,7 +186,7 @@ impl CKVIndexSegment {
     /// Offline index build hook.
     /// Does field colocation and deletes compaction to create a compressed
     /// and efficient offline index.
-    pub fn export(&mut self) -> anyhow::Result<()> {
+    pub fn compact(&mut self) -> anyhow::Result<()> {
         self.flush_writes()?;
 
         // TODO: add linear pass to compact.

@@ -31,7 +31,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'
     let config = utils::jbyte_array_to_vec(&env, config);
     let ikv_config = IKVStoreConfig::parse_from_bytes(&config).expect("could not read configs");
 
-    let maybe_builder = IndexBuilder::new(ikv_config);
+    let maybe_builder = IndexBuilder::new(&ikv_config);
     if let Err(e) = maybe_builder {
         let exception = format!("Cannot initialize offline index builder: {}", e.to_string());
         let _ = env.throw_new("java/lang/RuntimeException", exception);
@@ -39,7 +39,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'
     }
 
     let index_builder = maybe_builder.unwrap();
-    if let Err(e) = index_builder.build_and_export() {
+    if let Err(e) = index_builder.build_and_export(&ikv_config) {
         let exception = format!("Cannot build offline index: {}", e.to_string());
         let _ = env.throw_new("java/lang/RuntimeException", exception);
         return;

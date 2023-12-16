@@ -7,6 +7,10 @@ import io.inline.gateway.IKVStoreConfigConstants;
 import io.inline.gateway.UserStoreContext;
 import io.inline.gateway.ddb.IKVStoreContextController;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,7 +19,8 @@ import org.apache.logging.log4j.Logger;
 
 public class Worker {
   private static final Logger LOGGER = LogManager.getLogger(Worker.class);
-  private static final String WORKING_DIR = "/tmp/ikvindexes/";
+  private static final String WORKING_DIR =
+      String.format("/tmp/ikv-index-builds/%d", Instant.now().toEpochMilli());
 
   private final IKVStoreContextController _controller;
 
@@ -24,7 +29,8 @@ public class Worker {
   }
 
   // Build for all stores.
-  public void build(String accountId, String storeName) throws InvalidProtocolBufferException {
+  public void build(String accountId, String storeName)
+      throws InvalidProtocolBufferException, IOException {
     Optional<IKVStoreContext> maybeContext = _controller.getItem(accountId, storeName);
     if (maybeContext.isEmpty()) {
       // Invalid args
@@ -39,13 +45,14 @@ public class Worker {
     UserStoreContext context = UserStoreContext.from(maybeContext.get());
     IKVStoreConfig sotConfigs = context.createConfig();
 
-    // Set some overrides. Mount directory
-    String mountDirectory = mountDirectory(accountId, storeName);
+    String mountDirectory = String.format("%s/%s", WORKING_DIR, accountId);
 
+    // Set some overrides
     IKVStoreConfig config =
         IKVStoreConfig.newBuilder()
             .mergeFrom(sotConfigs)
             .putStringConfigs(IKVStoreConfigConstants.MOUNT_DIRECTORY, mountDirectory)
+            .putNumericConfigs(IKVStoreConfigConstants.PARTITION, 0) // todo! change
             .build();
 
     LOGGER.info(
@@ -54,28 +61,45 @@ public class Worker {
         storeName,
         config);
 
+    Instant start = Instant.now();
     try {
       IKVClientJNI.buildIndex(config.toByteArray());
       LOGGER.info(
-          "Successfully finished offline build for accountid: {} storename: {}",
-          accountId,
-          storeName);
-    } catch (Exception e) {
-      LOGGER.error(
-          "Error during offline build for accountid: {} storename: {}. Error: ",
+          "Successfully finished offline build for accountid: {} storename: {} time: {}s",
           accountId,
           storeName,
+          Duration.between(start, Instant.now()).toSeconds());
+    } catch (Exception e) {
+      LOGGER.error(
+          "Error during offline build for accountid: {} storename: {} time: {}s. Error: ",
+          accountId,
+          storeName,
+          Duration.between(start, Instant.now()).toSeconds(),
           e);
-      return;
+    } finally {
+      LOGGER.info("Deleting working directory: {}", mountDirectory);
+      deleteDirectory(mountDirectory);
     }
-
-    // Todo: upload mount directory to S3.
   }
 
-  private static String mountDirectory(String accountId, String storeName) {
-    // mount dir: WORKING_DIR/<accountid>/<storename>/<epoch>/partition/
-    long currentEpochMillis = Instant.now().toEpochMilli();
-    return String.format(
-        "%s/%s/%s/%d/%d", WORKING_DIR, accountId, storeName, currentEpochMillis, 0);
+  private void deleteDirectory(String directoryPath) throws IOException {
+    // https://stackoverflow.com/a/27917071
+    Path directory = Paths.get(directoryPath);
+    Files.walkFileTree(
+        directory,
+        new SimpleFileVisitor<Path>() {
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            Files.delete(file);
+            return FileVisitResult.CONTINUE;
+          }
+
+          @Override
+          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            Files.delete(dir);
+            return FileVisitResult.CONTINUE;
+          }
+        });
   }
 }

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use tokio::runtime::Builder;
 
 use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
@@ -11,6 +10,8 @@ use crate::proto::ikvserviceschemas::inline_kv_write_service_client::InlineKvWri
 use crate::proto::ikvserviceschemas::{
     AccountCredentials, GetUserStoreConfigRequest, UserStoreContextInitializer,
 };
+
+use super::index_loader;
 
 const SERVER_URL: &str = "localhost:8081";
 
@@ -28,23 +29,17 @@ impl Controller {
     pub fn open(client_supplied_config: IKVStoreConfig) -> anyhow::Result<Self> {
         let config = Controller::merge_with_server_config(client_supplied_config)?;
 
-        let mount_directory = config
-            .stringConfigs
-            .get("mount_directory")
-            .ok_or(anyhow!("mount_directory is a required config"))?;
+        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
 
-        // 2. Open index - inspect if it exists locally, else fetch base index
-        let index = CKVIndex::open_or_create(mount_directory.clone(), &config)?;
-        let index = Arc::new(index);
+        // Load index
+        index_loader::load_index(&config)?;
+        let index = Arc::new(CKVIndex::open_or_create(&config)?);
 
-        // 3. Start kafka consumption
+        // Initialize kafka consumer
         let processor = Arc::new(WritesProcessor::new(index.clone()));
-
         let kafka_consumer =
             IKVKafkaConsumer::new(mount_directory.clone(), &config, processor.clone())?;
-
-        // start write processing
-        // blocks to consume pending messages
+        // Trigger kafka consumption
         kafka_consumer.run_in_background()?;
 
         Ok(Controller {
@@ -73,13 +68,7 @@ impl Controller {
     fn merge_with_server_config(
         client_supplied_config: IKVStoreConfig,
     ) -> anyhow::Result<IKVStoreConfig> {
-        let runtime = Builder::new_multi_thread()
-            .worker_threads(1)
-            .thread_name("grpc-client-thread")
-            .enable_time()
-            .build()?;
-
-        let mut config = runtime.block_on(Self::fetch_server_configs(&client_supplied_config))?;
+        let mut config = Self::fetch_server_configs(&client_supplied_config)?;
 
         // override with client_supplied_config
         for (k, v) in client_supplied_config.stringConfigs.iter() {
@@ -95,6 +84,7 @@ impl Controller {
         Ok(config)
     }
 
+    #[tokio::main(flavor = "current_thread")]
     async fn fetch_server_configs(
         client_supplied_config: &IKVStoreConfig,
     ) -> anyhow::Result<IKVStoreConfig> {
