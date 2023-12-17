@@ -48,7 +48,7 @@ pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
 }
 
 pub fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-    let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+    let mount_directory = crate::utils::paths::create_mount_directory(config)?;
 
     // check if index exists, error if not
     if let Err(e) = CKVIndex::is_valid_index(config) {
@@ -180,7 +180,7 @@ async fn orchestrate_index_download(
         for object in result?.contents() {
             // key format: <account_id>/<storename>/<epoch>/<partition>
             if let Some(key) = object.key() {
-                let parts = key.split("/").collect::<Vec<&str>>();
+                let parts = key.split('/').collect::<Vec<&str>>();
 
                 let key_partition = parts.get(3).ok_or(anyhow!(
                     "malformed base index key: {}, expecting partition",

@@ -15,7 +15,7 @@ pub struct IndexBuilder {
 impl IndexBuilder {
     pub fn new(config: &IKVStoreConfig) -> anyhow::Result<Self> {
         // Load index
-        index_loader::load_index(&config)?;
+        index_loader::load_index(config)?;
         let index = Arc::new(CKVIndex::open_or_create(config)?);
 
         // Initialize kafka consumer

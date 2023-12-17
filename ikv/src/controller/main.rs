@@ -27,7 +27,7 @@ pub struct Controller {
 impl Controller {
     pub fn open(client_supplied_config: &IKVStoreConfig) -> anyhow::Result<Self> {
         // fetch server configs and override|merge with client supplied configs
-        let config = Controller::merge_with_server_config(&client_supplied_config)?;
+        let config = Controller::merge_with_server_config(client_supplied_config)?;
 
         // Load index
         index_loader::load_index(&config)?;

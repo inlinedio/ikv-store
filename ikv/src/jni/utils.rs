@@ -20,7 +20,7 @@ pub fn vec_to_jbyte_array<'local>(env: &JNIEnv<'local>, bytes: Vec<u8>) -> jbyte
 }
 
 /// List<byte[]> to Vec<Vec<String>>
-pub fn jlist_to_vec_strings<'local>(
+pub fn _jlist_to_vec_strings<'local>(
     env: &mut JNIEnv<'local>,
     input: JObject<'local>,
 ) -> Vec<String> {
@@ -46,7 +46,7 @@ pub fn jlist_to_vec_strings<'local>(
 }
 
 /// List<byte[]> to Vec<Vec<u8>>
-pub fn jlist_to_vec_bytes<'local>(
+pub fn _jlist_to_vec_bytes<'local>(
     env: &mut JNIEnv<'local>,
     input: JObject<'local>,
 ) -> Vec<Vec<u8>> {

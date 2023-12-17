@@ -100,8 +100,8 @@ impl CKVIndexSegment {
                         let offsets: &mut Vec<usize> =
                             offset_table.entry(primary_key.clone()).or_default();
                         for i in 0..e.field_ids.len() {
-                            let field_id = *(&e.field_ids[i]) as usize;
-                            let offset = *(&e.offsets[i]) as usize;
+                            let field_id = e.field_ids[i] as usize;
+                            let offset = e.offsets[i] as usize;
 
                             if field_id >= offsets.len() {
                                 // needs expansion
@@ -173,7 +173,7 @@ impl CKVIndexSegment {
         Ok(CKVIndexSegment {
             offset_table_file_writer: BufWriter::new(offset_table_file),
             offset_table: HashMap::new(),
-            write_offset: 0 as usize,
+            write_offset: 0,
             metadata_file_writer,
             mmap_file,
             mmap,
@@ -226,7 +226,7 @@ impl CKVIndexSegment {
         let offsets = self.offset_table.get(primary_key)?;
 
         let maybe_offset = offsets.get(field.id() as usize).copied();
-        if maybe_offset == None || maybe_offset.unwrap() == usize::MAX {
+        if maybe_offset.is_none() || maybe_offset.unwrap() == usize::MAX {
             return None;
         }
 
@@ -250,7 +250,7 @@ impl CKVIndexSegment {
         let offsets = maybe_offsets.unwrap();
         for field in fields {
             let maybe_offset = offsets.get(field.id() as usize).copied();
-            if maybe_offset == None || maybe_offset.unwrap() == usize::MAX {
+            if maybe_offset.is_none() || maybe_offset.unwrap() == usize::MAX {
                 dest.extend(ZERO_I32);
                 continue;
             }
@@ -383,7 +383,7 @@ impl CKVIndexSegment {
         primary_key: &[u8],
         fields: Vec<&Field>,
     ) -> io::Result<()> {
-        if primary_key.len() == 0 || fields.len() == 0 {
+        if primary_key.is_empty() || fields.is_empty() {
             return Ok(());
         }
 
@@ -419,7 +419,7 @@ impl CKVIndexSegment {
 
     /// Delete document.
     pub fn delete_document(&mut self, primary_key: &[u8]) -> io::Result<()> {
-        if primary_key.len() == 0 {
+        if primary_key.is_empty() {
             return Ok(());
         }
 
@@ -439,8 +439,9 @@ impl CKVIndexSegment {
     fn persist_offset_table_update(&mut self, entry: OffsetTableEntry) -> io::Result<()> {
         let bytes = entry.write_to_bytes()?;
         let size = bytes.len() as i32;
-        self.offset_table_file_writer.write(&size.to_le_bytes())?;
-        self.offset_table_file_writer.write(&bytes)?;
+        self.offset_table_file_writer
+            .write_all(&size.to_le_bytes())?;
+        self.offset_table_file_writer.write_all(&bytes)?;
 
         Ok(())
     }
@@ -472,7 +473,7 @@ impl CKVIndexSegment {
 
         self.mmap.flush()?;
         self.mmap_file
-            .write_all(&vec![0 as u8; CHUNK_SIZE * num_chunks])?;
+            .write_all(&vec![0_u8; CHUNK_SIZE * num_chunks])?;
         self.mmap_file.flush()?;
         self.mmap = unsafe { MmapMut::map_mut(&self.mmap_file)? };
 
