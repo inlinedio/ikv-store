@@ -7,6 +7,7 @@ use std::{
     path::Path,
 };
 
+use anyhow::bail;
 use memmap2::MmapMut;
 use protobuf::Message;
 
@@ -25,8 +26,6 @@ const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
 const ZERO_I32: [u8; 4] = 0i32.to_le_bytes();
 
 pub struct CKVIndexSegment {
-    mount_directory: String,
-
     // hash-table index, document_id bytes -> vector of offsets
     // offsets point into the memory map
     offset_table_file_writer: BufWriter<File>,
@@ -45,31 +44,6 @@ pub struct CKVIndexSegment {
 }
 
 impl CKVIndexSegment {
-    /// Creates a brand new empty instance of a primary-key index.
-    fn new(mount_directory: &str, index_id: usize) -> anyhow::Result<CKVIndexSegment> {
-        // offset table index
-        let offset_table_file = create_new_offset_table_file(mount_directory, index_id)?;
-
-        // mmap file
-        let mmap_file = create_new_mmap_file(mount_directory, index_id)?;
-        let mmap = unsafe { MmapMut::map_mut(&mmap_file)? };
-
-        // metadata file
-        let mut metadata_file_writer =
-            BufWriter::new(create_new_metadata_file(mount_directory, index_id)?);
-        write_metadata(&mut metadata_file_writer, 0u64)?;
-
-        Ok(CKVIndexSegment {
-            mount_directory: mount_directory.to_string(),
-            offset_table_file_writer: BufWriter::new(offset_table_file),
-            offset_table: HashMap::new(),
-            write_offset: 0 as usize,
-            metadata_file_writer,
-            mmap_file,
-            mmap,
-        })
-    }
-
     pub fn open_or_create(
         mount_directory: &str,
         index_id: usize,
@@ -173,7 +147,6 @@ impl CKVIndexSegment {
         }
 
         Ok(CKVIndexSegment {
-            mount_directory: mount_directory.to_string(),
             offset_table_file_writer: BufWriter::new(offset_table_file),
             offset_table,
             write_offset,
@@ -181,6 +154,58 @@ impl CKVIndexSegment {
             mmap_file,
             mmap,
         })
+    }
+
+    /// Creates a brand new empty instance of a primary-key index.
+    fn new(mount_directory: &str, index_id: usize) -> anyhow::Result<CKVIndexSegment> {
+        // offset table index
+        let offset_table_file = create_new_offset_table_file(mount_directory, index_id)?;
+
+        // mmap file
+        let mmap_file = create_new_mmap_file(mount_directory, index_id)?;
+        let mmap = unsafe { MmapMut::map_mut(&mmap_file)? };
+
+        // metadata file
+        let mut metadata_file_writer =
+            BufWriter::new(create_new_metadata_file(mount_directory, index_id)?);
+        write_metadata(&mut metadata_file_writer, 0u64)?;
+
+        Ok(CKVIndexSegment {
+            offset_table_file_writer: BufWriter::new(offset_table_file),
+            offset_table: HashMap::new(),
+            write_offset: 0 as usize,
+            metadata_file_writer,
+            mmap_file,
+            mmap,
+        })
+    }
+
+    pub fn is_valid_index(mount_directory: &str, index_id: usize) -> anyhow::Result<()> {
+        let filename = format!("{}/index/segment_{}/metadata", mount_directory, index_id);
+        if !Path::new(&filename).exists() {
+            bail!(
+                "CKVIndexSegment metadata file does not exist: {}",
+                &filename
+            );
+        }
+
+        let filename = format!("{}/index/segment_{}/mmap", mount_directory, index_id);
+        if !Path::new(&filename).exists() {
+            bail!("CKVIndexSegment mmap file does not exist: {}", &filename);
+        }
+
+        let filename = format!(
+            "{}/index/segment_{}/offset_table",
+            mount_directory, index_id
+        );
+        if !Path::new(&filename).exists() {
+            bail!(
+                "CKVIndexSegment offset_table file does not exist: {}",
+                &filename
+            );
+        }
+
+        Ok(())
     }
 
     /// Offline index build hook.

@@ -17,22 +17,22 @@ public class DirectJNIIntegrationTests {
       new ClientOptions.Builder()
           .withMountDirectory("/tmp/JavaIntegrationTests")
           .withStoreName("JavaIntegrationTests")
+          .withStorePartition(0)
           .withAccountId("testing-account-v1")
           .withAccountPassKey("testing-account-passkey")
-          .withNumericOverride("kafka_partition", 0) // TODO - remove
           .build();
 
   // @Test
   public void openAndClose() {
     InlineKVReader client = new TestingInlineKVReader(_clientOptions);
-    client.startup(_clientOptions);
-    client.shutdown();
+    client.startupReader();
+    client.shutdownReader();
   }
 
   // @Test
   public void singleAndBatchReads() {
     TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
-    client.startup(_clientOptions);
+    client.startupWriter();
 
     // document1
     byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
@@ -102,13 +102,13 @@ public class DirectJNIIntegrationTests {
     Assertions.assertArrayEquals(
         profiles.toArray(new byte[0][]), new byte[][] {profile1, profile2, null});
 
-    client.shutdown();
+    client.shutdownReader();
   }
 
   // @Test
   public void deletes() {
     TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
-    client.startup(_clientOptions);
+    client.startupWriter();
 
     // document1
     byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);

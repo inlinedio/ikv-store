@@ -12,18 +12,18 @@ public class NearlineIntegrationTests {
       new ClientOptions.Builder()
           .withMountDirectory("/tmp/NearlineIntegrationTests")
           .withStoreName("testing-store")
+          .withStorePartition(0)
           .withAccountId("testing-account-v1")
           .withAccountPassKey("testing-account-passkey")
-          .withNumericOverride("kafka_partition", 0) // TODO - remove
           .build();
 
   private final GRPCInlineKVWriter _writer = new GRPCInlineKVWriter(_clientOptions);
-  private final InlineKVReader _reader = new DefaultInlineKVReader();
+  private final InlineKVReader _reader = new DefaultInlineKVReader(_clientOptions);
 
   // @Test
   public void upsertAndRead() throws InterruptedException {
-    _writer.startup();
-    _reader.startup(_clientOptions);
+    _writer.startupWriter();
+    _reader.startupReader();
 
     IKVDocument document =
         new IKVDocument.Builder().putStringField("userid", "firstuserid").build();

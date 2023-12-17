@@ -74,7 +74,7 @@ public class UserStoreContext {
         .putStringConfigs(
             IKVStoreConfigConstants.BASE_INDEX_S3_BUCKET_PREFIX,
             String.format("%s/%s", accountId, storeName))
-        .putStringConfigs(IKVStoreConfigConstants.BASE_INDEX_S3_BUCKET_NAME, "ikv-base-indexes-v1")
+        .putStringConfigs(IKVStoreConfigConstants.BASE_INDEX_S3_BUCKET_NAME, "ikv-base-indexes-v1")  // TODO!: add correct bucket name!
         .build();
   }
 }

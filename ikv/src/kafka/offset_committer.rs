@@ -5,9 +5,9 @@ use std::sync::{
 
 use rdkafka::{Offset, TopicPartitionList};
 
-use super::offset_store::OffsetStore;
+use crate::index::offset_store::OffsetStore;
 
-// TODO: make this config driven
+// TODO: make this a user-specified config
 const BATCH_SIZE: u32 = 100;
 
 pub struct OffsetCommitter {
@@ -18,7 +18,8 @@ pub struct OffsetCommitter {
 impl OffsetCommitter {
     pub fn new(offset_store: Arc<OffsetStore>) -> Self {
         Self {
-            counter: AtomicU32::new(0),
+            // start from 1 to avoid committing for the very first should_commit call
+            counter: AtomicU32::new(1),
             offset_store,
         }
     }

@@ -5,6 +5,8 @@ use std::{
     path::Path,
 };
 
+use anyhow::bail;
+use log::error;
 use protobuf::Message;
 
 use crate::proto::generated_proto::{
@@ -66,11 +68,29 @@ impl CKVIndexSchema {
         })
     }
 
+    // checks if a valid index is loaded at the mount directory
+    // Returns error with some details if empty or invalid, else ok.
+    pub fn is_valid_index(mount_directory: &str) -> anyhow::Result<()> {
+        let filepath = format!("{}/schema", mount_directory);
+        if !Path::new(&filepath).exists() {
+            bail!("schema index not present");
+        }
+        Ok(())
+    }
+
+    pub fn delete_all(mount_directory: &str) -> anyhow::Result<()> {
+        let filepath = format!("{}/schema", mount_directory);
+        if Path::new(&filepath).exists() {
+            std::fs::remove_dir_all(&filepath)?;
+        }
+        Ok(())
+    }
+
     pub fn fetch_field_by_name<'a>(&'a self, field_name: &str) -> Option<&'a Field> {
         self.fieldname_field_table.get(field_name)
     }
 
-    pub fn extract_primary_key<'a>(
+    pub fn extract_primary_key_value<'a>(
         &self,
         document: &'a HashMap<String, FieldValue>,
     ) -> Option<&'a FieldValue> {
@@ -80,8 +100,6 @@ impl CKVIndexSchema {
     /// Update the internal fields table with new field-info if required.
     /// Known fields are skipped, new start getting tracked.
     /// This operation can fail partially - ie schema for only some fields gets updated.
-    ///
-    /// TODO: how to handle failures (ex. persisting to disk) gracefully??
     pub fn update(&mut self, fields: &[FieldSchema]) -> anyhow::Result<()> {
         let mut conversion_error: Option<anyhow::Error> = None;
         let mut updated = false;
@@ -94,7 +112,10 @@ impl CKVIndexSchema {
                         table.insert(field_schema.name.to_string(), field);
                         updated = true;
                     }
-                    Err(e) => conversion_error = Some(e),
+                    Err(e) => {
+                        error!("Cannot convert FieldSchema.proto to Field: {}", e);
+                        conversion_error = Some(e)
+                    }
                 }
             }
         }
@@ -110,6 +131,7 @@ impl CKVIndexSchema {
         Ok(())
     }
 
+    /// TODO: how to handle failures (ex. persisting to disk) gracefully??
     fn save(&self, mount_directory: &str) -> std::io::Result<()> {
         // serialize with proto
         let mut fields = HashMap::new();
@@ -128,11 +150,11 @@ impl CKVIndexSchema {
         let contents = saved_schema.write_to_bytes()?;
 
         // truncate existing schema file, write new version
-        let file_path = format!("{}/schema", mount_directory);
+        let filepath = format!("{}/schema", mount_directory);
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(file_path)?;
+            .open(filepath)?;
         let mut writer = BufWriter::new(file);
         writer.write_all(&contents)?;
 

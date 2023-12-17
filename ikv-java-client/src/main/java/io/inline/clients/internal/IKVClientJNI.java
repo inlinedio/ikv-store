@@ -14,12 +14,18 @@ public final class IKVClientJNI {
 
   private IKVClientJNI() {}
 
+  public static void main(String[] args) {
+    // for testing any linkage errors
+    String output = IKVClientJNI.provideHelloWorld();
+    System.out.println(output);
+  }
+
   // Open or create.
   // config: Serialized IKVStoreConfig.proto
   // RuntimeException: opening errors.
   public static native long open(byte[] config) throws RuntimeException;
 
-  public static native void close(long indexHandle);
+  public static native void close(long indexHandle) throws RuntimeException;
 
   @Nullable
   public static native byte[] readField(long indexHandle, byte[] primaryKey, String fieldName);

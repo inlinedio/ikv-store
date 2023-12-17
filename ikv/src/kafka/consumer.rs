@@ -4,22 +4,22 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail};
+use log::{error, info, warn};
 use rdkafka::consumer::DefaultConsumerContext;
 use rdkafka::message::Message;
 use rdkafka::util::Timeout;
 use rdkafka::Offset;
 use rdkafka::{
-    config::RDKafkaLogLevel,
     consumer::{Consumer, StreamConsumer},
     ClientConfig, TopicPartitionList,
 };
 use tokio::runtime::{Builder, Runtime};
 use tokio_util::sync::CancellationToken;
 
+use crate::index::offset_store::OffsetStore;
 use crate::proto::generated_proto::{common::IKVStoreConfig, streaming::IKVDataEvent};
 
-use super::commit::OffsetCommitter;
-use super::offset_store::OffsetStore;
+use super::offset_committer::OffsetCommitter;
 use super::processor::WritesProcessor;
 
 #[cfg(test)]
@@ -45,16 +45,14 @@ pub struct IKVKafkaConsumer {
 
 impl IKVKafkaConsumer {
     /// Create a new consumer.
-    pub fn new(
-        mount_directory: String,
-        config: &IKVStoreConfig,
-        processor: Arc<WritesProcessor>,
-    ) -> anyhow::Result<Self> {
+    pub fn new(config: &IKVStoreConfig, processor: Arc<WritesProcessor>) -> anyhow::Result<Self> {
+        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
         let kafka_consumer_bootstrap_server = config
             .stringConfigs
             .get("kafka_consumer_bootstrap_server")
             .ok_or(rdkafka::error::KafkaError::ClientCreation(
-                "kafka_consumer_bootstrap_server is a required config".to_string(),
+                "kafka_consumer_bootstrap_server is a required gateway-specified config"
+                    .to_string(),
             ))?;
 
         // TODO: we might need SSL access
@@ -62,28 +60,26 @@ impl IKVKafkaConsumer {
         let client_config = ClientConfig::new()
             .set("group.id", "ikv-default-consumer") // we don't use offset management or automatic partition assignment
             .set("bootstrap.servers", kafka_consumer_bootstrap_server)
-            .set("enable.partition.eof", "false")
+            .set("enable.partition.eof", "true")
             .set("session.timeout.ms", "3600000")
             .set("max.poll.interval.ms", "3600000")
             .set("enable.auto.commit", "false")
             .set("auto.offset.reset", "earliest")
-            .set("enable.partition.eof", "false")
-            .set_log_level(RDKafkaLogLevel::Emerg)
             .clone();
 
         // topic and parition
         let topic = config.stringConfigs.get("kafka_topic").ok_or(
             rdkafka::error::KafkaError::ClientCreation(
-                "kafka_topic is a required config".to_string(),
+                "kafka_topic is a required gateway-specified config".to_string(),
             ),
         )?;
-        let partition = config.numericConfigs.get("kafka_partition").ok_or(
+        let partition = config.numericConfigs.get("partition").ok_or(
             rdkafka::error::KafkaError::ClientCreation(
-                "kafka_partition is a required config".to_string(),
+                "partition is a required user-specified config".to_string(),
             ),
         )?;
         let partition = if (*partition > i32::MAX as i64) || (*partition < 0) {
-            bail!("kafka_partition bad value: {}", partition);
+            bail!("partition bad value: {}", partition);
         } else {
             *partition as i32
         };
@@ -100,7 +96,7 @@ impl IKVKafkaConsumer {
             writes_processor: processor,
             async_consumer_channel: mpsc::channel(),
             cancellation_token: CancellationToken::new(),
-            client_config: client_config,
+            client_config,
             topic: topic.to_string(),
             partition,
         })
@@ -159,7 +155,7 @@ impl IKVKafkaConsumer {
         let offset_committer = Arc::new(OffsetCommitter::new(offset_store.clone()));
 
         // start consumer thread
-        self.tokio_runtime.spawn(IKVKafkaConsumer::run(
+        let handle = self.tokio_runtime.spawn(IKVKafkaConsumer::run(
             offset_store.clone(),
             self.writes_processor.clone(),
             offset_committer.clone(),
@@ -187,6 +183,9 @@ impl IKVKafkaConsumer {
             }
         }
 
+        // cleanup tokio thread
+        self.tokio_runtime.block_on(handle)?;
+
         Ok(())
     }
 
@@ -202,7 +201,8 @@ impl IKVKafkaConsumer {
         topic: String,
         partition: i32,
     ) {
-        let consumer = match initialize(offset_store, client_config, &topic, partition).await {
+        info!("Initializing kafka stream consumer.");
+        let consumer = match initialize(offset_store, &client_config, &topic, partition).await {
             Ok(c) => c,
             Err(e) => {
                 let _ = async_consumer_channel.send(Err(anyhow!(
@@ -214,7 +214,8 @@ impl IKVKafkaConsumer {
         };
 
         // Consume lag or existing events for offline index build
-        if let Err(e) = consume_till_end_offset(
+        info!("Starting consumption of pending writes.");
+        if let Err(e) = consume_till_high_watermark(
             &consumer,
             writes_processor.clone(),
             offset_committer.clone(),
@@ -224,15 +225,15 @@ impl IKVKafkaConsumer {
         .await
         {
             let _ = async_consumer_channel.send(Err(anyhow!(
-                "Cannot consume pending events, error: {}",
+                "Cannot consume pending writes. Error: {}",
                 e.to_string()
             )));
             return;
         }
 
         // Successful startup!
+        info!("All pending writes consumed, kafka startup successful.");
         let _ = async_consumer_channel.send(Ok(()));
-
         if stop_at_high_watermark {
             return;
         }
@@ -245,26 +246,18 @@ impl IKVKafkaConsumer {
         )
         .await
         {
-            eprint!("Write processor thread has crashed. Try to resolve and restart application. Error: {}", e.to_string())
+            error!("Write processor thread has crashed. Try to resolve and restart application. Error: {}", e.to_string())
         }
     }
 }
 
 async fn initialize(
     offset_store: Arc<OffsetStore>,
-    client_config: ClientConfig,
+    client_config: &ClientConfig,
     topic: &str,
     partition: i32,
 ) -> anyhow::Result<StreamConsumer<DefaultConsumerContext>> {
-    let consumer = match client_config.create_with_context(DefaultConsumerContext) {
-        Ok(consumer) => consumer,
-        Err(e) => {
-            bail!(
-                "Cannot create kafka StreamConsumer, error: {}",
-                e.to_string()
-            )
-        }
-    };
+    let consumer = client_config.create_with_context(DefaultConsumerContext)?;
 
     // initialize - by starting at the very beginning of the topic.
     seek_consumer(&consumer, topic, partition, rdkafka::Offset::Beginning)?;
@@ -272,7 +265,7 @@ async fn initialize(
     // seek - using persisted offsets
     let stored_topic_partition_list = offset_store.read_all_offsets()?;
     for entry in stored_topic_partition_list.iter() {
-        if &entry.topic == topic && entry.partition == partition {
+        if (&entry.topic == topic) && (entry.partition == partition) {
             let raw_offset = entry.offset;
             let offset = Offset::from_raw(raw_offset);
             seek_consumer(&consumer, topic, partition, offset)?;
@@ -300,38 +293,47 @@ fn seek_consumer(
     Ok(())
 }
 
-async fn consume_till_end_offset(
+async fn consume_till_high_watermark(
     consumer: &StreamConsumer<DefaultConsumerContext>,
     writes_processor: Arc<WritesProcessor>,
     offset_committer: Arc<OffsetCommitter>,
     topic: &str,
     partition: i32,
 ) -> anyhow::Result<()> {
-    // Highest offset as of this point in time
-    let current_start_offset: i64;
-    let current_end_offset: i64;
-    match consumer.fetch_watermarks(&topic, partition, Timeout::Never) {
-        Ok((start, end)) => {
-            current_start_offset = start;
-            current_end_offset = end;
+    // current point in time watermarks
+    let current_low_watermark: i64;
+    let current_high_watermark: i64;
+    match consumer.fetch_watermarks(
+        &topic,
+        partition,
+        Timeout::After(Duration::from_secs(60 * 5)),
+    ) {
+        Ok((low, high)) => {
+            current_low_watermark = low;
+            current_high_watermark = high;
         }
         Err(e) => {
-            bail!("Cannot fetch high watermark, error: {}", e.to_string());
+            bail!("Cannot fetch watermarks, error: {}", e.to_string());
         }
     }
 
-    if current_start_offset == current_end_offset {
+    if current_low_watermark == current_high_watermark {
         // empty topic
         return Ok(());
     }
 
     // Lag consumption, i.e. consume till offset: current_end_offset
-    let end_offset = Offset::from_raw(current_end_offset);
+    let end_offset = Offset::from_raw(current_high_watermark);
     if end_offset == Offset::Invalid || end_offset.to_raw().is_none() {
-        bail!("Invalid end_offset");
+        bail!(
+            "Invalid offset created from current_high_watermark: {}",
+            current_high_watermark
+        );
     }
 
     loop {
+        // recv() is cancellation safe - ie exits
+        // when tokio runtime is shutdown or task is abort()'ed
         match consumer.recv().await {
             Err(e) => match e {
                 rdkafka::error::KafkaError::PartitionEOF(_) => return Ok(()),
@@ -341,9 +343,8 @@ async fn consume_till_end_offset(
                 if let Some(bytes) = rdkafka::Message::payload(&curr_message) {
                     let event = <IKVDataEvent as protobuf::Message>::parse_from_bytes(bytes)?;
                     writes_processor.process(&event)?;
-                }
 
-                if let Some(end_offset) = end_offset.to_raw() {
+                    let end_offset = end_offset.to_raw().expect("end_offset is pre-validated");
                     if curr_message.offset() >= end_offset {
                         writes_processor.flush_all()?;
                         offset_committer.commit(
@@ -370,27 +371,32 @@ async fn consume_till_cancelled(
             return Ok(());
         }
 
+        // recv() is cancellation safe - ie exits
+        // when tokio runtime is shutdown or task is abort()'ed
         match consumer.recv().await {
-            Err(_e) => {
+            Err(e) => {
+                warn!(
+                    "Encountered kafka error (non fatal) - sleep then retry. Error: {}",
+                    e.to_string()
+                );
+
                 // 100ms sleep and try again
                 std::thread::sleep(Duration::from_millis(100));
-
-                // TODO: redirect this error to warn logs
             }
             Ok(curr_message) => {
                 if let Some(bytes) = rdkafka::Message::payload(&curr_message) {
                     let event = <IKVDataEvent as protobuf::Message>::parse_from_bytes(bytes)?;
                     writes_processor.process(&event)?;
-                }
 
-                // flush index and commit offset in batches
-                if offset_committer.should_commit() {
-                    writes_processor.flush_all()?;
-                    offset_committer.commit(
-                        curr_message.topic(),
-                        curr_message.partition(),
-                        curr_message.offset(),
-                    )?;
+                    // flush index and commit offset in batches
+                    if offset_committer.should_commit() {
+                        writes_processor.flush_all()?;
+                        offset_committer.commit(
+                            curr_message.topic(),
+                            curr_message.partition(),
+                            curr_message.offset(),
+                        )?;
+                    }
                 }
             }
         };

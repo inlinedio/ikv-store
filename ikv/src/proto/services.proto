@@ -4,7 +4,6 @@ option java_package = "com.inlineio.schemas";
 
 package ikvschemas;
 
-import "google/protobuf/timestamp.proto";
 import "common.proto";
 
 service InlineKVWriteService {

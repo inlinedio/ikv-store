@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use log::debug;
 
 use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
@@ -13,23 +14,20 @@ use crate::proto::ikvserviceschemas::{
 
 use super::index_loader;
 
+// TODO: change backend url
 const SERVER_URL: &str = "localhost:8081";
 
 /// Stateful controller for managing IKV core key-val storage.
 pub struct Controller {
-    // ref to index
     index: Arc<CKVIndex>,
-
-    // ref to kafka consumer
     processor: Arc<WritesProcessor>,
     kafka_consumer: IKVKafkaConsumer,
 }
 
 impl Controller {
-    pub fn open(client_supplied_config: IKVStoreConfig) -> anyhow::Result<Self> {
-        let config = Controller::merge_with_server_config(client_supplied_config)?;
-
-        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+    pub fn open(client_supplied_config: &IKVStoreConfig) -> anyhow::Result<Self> {
+        // fetch server configs and override|merge with client supplied configs
+        let config = Controller::merge_with_server_config(&client_supplied_config)?;
 
         // Load index
         index_loader::load_index(&config)?;
@@ -37,9 +35,13 @@ impl Controller {
 
         // Initialize kafka consumer
         let processor = Arc::new(WritesProcessor::new(index.clone()));
-        let kafka_consumer =
-            IKVKafkaConsumer::new(mount_directory.clone(), &config, processor.clone())?;
-        // Trigger kafka consumption
+        let kafka_consumer = IKVKafkaConsumer::new(&config, processor.clone())?;
+
+        // Start write event consumption
+        // Blocks till pending events are consumed
+        // Consumes incoming events in background thereafter
+
+        // TODO: kafka consumer code needs to be reviewed!!
         kafka_consumer.run_in_background()?;
 
         Ok(Controller {
@@ -66,9 +68,9 @@ impl Controller {
     }
 
     fn merge_with_server_config(
-        client_supplied_config: IKVStoreConfig,
+        client_supplied_config: &IKVStoreConfig,
     ) -> anyhow::Result<IKVStoreConfig> {
-        let mut config = Self::fetch_server_configs(&client_supplied_config)?;
+        let mut config = Self::fetch_server_configs(client_supplied_config)?;
 
         // override with client_supplied_config
         for (k, v) in client_supplied_config.stringConfigs.iter() {
@@ -79,6 +81,9 @@ impl Controller {
         }
         for (k, v) in client_supplied_config.bytesConfigs.iter() {
             config.bytesConfigs.insert(k.to_string(), v.clone());
+        }
+        for (k, v) in client_supplied_config.booleanConfigs.iter() {
+            config.booleanConfigs.insert(k.to_string(), *v);
         }
 
         Ok(config)
@@ -118,12 +123,7 @@ impl Controller {
         let tonic_response = client.get_user_store_config(request).await?;
 
         let response = tonic_response.get_ref();
-
-        // TODO: remove and log
-        println!(
-            "InlineKvWriteServiceClient#GetUserStoreConfigResponse = {:?}",
-            response
-        );
+        debug!("Fetched server-side configs: = {:?}", response);
 
         if response.global_config.is_none() {
             return Ok(IKVStoreConfig::default());
@@ -136,6 +136,7 @@ impl Controller {
         copied_config.stringConfigs = server_config.string_configs;
         copied_config.numericConfigs = server_config.numeric_configs;
         copied_config.bytesConfigs = server_config.bytes_configs;
+        copied_config.booleanConfigs = server_config.boolean_configs;
 
         Ok(copied_config)
     }

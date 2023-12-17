@@ -12,29 +12,28 @@ import javax.annotation.Nullable;
 
 public class DefaultInlineKVReader implements InlineKVReader {
   private static final long UNINITIALIZED_HANDLE = -1;
+  private final ClientOptions _clientOptions;
   private volatile long _handle;
 
-  public DefaultInlineKVReader() {
+  public DefaultInlineKVReader(ClientOptions options) {
     _handle = UNINITIALIZED_HANDLE;
+    _clientOptions = Objects.requireNonNull(options);
   }
 
   @Override
-  public void startup(ClientOptions options) throws RuntimeException {
+  public void startupReader() throws RuntimeException {
     if (_handle != UNINITIALIZED_HANDLE) {
       // already running, ignore
       return;
     }
 
-    try {
-      _handle = IKVClientJNI.open(options.config().toByteArray());
-    } catch (RuntimeException e) {
-      System.out.println("Cannot create DefaultInlineKVReader due to: " + e);
-      throw e;
-    }
+    // can throw
+    _handle = IKVClientJNI.open(_clientOptions.asIKVStoreConfig().toByteArray());
   }
 
   @Override
-  public void shutdown() throws RuntimeException {
+  public void shutdownReader() throws RuntimeException {
+    // can throw
     IKVClientJNI.close(_handle);
     _handle = UNINITIALIZED_HANDLE;
   }
