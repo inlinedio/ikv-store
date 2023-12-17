@@ -20,30 +20,11 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
   public GRPCInlineKVWriter(ClientOptions clientOptions) {
     Objects.requireNonNull(clientOptions);
-
-    // TODO: create using ClientOptions.
-    _userStoreCtxInitializer =
-        UserStoreContextInitializer.newBuilder()
-            .setStoreName(
-                clientOptions
-                    .config()
-                    .getStringConfigsOrThrow(ClientOptions.Builder.CFG_STORE_NAME))
-            .setCredentials(
-                AccountCredentials.newBuilder()
-                    .setAccountId(
-                        clientOptions
-                            .config()
-                            .getStringConfigsOrThrow(ClientOptions.Builder.CFG_ACCOUNT_ID))
-                    .setAccountPasskey(
-                        clientOptions
-                            .config()
-                            .getStringConfigsOrThrow(ClientOptions.Builder.CFG_ACCOUNT_PASSKEY))
-                    .build())
-            .build();
+    _userStoreCtxInitializer = clientOptions.createUserStoreContextInitializer();
   }
 
   @Override
-  public void startup() {
+  public void startupWriter() {
     // TODO: stub creation- use dns
     ManagedChannelBuilder<?> channelBuilder =
         ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext();

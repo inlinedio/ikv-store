@@ -56,9 +56,9 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         new ClientOptions.Builder()
             .withMountDirectory("/tmp/Benchmarks")
             .withStoreName("Benchmarks")
+            .withStorePartition(0)
             .withAccountId("testing-account-v1")
             .withAccountPassKey("testing-account-passkey")
-            .withNumericOverride("kafka_partition", 0) // TODO - remove
             .build();
 
     _testingClient = new TestingInlineKVReader(clientOptions);
@@ -72,7 +72,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
   @Override
   public void connect() {
-    _testingClient.startup(null);
+    _testingClient.startupWriter();
     // no op
   }
 
@@ -171,6 +171,6 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
 
   @Override
   public void shutdown() {
-    _testingClient.shutdown();
+    _testingClient.shutdownReader();
   }
 }

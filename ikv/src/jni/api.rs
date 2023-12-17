@@ -12,7 +12,7 @@ use crate::proto::generated_proto::streaming::IKVDataEvent;
 
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_provideHelloWorld<'local>(
-    mut env: JNIEnv<'local>,
+    env: JNIEnv<'local>,
     _class: JClass<'local>,
 ) -> jstring {
     let output = env
@@ -22,15 +22,24 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_provideHello
     output.into_raw()
 }
 
+// NOTE: callers must cleanup their working directories
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     config: JByteArray<'local>,
 ) {
-    let config = utils::jbyte_array_to_vec(&env, config);
+    let config = utils::jbyte_array_to_vec(&env, config).unwrap();
     let ikv_config = IKVStoreConfig::parse_from_bytes(&config).expect("could not read configs");
 
+    // logging setup
+    if let Err(e) = crate::utils::logging::configure_logging(&ikv_config) {
+        let exception = format!("Cannot initialize logging: {}", e.to_string());
+        let _ = env.throw_new("java/lang/RuntimeException", exception);
+        return;
+    }
+
+    // initialize builder
     let maybe_builder = IndexBuilder::new(&ikv_config);
     if let Err(e) = maybe_builder {
         let exception = format!("Cannot initialize offline index builder: {}", e.to_string());
@@ -38,6 +47,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'
         return;
     }
 
+    // build and export
     let index_builder = maybe_builder.unwrap();
     if let Err(e) = index_builder.build_and_export(&ikv_config) {
         let exception = format!("Cannot build offline index: {}", e.to_string());
@@ -49,20 +59,34 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'
 #[no_mangle]
 pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_open<'local>(
     mut env: JNIEnv<'local>,
-    _class: JClass<'local>,
+    class: JClass<'local>,
     config: JByteArray<'local>,
 ) -> jlong {
-    let config = utils::jbyte_array_to_vec(&env, config);
-    let ikv_config = IKVStoreConfig::parse_from_bytes(&config).expect("could not read configs");
-
-    let maybe_controller = Controller::open(ikv_config);
-    if let Err(e) = maybe_controller {
-        let _ = env.throw_new("java/lang/RuntimeException", e.to_string());
-        return 0;
+    match open(&env, class, config) {
+        Ok(handle) => handle,
+        Err(e) => {
+            let exception = format!("Cannot open reader, failed with error: {}", e.to_string());
+            let _ = env.throw_new("java/lang/RuntimeException", exception);
+            return 0;
+        }
     }
+}
 
-    let controller = maybe_controller.unwrap();
-    external_handle::to_external_handle(controller)
+fn open<'local>(
+    env: &JNIEnv<'local>,
+    _class: JClass<'local>,
+    config: JByteArray<'local>,
+) -> anyhow::Result<jlong> {
+    // parse user supplied configs
+    let config = utils::jbyte_array_to_vec(env, config)?;
+    let ikv_config = IKVStoreConfig::parse_from_bytes(&config)?;
+
+    // configure logging
+    crate::utils::logging::configure_logging(&ikv_config)?;
+
+    // create and startup controller
+    let controller = Controller::open(&ikv_config)?;
+    Ok(external_handle::to_external_handle(controller))
 }
 
 #[no_mangle]
@@ -72,7 +96,11 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_close<'local
     handle: jlong,
 ) {
     let boxed_controller = external_handle::to_box(handle);
-    boxed_controller.close();
+    if let Err(e) = boxed_controller.close() {
+        let exception = format!("Cannot close reader, failed with error: {}", e.to_string());
+        let _ = env.throw_new("java/lang/RuntimeException", exception);
+        return;
+    }
 }
 
 #[no_mangle]
@@ -84,7 +112,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_readField<'l
     field_name: JString<'local>,
 ) -> jbyteArray {
     let controller = external_handle::from_external_handle(handle);
-    let primary_key = utils::jbyte_array_to_vec(&env, primary_key);
+    let primary_key = utils::jbyte_array_to_vec(&env, primary_key).unwrap();
     let field_name: String = env.get_string(&field_name).unwrap().into();
 
     let maybe_field_value = controller
@@ -126,7 +154,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_processIKVDa
     ikv_data_event_bytes: JByteArray<'local>,
 ) {
     let controller = external_handle::from_external_handle(handle);
-    let ikv_data_event_bytes = utils::jbyte_array_to_vec(&env, ikv_data_event_bytes);
+    let ikv_data_event_bytes = utils::jbyte_array_to_vec(&env, ikv_data_event_bytes).unwrap();
 
     let maybe_ikv_data_event = IKVDataEvent::parse_from_bytes(&ikv_data_event_bytes);
     if let Err(e) = maybe_ikv_data_event {

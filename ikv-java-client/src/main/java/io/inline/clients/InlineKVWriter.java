@@ -3,7 +3,7 @@ package io.inline.clients;
 import java.util.Collection;
 
 public interface InlineKVWriter {
-  void startup();
+  void startupWriter();
 
   void shutdown();
 

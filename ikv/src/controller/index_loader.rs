@@ -1,64 +1,76 @@
-use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Seek, Write};
+use std::fs::OpenOptions;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail};
 
-use aws_config::imds::Client;
 use aws_sdk_s3::Client as S3Client;
 
-use aws_sdk_s3::operation::{
-    create_multipart_upload::CreateMultipartUploadOutput, get_object::GetObjectOutput,
-};
 use aws_sdk_s3::primitives::ByteStream;
-use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use log::info;
 use tar::Archive;
 
+use crate::index::ckv::CKVIndex;
 use crate::proto::generated_proto::common::IKVStoreConfig;
 
 pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-    let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
-
     // create mount directory if it does not exist
+    let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
     std::fs::create_dir_all(&mount_directory)?;
 
-    // check if index already exists
-    let index_path = format!("{}/index", &mount_directory);
-    if Path::new(&index_path).exists() {
-        // index is already available
-        return Ok(());
+    // TODO: we might need to load a new base index based on age (for compaction!!)
+    let mut download = false;
+
+    if CKVIndex::is_empty_index(config)? {
+        info!("Base index not found");
+        download = true;
     }
 
-    // download base index
-    orchestrate_index_download(&mount_directory, config)
+    if let Err(e) = CKVIndex::is_valid_index(config) {
+        info!(
+            "Base index found in inconsistent state: {}. Clearing out index.",
+            e
+        );
+        CKVIndex::delete_all(config)?;
+        download = true;
+    }
+
+    if download {
+        info!("Attempting to download from S3 repository.");
+        orchestrate_index_download(&mount_directory, config)?;
+    }
+
+    Ok(())
 }
 
 pub fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
 
     // check if index exists, error if not
-    let index_path = format!("{}/index", &mount_directory);
-    if !Path::new(&index_path).exists() {
-        bail!(
-            "Cannot upload empty index, nothing found at: {}",
-            index_path
-        );
+    if let Err(e) = CKVIndex::is_valid_index(config) {
+        bail!("Cannot upload bad index, error: {}", e);
     }
 
     // upload as base index
     orchestrate_index_upload(&mount_directory, config)
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn orchestrate_index_upload(
     mount_directory: &str,
     config: &IKVStoreConfig,
 ) -> anyhow::Result<()> {
     let tarball_index_filename = format!("{}/base_index.tar.gz", mount_directory);
+
+    // clear any old base index tar archives
+    if Path::new(&tarball_index_filename).exists() {
+        std::fs::remove_file(&tarball_index_filename)?;
+    }
+
     pack_tarball(mount_directory, &tarball_index_filename)?;
 
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_PutObject_section.html
@@ -71,28 +83,32 @@ async fn orchestrate_index_upload(
     // ikv-base-indexes-v1
     let bucket_name = config
         .stringConfigs
-        .get("s3_bucket_name")
-        .ok_or(anyhow!("s3_bucket_name is a required config"))?
+        .get("base_index_s3_bucket_name")
+        .ok_or(anyhow!(
+            "base_index_s3_bucket_name is a required gateway-specified config"
+        ))?
         .to_string();
 
     let s3_key_prefix = config
         .stringConfigs
         .get("base_index_s3_bucket_prefix")
-        .ok_or(anyhow!("base_index_s3_bucket_prefix is a required config"))?
+        .ok_or(anyhow!(
+            "base_index_s3_bucket_prefix is a required gateway-specified config"
+        ))?
         .to_string();
 
     let partition = config
         .numericConfigs
         .get("partition")
         .copied()
-        .ok_or(anyhow!("partition is a required config"))?;
+        .ok_or(anyhow!("partition is a required user-specified config"))?;
 
     let epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)?
         .as_millis()
         .to_string();
 
-    // key: <account_id>/<storename>/<epoch>/<partition>
+    // key: <account_id><storename>/<epoch>/<partition>
     let base_index_s3_key = format!("{}/{}/{}", &s3_key_prefix, &epoch, partition);
 
     // upload!
@@ -107,12 +123,11 @@ async fn orchestrate_index_upload(
         .await?;
 
     // Remove tarball
-    // throws if file does not exist or permission issue
     std::fs::remove_file(tarball_index_filename)?;
     Ok(())
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn orchestrate_index_download(
     mount_directory: &str,
     config: &IKVStoreConfig,
@@ -120,6 +135,8 @@ async fn orchestrate_index_download(
     // References:
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_ListObjects_section.html
+
+    // TODO: client initialization
     let aws_config = aws_config::load_from_env().await;
     let client = S3Client::new(&aws_config);
 
@@ -127,21 +144,25 @@ async fn orchestrate_index_download(
     let bucket_name = config
         .stringConfigs
         .get("s3_bucket_name")
-        .ok_or(anyhow!("s3_bucket_name is a required config"))?
+        .ok_or(anyhow!(
+            "base_index_s3_bucket_name is a required gateway-specified config"
+        ))?
         .to_string();
 
     // <account-id>/<store-name>
     let s3_key_prefix = config
         .stringConfigs
         .get("base_index_s3_bucket_prefix")
-        .ok_or(anyhow!("base_index_s3_bucket_prefix is a required config"))?
+        .ok_or(anyhow!(
+            "base_index_s3_bucket_prefix is a required gateway-specified config"
+        ))?
         .to_string();
 
     let partition = config
         .numericConfigs
         .get("partition")
         .copied()
-        .ok_or(anyhow!("partition is a required config"))?;
+        .ok_or(anyhow!("partition is a required client-specified config"))?;
 
     // list objects based on prefix
     let mut response = client
@@ -153,11 +174,10 @@ async fn orchestrate_index_download(
         .send();
 
     let mut base_index_key: Option<String> = None;
-    let mut max_epoch = u64::MIN;
+    let mut max_epoch = u128::MIN;
 
     while let Some(result) = response.next().await {
-        let output = result?;
-        for object in output.contents() {
+        for object in result?.contents() {
             // key format: <account_id>/<storename>/<epoch>/<partition>
             if let Some(key) = object.key() {
                 let parts = key.split("/").collect::<Vec<&str>>();
@@ -176,7 +196,7 @@ async fn orchestrate_index_download(
                     "malformed base index key: {}, expecting epoch",
                     key
                 ))?;
-                let key_epoch: u64 = key_epoch.parse::<u64>()?;
+                let key_epoch: u128 = key_epoch.parse::<u128>()?;
                 if max_epoch < key_epoch {
                     max_epoch = key_epoch;
                     base_index_key = Some(key.to_string());
@@ -186,27 +206,28 @@ async fn orchestrate_index_download(
     }
 
     if base_index_key.is_none() {
-        // TODO! use logging
-        println!(
-            "Did not find base index, bucket: {} prefix: {}",
-            &bucket_name, &s3_key_prefix
-        );
+        info!("Did not find base index prefix: {}", &s3_key_prefix);
         return Ok(());
     }
 
     let key = base_index_key.unwrap();
-    println!("Found base index, bucket: {} key: {}", &bucket_name, &key);
+    info!("Found base index, base-index-key: {}", &key);
 
-    // download, unpack and delete
+    // download, unpack and delete tarred file
     let tarball_index_filename = format!("{}/base_index.tar.gz", mount_directory);
-    download_from_s3(&client, &bucket_name, &key, &tarball_index_filename).await?;
 
+    // clear any old base index tar archives
+    if Path::new(&tarball_index_filename).exists() {
+        std::fs::remove_file(&tarball_index_filename)?;
+    }
+
+    download_from_s3(&client, &bucket_name, &key, &tarball_index_filename).await?;
     unpack_tarball(&tarball_index_filename, mount_directory)?;
 
-    // after unpacking, the decompressed index is in <mount-dir>/index, move it to <mount-dir>
-    std::fs::rename(format!("{}/index", mount_directory), mount_directory)?;
+    // after unpacking, the decompressed index is in <mount-dir>/base_index, move it to <mount-dir>
+    std::fs::rename(format!("{}/base_index", mount_directory), mount_directory)?;
 
-    std::fs::remove_file(tarball_index_filename)?; // throws if file does not exist or permission issue
+    std::fs::remove_file(tarball_index_filename)?;
 
     Ok(())
 }
@@ -254,6 +275,6 @@ fn pack_tarball(input_dir: &str, output_filepath: &str) -> anyhow::Result<()> {
         .open(output_filepath)?;
     let enc = GzEncoder::new(file, Compression::default());
     let mut tar = tar::Builder::new(enc);
-    tar.append_dir_all("index", input_dir)?; // TODO! inspect???
+    tar.append_dir_all("base_index", input_dir)?;
     Ok(())
 }

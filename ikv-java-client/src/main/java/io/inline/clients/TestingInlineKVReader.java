@@ -22,26 +22,30 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
           .build();
 
   public TestingInlineKVReader(ClientOptions options) {
-    _defaultInlineKVReader = new DefaultInlineKVReader();
     _options = options;
+    _defaultInlineKVReader = new DefaultInlineKVReader(_options);
   }
 
   @Override
-  public void startup(ClientOptions noop) throws RuntimeException {
+  public void startupReader() throws RuntimeException {
     // Reader Startup
-    _defaultInlineKVReader.startup(_options);
+    _defaultInlineKVReader.startupReader();
   }
 
   @Override
-  public void startup() {
+  public void startupWriter() {
     // Writer startup
     // Call reader once again
-    startup(_options);
+    startupWriter();
   }
 
   @Override
-  public void shutdown() throws RuntimeException {
-    _defaultInlineKVReader.shutdown();
+  public void shutdown() {
+  }
+
+  @Override
+  public void shutdownReader() throws RuntimeException {
+    _defaultInlineKVReader.shutdownReader();
   }
 
   private void updateSchema(IKVDocument document) {

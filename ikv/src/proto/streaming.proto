@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 import "common.proto";
 
 message EventHeader {
-  optional google.protobuf.Timestamp sourceTimestamp = 2;
+  optional google.protobuf.Timestamp sourceTimestamp = 1;
 }
 
 message IKVDataEvent {
@@ -16,10 +16,10 @@ message IKVDataEvent {
 
   // event data (upsert, delete, etc...)
   oneof event {
-    UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 3;
-    DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 4;
-    DeleteDocumentEvent deleteDocumentEvent = 5;
-    UpdateFieldSchemaEvent updateFieldSchemaEvent = 6;
+    UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 2;
+    DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 3;
+    DeleteDocumentEvent deleteDocumentEvent = 4;
+    UpdateFieldSchemaEvent updateFieldSchemaEvent = 5;
   }
 }
 

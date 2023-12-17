@@ -4,9 +4,9 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 public interface InlineKVReader {
-  void startup(ClientOptions options) throws RuntimeException;
+  void startupReader() throws RuntimeException;
 
-  void shutdown() throws RuntimeException;
+  void shutdownReader() throws RuntimeException;
 
   @Nullable
   byte[] getBytesValue(PrimaryKey key, FieldAccessor fieldAccessor);

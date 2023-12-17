@@ -43,7 +43,12 @@ impl TryFrom<&FieldSchema> for Field {
 
     fn try_from(field_schema: &FieldSchema) -> anyhow::Result<Self> {
         let name = field_schema.name.to_string();
+        if name.is_empty() {
+            bail!("field name missing");
+        }
 
+        // id can be 0 for primary key and 0 if id was missing
+        // TODO: check if there's a cleaner way to detect missing id issues.
         let id = field_schema.id;
         if id > u16::MAX as i32 {
             bail!(
@@ -60,7 +65,7 @@ impl TryFrom<&FieldSchema> for Field {
         Ok(Self {
             name,
             id: field_schema.id as u16,
-            field_type: field_type.into(),
+            field_type,
         })
     }
 }

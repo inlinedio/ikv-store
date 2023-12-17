@@ -11,11 +11,11 @@ use crate::{
     },
 };
 
-use super::ckv_segment::CKVIndexSegment;
+use super::{ckv_segment::CKVIndexSegment, offset_store::OffsetStore};
 use std::{
     collections::HashMap,
     fs::{self},
-    io::{Error, ErrorKind},
+    path::Path,
     sync::RwLock,
 };
 
@@ -36,13 +36,13 @@ impl CKVIndex {
         let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
 
         // create mount directory if it does not exist
-        fs::create_dir_all(mount_directory.clone())?;
+        fs::create_dir_all(&mount_directory)?;
 
         // open_or_create saved schema
-        let primary_key = config.stringConfigs.get("primary_key").ok_or(Error::new(
-            ErrorKind::InvalidInput,
-            "primary_key is a required config",
-        ))?;
+        let primary_key = config
+            .stringConfigs
+            .get("primary_key")
+            .ok_or(anyhow!("primary_key is a required client-specified config",))?;
         let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
 
         // open_or_create index segments
@@ -59,7 +59,49 @@ impl CKVIndex {
     }
 
     pub fn close(&self) -> anyhow::Result<()> {
-        // no op
+        // NO OP
+        Ok(())
+    }
+
+    pub fn is_empty_index(config: &IKVStoreConfig) -> anyhow::Result<bool> {
+        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+        let index_path = format!("{}/index", &mount_directory);
+        Ok(!Path::new(&index_path).exists())
+    }
+
+    // checks if a valid index is loaded at the mount directory
+    // Returns error with some details if empty or invalid, else ok.
+    pub fn is_valid_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
+        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+
+        // root path should exist
+        let index_path = format!("{}/index", &mount_directory);
+        if !Path::new(&index_path).exists() {
+            bail!("IKVIndex root path does not exist at: {}", &index_path);
+        }
+
+        // check if all segments are valid
+        for i in 0..NUM_SEGMENTS {
+            CKVIndexSegment::is_valid_index(&mount_directory, i)?;
+        }
+
+        // check if schema is valid
+        CKVIndexSchema::is_valid_index(&mount_directory)?;
+        OffsetStore::is_valid_index(&mount_directory)?;
+
+        // valid index!
+        Ok(())
+    }
+
+    /// Clears out all index structures from disk.
+    pub fn delete_all(config: &IKVStoreConfig) -> anyhow::Result<()> {
+        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+        let index_path = format!("{}/index", &mount_directory);
+        if Path::new(&index_path).exists() {
+            std::fs::remove_dir_all(&index_path)?;
+        }
+        CKVIndexSchema::delete_all(&mount_directory)?;
+        OffsetStore::delete_all(&mount_directory)?;
         Ok(())
     }
 
@@ -296,7 +338,7 @@ impl CKVIndex {
         let schema = self.schema.read().unwrap();
 
         // extract primary key
-        let primary_key = schema.extract_primary_key(&document)?;
+        let primary_key = schema.extract_primary_key_value(&document)?;
 
         match TryInto::<IndexedValue>::try_into(primary_key) {
             Ok(iv) => Some(iv.serialize()),

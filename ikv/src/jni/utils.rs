@@ -2,11 +2,14 @@ use jni::objects::{JByteArray, JList, JObject, JString};
 use jni::sys::jbyteArray;
 use jni::JNIEnv;
 
-pub fn jbyte_array_to_vec<'local>(env: &JNIEnv<'local>, jbytes: JByteArray) -> Vec<u8> {
-    let size = env.get_array_length(&jbytes).unwrap();
+pub fn jbyte_array_to_vec<'local>(
+    env: &JNIEnv<'local>,
+    jbytes: JByteArray,
+) -> anyhow::Result<Vec<u8>> {
+    let size = env.get_array_length(&jbytes)?;
     let mut result = vec![0 as i8; size as usize];
-    env.get_byte_array_region(jbytes, 0, &mut result).unwrap();
-    vec_i8_into_u8(result)
+    env.get_byte_array_region(jbytes, 0, &mut result)?;
+    Ok(vec_i8_into_u8(result))
 }
 
 pub fn vec_to_jbyte_array<'local>(env: &JNIEnv<'local>, bytes: Vec<u8>) -> jbyteArray {
@@ -73,7 +76,7 @@ pub fn jbytearray_to_vec_bytes<'local>(
     env: &mut JNIEnv<'local>,
     input: JByteArray<'local>,
 ) -> Vec<Vec<u8>> {
-    let input = jbyte_array_to_vec(&env, input);
+    let input = jbyte_array_to_vec(&env, input).unwrap();
     if input.len() == 0 {
         return vec![];
     }

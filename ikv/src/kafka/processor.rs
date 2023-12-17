@@ -76,9 +76,11 @@ impl WritesProcessor {
     fn process_update_field_schema(&self, event: &UpdateFieldSchemaEvent) -> anyhow::Result<()> {
         // update schema
         let field_schema = event.newFieldsToAdd.as_slice();
+        if field_schema.len() == 0 {
+            return Ok(());
+        }
 
-        // errors usually correspond to unsupported field types, ok to ignore???
-        // TODO: add error logging
+        // errors usually correspond to unsupported field types
         self.ckv_index.update_schema(field_schema)
     }
 }

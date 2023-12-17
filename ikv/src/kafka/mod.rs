@@ -1,4 +1,3 @@
-mod commit;
 pub mod consumer;
-mod offset_store;
+mod offset_committer;
 pub mod processor;
