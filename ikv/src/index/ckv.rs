@@ -33,7 +33,7 @@ pub struct CKVIndex {
 
 impl CKVIndex {
     pub fn open_or_create(config: &IKVStoreConfig) -> anyhow::Result<Self> {
-        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
 
         // create mount directory if it does not exist
         fs::create_dir_all(&mount_directory)?;
@@ -64,7 +64,7 @@ impl CKVIndex {
     }
 
     pub fn is_empty_index(config: &IKVStoreConfig) -> anyhow::Result<bool> {
-        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
         let index_path = format!("{}/index", &mount_directory);
         Ok(!Path::new(&index_path).exists())
     }
@@ -72,7 +72,7 @@ impl CKVIndex {
     // checks if a valid index is loaded at the mount directory
     // Returns error with some details if empty or invalid, else ok.
     pub fn is_valid_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
 
         // root path should exist
         let index_path = format!("{}/index", &mount_directory);
@@ -95,7 +95,7 @@ impl CKVIndex {
 
     /// Clears out all index structures from disk.
     pub fn delete_all(config: &IKVStoreConfig) -> anyhow::Result<()> {
-        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
         let index_path = format!("{}/index", &mount_directory);
         if Path::new(&index_path).exists() {
             std::fs::remove_dir_all(&index_path)?;
@@ -120,7 +120,7 @@ impl CKVIndex {
     }
 
     pub fn update_schema(&self, fields: &[FieldSchema]) -> anyhow::Result<()> {
-        if fields.len() == 0 {
+        if fields.is_empty() {
             return Ok(());
         }
 
@@ -223,7 +223,7 @@ impl CKVIndex {
         &self,
         document: &HashMap<String, FieldValue>,
     ) -> anyhow::Result<()> {
-        if document.len() == 0 {
+        if document.is_empty() {
             return Ok(());
         }
 
@@ -266,7 +266,7 @@ impl CKVIndex {
         document: &HashMap<String, FieldValue>,
         field_names: &[String],
     ) -> anyhow::Result<()> {
-        if document.len() == 0 || field_names.len() == 0 {
+        if document.is_empty() || field_names.is_empty() {
             return Ok(());
         }
 
@@ -299,7 +299,7 @@ impl CKVIndex {
 
     /// Delete a document, given its primary key.
     pub fn delete_document(&self, document: &HashMap<String, FieldValue>) -> anyhow::Result<()> {
-        if document.len() == 0 {
+        if document.is_empty() {
             return Ok(());
         }
 
@@ -331,14 +331,14 @@ impl CKVIndex {
     }
 
     fn extract_primary_key(&self, document: &HashMap<String, FieldValue>) -> Option<Vec<u8>> {
-        if document.len() == 0 {
+        if document.is_empty() {
             return None;
         }
 
         let schema = self.schema.read().unwrap();
 
         // extract primary key
-        let primary_key = schema.extract_primary_key_value(&document)?;
+        let primary_key = schema.extract_primary_key_value(document)?;
 
         match TryInto::<IndexedValue>::try_into(primary_key) {
             Ok(iv) => Some(iv.serialize()),
