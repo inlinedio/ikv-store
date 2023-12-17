@@ -53,11 +53,9 @@ public final class ClientOptions {
       _configBuilder.getStringConfigsOrThrow(CFG_ACCOUNT_PASSKEY);
       _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.STORE_NAME);
       _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.MOUNT_DIRECTORY);
-      _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.PARTITION);
-
+      _configBuilder.getNumericConfigsOrThrow(IKVStoreConfigConstants.PARTITION);
       _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME);
-
-
+      
       return new ClientOptions(_configBuilder.build());
     }
 
