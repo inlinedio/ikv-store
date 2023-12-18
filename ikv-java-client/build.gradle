@@ -83,7 +83,7 @@ jar {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
     manifest {
         attributes(
-                'Main-Class': 'io.inline.gateway.Main'
+                'Main-Class': 'io.inline.gateway.GatewayServer'
         )
     }
     from {
@@ -104,6 +104,7 @@ jmh {
 
 spotless {
     java {
+        targetExclude("build/generated/source/**/*.java")
         importOrder()
         removeUnusedImports()
         cleanthat()
@@ -111,3 +112,5 @@ spotless {
         indentWithSpaces(4)
     }
 }
+
+build.dependsOn 'spotlessApply'

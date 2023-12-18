@@ -55,7 +55,7 @@ public final class ClientOptions {
       _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.MOUNT_DIRECTORY);
       _configBuilder.getNumericConfigsOrThrow(IKVStoreConfigConstants.PARTITION);
       _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME);
-      
+
       return new ClientOptions(_configBuilder.build());
     }
 
