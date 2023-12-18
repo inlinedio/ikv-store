@@ -9,60 +9,62 @@ import "common.proto";
 
 service InlineKVWriteService {
   // Write methods
-  rpc upsertFieldValues(UpsertFieldValuesRequest) returns (SuccessStatus) {}
-  rpc batchUpsertFieldValues(BatchUpsertFieldValuesRequest) returns (SuccessStatus) {}
-  rpc deleteFieldValues(DeleteFieldValueRequest) returns (SuccessStatus) {}
-  rpc batchDeleteFieldValues(BatchDeleteFieldValuesRequest) returns (SuccessStatus) {}
-  rpc deleteDocument(DeleteDocumentRequest) returns (SuccessStatus) {}
-  rpc batchDeleteDocuments(BatchDeleteDocumentsRequest) returns (SuccessStatus) {}
+  rpc upsertFieldValues(UpsertFieldValuesRequest) returns (Status) {}
+  rpc batchUpsertFieldValues(BatchUpsertFieldValuesRequest) returns (Status) {}
+
+  rpc deleteFieldValues(DeleteFieldValueRequest) returns (Status) {}
+  rpc batchDeleteFieldValues(BatchDeleteFieldValuesRequest) returns (Status) {}
+
+  rpc deleteDocument(DeleteDocumentRequest) returns (Status) {}
+  rpc batchDeleteDocuments(BatchDeleteDocumentsRequest) returns (Status) {}
 
   // Schema Management
-  rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (SuccessStatus) {}
+  rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (Status) {}
 
-  // Internal (non user provided) configuration
+  // Gateway-specified configuration
   rpc getUserStoreConfig(GetUserStoreConfigRequest) returns (GetUserStoreConfigResponse) {}
 }
 
 message UpsertFieldValuesRequest {
-  IKVDocumentOnWire document = 1;
+  UserStoreContextInitializer userStoreContextInitializer = 1;
   google.protobuf.Timestamp timestamp = 2;
-  UserStoreContextInitializer userStoreContextInitializer = 3;
+  IKVDocumentOnWire document = 3;
 }
 
 message BatchUpsertFieldValuesRequest {
-  repeated IKVDocumentOnWire documents = 1;
+  UserStoreContextInitializer userStoreContextInitializer = 1;
   google.protobuf.Timestamp timestamp = 2;
-  UserStoreContextInitializer userStoreContextInitializer = 3;
+  repeated IKVDocumentOnWire documents = 3;
 }
 
 // Delete fields from a document.
 message DeleteFieldValueRequest {
-  IKVDocumentOnWire documentId = 1;
-  repeated string fieldNames = 2;
-  google.protobuf.Timestamp timestamp = 3;
-  UserStoreContextInitializer userStoreContextInitializer = 4;
+  UserStoreContextInitializer userStoreContextInitializer = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  IKVDocumentOnWire documentId = 3;
+  repeated string fieldNames = 4;
 }
 
 // Delete fields from a batch of documents.
 message BatchDeleteFieldValuesRequest {
-  repeated IKVDocumentOnWire documentIds = 1;
-  repeated string fieldNames = 2;
-  google.protobuf.Timestamp timestamp = 3;
-  UserStoreContextInitializer userStoreContextInitializer = 4;
+  UserStoreContextInitializer userStoreContextInitializer = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  repeated IKVDocumentOnWire documentIds = 3;
+  repeated string fieldNames = 4;
 }
 
 // Delete a document.
 message DeleteDocumentRequest {
-  IKVDocumentOnWire documentId = 1;
+  UserStoreContextInitializer userStoreContextInitializer = 1;
   google.protobuf.Timestamp timestamp = 2;
-  UserStoreContextInitializer userStoreContextInitializer = 3;
+  IKVDocumentOnWire documentId = 3;
 }
 
 // Delete a batch of documents.
 message BatchDeleteDocumentsRequest {
-  repeated IKVDocumentOnWire documentIds = 1;
+  UserStoreContextInitializer userStoreContextInitializer = 1;
   google.protobuf.Timestamp timestamp = 2;
-  UserStoreContextInitializer userStoreContextInitializer = 3;
+  repeated IKVDocumentOnWire documentIds = 3;
 }
 
 message UserStoreSchemaUpdateRequest {
@@ -81,7 +83,7 @@ message GetUserStoreConfigResponse {
   IKVStoreConfig globalConfig = 1;
 }
 
-message SuccessStatus {
+message Status {
 }
 
 // Used to construct UserStoreContext -

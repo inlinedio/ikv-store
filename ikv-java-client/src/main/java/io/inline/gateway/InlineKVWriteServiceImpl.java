@@ -1,11 +1,13 @@
 package io.inline.gateway;
 
+import com.google.common.base.Preconditions;
 import com.google.rpc.Code;
 import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
+import io.inline.gateway.streaming.IKVKafkaWriter;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -15,162 +17,167 @@ public class InlineKVWriteServiceImpl
     extends InlineKVWriteServiceGrpc.InlineKVWriteServiceImplBase {
   private static final Logger LOGGER = LogManager.getLogger(InlineKVWriteServiceImpl.class);
 
-  private final IKVWriter _ikvWriter;
+  private final IKVKafkaWriter _ikvKafkaWriter;
   private final UserStoreContextAccessor _userStoreContextAccessor;
 
   public InlineKVWriteServiceImpl(
-      IKVWriter ikvWriter, UserStoreContextAccessor userStoreContextAccessor) {
-    _ikvWriter = Objects.requireNonNull(ikvWriter);
+      IKVKafkaWriter ikvKafkaWriter, UserStoreContextAccessor userStoreContextAccessor) {
+    _ikvKafkaWriter = Objects.requireNonNull(ikvKafkaWriter);
     _userStoreContextAccessor = Objects.requireNonNull(userStoreContextAccessor);
   }
 
   @Override
   public void upsertFieldValues(
-      UpsertFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
+      UpsertFieldValuesRequest request, StreamObserver<Status> responseObserver) {
     IKVDocumentOnWire document = request.getDocument();
-
-    UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-    Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
-    if (maybeContext.isEmpty()) {
-      Exception e =
-          new IllegalArgumentException(
-              String.format("Not a valid store: %s", initializer.getStoreName()));
-      propagateError(e, responseObserver);
-      return;
-    }
+    Collection<Map<String, FieldValue>> documents =
+        Collections.singletonList(document.getDocumentMap());
 
     try {
-      // write to kafka
-      _ikvWriter.publishFieldUpserts(
-          maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
-      _ikvWriter.publishFieldUpserts(
-          maybeContext.get(), Collections.singletonList(document.getDocumentMap()));
+      upsertDocumentsImpl(request.getUserStoreContextInitializer(), documents);
     } catch (Exception e) {
+      LOGGER.debug("Error for upsertFieldValues: ", e);
       propagateError(e, responseObserver);
       return;
     }
 
-    responseObserver.onNext(SuccessStatus.newBuilder().build());
+    responseObserver.onNext(Status.newBuilder().build());
     responseObserver.onCompleted();
   }
 
   @Override
   public void batchUpsertFieldValues(
-      BatchUpsertFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
+      BatchUpsertFieldValuesRequest request, StreamObserver<Status> responseObserver) {
     int batchSize = request.getDocumentsCount();
-    if (batchSize == 0) {
-      responseObserver.onNext(SuccessStatus.newBuilder().build());
-      return;
-    }
-
-    UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-    Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
-    if (maybeContext.isEmpty()) {
-      Exception e =
-          new IllegalArgumentException(
-              String.format("Not a valid store: %s", initializer.getStoreName()));
-      propagateError(e, responseObserver);
-      return;
-    }
-
-    // This need not be a transaction, ok for a failure to happen for certain documents
-    // The client can republish the entire batch if write for any single document fails
-    // We return an error as soon as a single write fails
-    Collection<Map<String, FieldValue>> fieldMaps =
+    Collection<Map<String, FieldValue>> documents =
         request.getDocumentsList().stream()
             .map(IKVDocumentOnWire::getDocumentMap)
             .collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
+
     try {
-      _ikvWriter.publishFieldUpserts(maybeContext.get(), fieldMaps);
+      upsertDocumentsImpl(request.getUserStoreContextInitializer(), documents);
     } catch (Exception e) {
+      LOGGER.debug("Error for batchUpsertFieldValues: ", e);
       propagateError(e, responseObserver);
       return;
     }
 
-    responseObserver.onNext(SuccessStatus.newBuilder().build());
+    responseObserver.onNext(Status.newBuilder().build());
     responseObserver.onCompleted();
+  }
+
+  /**
+   * Real implementation to publish a batch of documents (multi part).
+   *
+   * @param ctxInitializer for retrieving IKV store's metadata
+   * @param documents to publish
+   * @throws NullPointerException missing/null required request parameters
+   * @throws IllegalArgumentException invalid user-context initializer
+   */
+  private void upsertDocumentsImpl(
+      UserStoreContextInitializer ctxInitializer, Collection<Map<String, FieldValue>> documents) {
+    Objects.requireNonNull(ctxInitializer); // error
+    Objects.requireNonNull(documents); // error
+    if (documents.isEmpty()) { // no op
+      return;
+    }
+
+    Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
+    Preconditions.checkArgument(
+        maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
+
+    UserStoreContext ctx = maybeCtx.get();
+
+    // This need not be a transaction, ok for a failure to happen for certain documents
+    // The client can republish the entire batch if write for any single document fails
+    // We return an error as soon as a single write fails.
+    _ikvKafkaWriter.publishDocumentUpserts(ctx, documents);
   }
 
   @Override
   public void deleteFieldValues(
-      DeleteFieldValueRequest request, StreamObserver<SuccessStatus> responseObserver) {
+      DeleteFieldValueRequest request, StreamObserver<Status> responseObserver) {
     throw new UnsupportedOperationException("todo");
   }
 
   @Override
   public void batchDeleteFieldValues(
-      BatchDeleteFieldValuesRequest request, StreamObserver<SuccessStatus> responseObserver) {
+      BatchDeleteFieldValuesRequest request, StreamObserver<Status> responseObserver) {
     throw new UnsupportedOperationException("todo");
   }
 
   @Override
   public void deleteDocument(
-      DeleteDocumentRequest request, StreamObserver<SuccessStatus> responseObserver) {
+      DeleteDocumentRequest request, StreamObserver<Status> responseObserver) {
     IKVDocumentOnWire documentId = request.getDocumentId();
-
-    UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-    Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
-    if (maybeContext.isEmpty()) {
-      Exception e =
-          new IllegalArgumentException(
-              String.format("Not a valid store: %s", initializer.getStoreName()));
-      propagateError(e, responseObserver);
-      return;
-    }
+    Collection<Map<String, FieldValue>> documentIds =
+        Collections.singletonList(documentId.getDocumentMap());
 
     try {
-      // write to kafka
-      _ikvWriter.publishDocumentDeletes(
-          maybeContext.get(), Collections.singletonList(documentId.getDocumentMap()));
+      deleteDocumentsImpl(request.getUserStoreContextInitializer(), documentIds);
     } catch (Exception e) {
+      LOGGER.debug("Error for deleteDocument: ", e);
       propagateError(e, responseObserver);
       return;
     }
 
-    responseObserver.onNext(SuccessStatus.newBuilder().build());
+    responseObserver.onNext(Status.newBuilder().build());
     responseObserver.onCompleted();
   }
 
   @Override
   public void batchDeleteDocuments(
-      BatchDeleteDocumentsRequest request, StreamObserver<SuccessStatus> responseObserver) {
+      BatchDeleteDocumentsRequest request, StreamObserver<Status> responseObserver) {
     int batchSize = request.getDocumentIdsCount();
-    if (batchSize == 0) {
-      responseObserver.onNext(SuccessStatus.newBuilder().build());
-      return;
-    }
-
-    UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-    Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
-    if (maybeContext.isEmpty()) {
-      Exception e =
-          new IllegalArgumentException(
-              String.format("Not a valid store: %s", initializer.getStoreName()));
-      propagateError(e, responseObserver);
-      return;
-    }
-
-    // This need not be a transaction, ok for a failure to happen for certain documents
-    // The client can republish the entire batch if write for any single document fails
-    // We return an error as soon as a single write fails
-    Collection<Map<String, FieldValue>> fieldMaps =
+    Collection<Map<String, FieldValue>> documentIds =
         request.getDocumentIdsList().stream()
             .map(IKVDocumentOnWire::getDocumentMap)
             .collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
+
     try {
-      _ikvWriter.publishDocumentDeletes(maybeContext.get(), fieldMaps);
+      deleteDocumentsImpl(request.getUserStoreContextInitializer(), documentIds);
     } catch (Exception e) {
+      LOGGER.debug("Error for batchDeleteDocuments: ", e);
       propagateError(e, responseObserver);
       return;
     }
 
-    responseObserver.onNext(SuccessStatus.newBuilder().build());
+    responseObserver.onNext(Status.newBuilder().build());
     responseObserver.onCompleted();
   }
 
+  /**
+   * Real implementation to delete a batch of documents (given their document-ids).
+   *
+   * @param ctxInitializer for retrieving IKV store's metadata
+   * @param documentIds to delete
+   * @throws NullPointerException missing/null required request parameters
+   * @throws IllegalArgumentException invalid user-context initializer
+   */
+  private void deleteDocumentsImpl(
+      UserStoreContextInitializer ctxInitializer, Collection<Map<String, FieldValue>> documentIds) {
+    Objects.requireNonNull(ctxInitializer); // error
+    Objects.requireNonNull(documentIds); // error
+    if (documentIds.isEmpty()) { // no op
+      return;
+    }
+
+    Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
+    Preconditions.checkArgument(
+        maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
+
+    UserStoreContext ctx = maybeCtx.get();
+
+    // This need not be a transaction, ok for a failure to happen for certain documents
+    // The client can republish the entire batch if write for any single document fails
+    // We return an error as soon as a single write fails.
+    _ikvKafkaWriter.publishDocumentDeletes(ctx, documentIds);
+  }
+
+  @Deprecated
   @Override
   public void userStoreSchemaUpdate(
-      UserStoreSchemaUpdateRequest request, StreamObserver<SuccessStatus> responseObserver) {
+      UserStoreSchemaUpdateRequest request, StreamObserver<Status> responseObserver) {
     UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
     Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
     if (maybeContext.isEmpty()) {
@@ -193,13 +200,14 @@ public class InlineKVWriteServiceImpl
     // Broadcast to all readers
     maybeContext = _userStoreContextAccessor.getCtx(initializer);
     try {
-      _ikvWriter.publishFieldSchemaUpdates(maybeContext.get(), request.getNewFieldsToAddList());
+      _ikvKafkaWriter.publishFieldSchemaUpdates(
+          maybeContext.get(), request.getNewFieldsToAddList());
     } catch (Exception e) {
       propagateError(e, responseObserver);
       return;
     }
 
-    responseObserver.onNext(SuccessStatus.newBuilder().build());
+    responseObserver.onNext(Status.newBuilder().build());
     responseObserver.onCompleted();
   }
 
@@ -207,24 +215,30 @@ public class InlineKVWriteServiceImpl
   public void getUserStoreConfig(
       GetUserStoreConfigRequest request,
       StreamObserver<GetUserStoreConfigResponse> responseObserver) {
-    UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-    Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
-    if (maybeContext.isEmpty()) {
-      Exception e =
-          new IllegalArgumentException(
-              String.format("Not a valid store: %s", initializer.getStoreName()));
+
+    IKVStoreConfig ikvStoreConfig;
+    try {
+      ikvStoreConfig = getUserStoreConfigImpl(request.getUserStoreContextInitializer());
+    } catch (Exception e) {
+      LOGGER.debug("Error for getUserStoreConfig: ", e);
       propagateError(e, responseObserver);
       return;
     }
 
-    UserStoreContext context = maybeContext.get();
-    IKVStoreConfig globalConfig = context.createConfig();
-
     GetUserStoreConfigResponse response =
-        GetUserStoreConfigResponse.newBuilder().setGlobalConfig(globalConfig).build();
-
+        GetUserStoreConfigResponse.newBuilder().setGlobalConfig(ikvStoreConfig).build();
     responseObserver.onNext(response);
     responseObserver.onCompleted();
+  }
+
+  private IKVStoreConfig getUserStoreConfigImpl(UserStoreContextInitializer ctxInitializer) {
+    Objects.requireNonNull(ctxInitializer); // error
+    Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
+    Preconditions.checkArgument(
+        maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
+
+    UserStoreContext ctx = maybeCtx.get();
+    return ctx.createGatewaySpecifiedConfigs();
   }
 
   // TODO: better error handling

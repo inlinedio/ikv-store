@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+// TODO: bug review pending
 public class UserStoreContextAccessor {
   private static final Logger LOGGER = LogManager.getLogger(UserStoreContextAccessor.class);
 

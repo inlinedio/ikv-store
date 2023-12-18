@@ -3,7 +3,7 @@ package io.inline.gateway.indexbuilder;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.inlineio.schemas.Common.*;
 import io.inline.clients.internal.IKVClientJNI;
-import io.inline.gateway.IKVStoreConfigConstants;
+import io.inline.gateway.IKVConstants;
 import io.inline.gateway.UserStoreContext;
 import io.inline.gateway.ddb.IKVStoreContextController;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
@@ -17,6 +17,7 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+// TODO: bug review?
 public class Worker {
   private static final Logger LOGGER = LogManager.getLogger(Worker.class);
   private static final String WORKING_DIR =
@@ -43,7 +44,7 @@ public class Worker {
 
     // Build configs
     UserStoreContext context = UserStoreContext.from(maybeContext.get());
-    IKVStoreConfig sotConfigs = context.createConfig();
+    IKVStoreConfig sotConfigs = context.createGatewaySpecifiedConfigs();
 
     String mountDirectory = String.format("%s/%s", WORKING_DIR, accountId);
 
@@ -51,8 +52,8 @@ public class Worker {
     IKVStoreConfig config =
         IKVStoreConfig.newBuilder()
             .mergeFrom(sotConfigs)
-            .putStringConfigs(IKVStoreConfigConstants.MOUNT_DIRECTORY, mountDirectory)
-            .putNumericConfigs(IKVStoreConfigConstants.PARTITION, 0) // todo! change
+            .putStringConfigs(IKVConstants.MOUNT_DIRECTORY, mountDirectory)
+            .putNumericConfigs(IKVConstants.PARTITION, 0) // todo! change
             .build();
 
     LOGGER.info(

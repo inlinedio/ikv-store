@@ -1,18 +1,38 @@
 package io.inline.gateway;
 
+import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.inlineio.schemas.Common.*;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
 import io.inline.gateway.streaming.KafkaProducerFactory;
 import java.util.*;
-import javax.annotation.Nullable;
 
+/**
+ * In-memory data model of a cached {@link IKVStoreContext} dynamodb bean. It represents all
+ * metadata for a user provisioned IKV store.
+ */
 public class UserStoreContext {
   private final IKVStoreContext _ikvStoreContext;
   private final HashMap<String, FieldSchema> _schema;
 
   private UserStoreContext(IKVStoreContext ikvStoreContext, HashMap<String, FieldSchema> schema) {
     _ikvStoreContext = Objects.requireNonNull(ikvStoreContext);
+
+    // validate required inner fields of _ikvStoreContext
+    Preconditions.checkArgument(
+        _ikvStoreContext.getStoreName() != null && !_ikvStoreContext.getStoreName().isEmpty());
+    Preconditions.checkArgument(
+        _ikvStoreContext.getKafkaTopicName() != null
+            && !_ikvStoreContext.getKafkaTopicName().isEmpty());
+    Preconditions.checkArgument(
+        _ikvStoreContext.getNumPartitions() != null && _ikvStoreContext.getNumPartitions() > 0);
+    Preconditions.checkArgument(
+        _ikvStoreContext.getPrimaryKeyFieldName() != null
+            && !_ikvStoreContext.getPrimaryKeyFieldName().isEmpty());
+    Preconditions.checkArgument(
+        _ikvStoreContext.getPartitioningKeyFieldName() != null
+            && !_ikvStoreContext.getPartitioningKeyFieldName().isEmpty());
+
     _schema = Objects.requireNonNull(schema);
   }
 
@@ -43,7 +63,6 @@ public class UserStoreContext {
   }
 
   public String primaryKeyFieldName() {
-    // TODO: null handling for all field getters defined on _ikvStoreContext
     return _ikvStoreContext.getPrimaryKeyFieldName();
   }
 
@@ -51,32 +70,22 @@ public class UserStoreContext {
     return _ikvStoreContext.getPartitioningKeyFieldName();
   }
 
-  /** Fetch schema for field given it's name. Returns empty for unknown/unregistered fields. */
-  public Optional<FieldSchema> fieldSchema(String fieldName) {
-    @Nullable FieldSchema schema = _schema.getOrDefault(fieldName, null);
-    return Optional.ofNullable(schema);
-  }
-
-  public IKVStoreConfig createConfig() {
+  public IKVStoreConfig createGatewaySpecifiedConfigs() {
     String storeName = _ikvStoreContext.getStoreName();
     String accountId = _ikvStoreContext.getAccountId();
 
     return IKVStoreConfig.newBuilder()
-        .putStringConfigs(IKVStoreConfigConstants.STORE_NAME, storeName)
-        .putStringConfigs(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME, primaryKeyFieldName())
+        .putStringConfigs(IKVConstants.STORE_NAME, storeName)
+        .putStringConfigs(IKVConstants.PRIMARY_KEY_FIELD_NAME, primaryKeyFieldName())
+        .putStringConfigs(IKVConstants.PARTITIONING_KEY_FIELD_NAME, partitioningKeyFieldName())
+        .putNumericConfigs(IKVConstants.NUM_KAFKA_PARTITIONS, numKafkaPartitions())
         .putStringConfigs(
-            IKVStoreConfigConstants.PARTITIONING_KEY_FIELD_NAME, partitioningKeyFieldName())
-        .putNumericConfigs(IKVStoreConfigConstants.NUM_KAFKA_PARTITIONS, numKafkaPartitions())
-        .putStringConfigs(
-            IKVStoreConfigConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER,
+            IKVConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER,
             KafkaProducerFactory.KAFKA_BOOTSTRAP_SERVER)
-        .putStringConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_TOPIC_NAME, kafkaTopic())
+        .putStringConfigs(IKVConstants.KAFKA_CONSUMER_TOPIC_NAME, kafkaTopic())
         .putStringConfigs(
-            IKVStoreConfigConstants.BASE_INDEX_S3_BUCKET_PREFIX,
-            String.format("%s/%s", accountId, storeName))
-        .putStringConfigs(
-            IKVStoreConfigConstants.BASE_INDEX_S3_BUCKET_NAME,
-            "ikv-base-index-test-v1") // TODO!: add correct bucket name!
+            IKVConstants.BASE_INDEX_S3_BUCKET_PREFIX, String.format("%s/%s", accountId, storeName))
+        .putStringConfigs(IKVConstants.BASE_INDEX_S3_BUCKET_NAME, IKVConstants.S3_BASE_INDEX_BUCKET)
         .build();
   }
 }

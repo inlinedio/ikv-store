@@ -8,5 +8,6 @@ RUN wget https://services.gradle.org/distributions/gradle-8.0.2-bin.zip
 RUN mkdir /opt/gradle
 RUN unzip -d /opt/gradle gradle-8.0.2-bin.zip
 ENV PATH="/opt/gradle/gradle-8.0.2/bin:${PATH}"
+EXPOSE 8080
 RUN gradle build
 CMD ["gradle", "execute"]

@@ -56,7 +56,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
     try {
       // make grpc call
-      SuccessStatus ignored = _stub.upsertFieldValues(request);
+      Status ignored = _stub.upsertFieldValues(request);
     } catch (Throwable thrown) {
       // propagate errors
       com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);
@@ -96,7 +96,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
     try {
       // make grpc call
-      SuccessStatus _ignored = _stub.deleteFieldValues(request);
+      Status _ignored = _stub.deleteFieldValues(request);
     } catch (Throwable thrown) {
       // propagate errors
       com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);
@@ -133,7 +133,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
 
     try {
       // make grpc call
-      SuccessStatus _ignored = _stub.deleteDocument(request);
+      Status _ignored = _stub.deleteDocument(request);
     } catch (Throwable thrown) {
       // propagate errors
       com.google.rpc.Status errorStatus = StatusProto.fromThrowable(thrown);

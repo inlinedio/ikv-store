@@ -1,8 +1,13 @@
 package io.inline.gateway;
 
 /** Config key strings. */
-public class IKVStoreConfigConstants {
+public class IKVConstants {
+  public static final String S3_BASE_INDEX_BUCKET =
+      "ikv-base-index-test-v1"; // TODO!: add correct bucket name!
+
+  /** IKVStoreConfig keys */
   public static final String MOUNT_DIRECTORY = "mount_directory";
+
   public static final String STORE_NAME = "store_name";
   public static final String PARTITION = "partition";
 
@@ -12,7 +17,6 @@ public class IKVStoreConfigConstants {
   public static final String NUM_KAFKA_PARTITIONS = "num_kafka_partitions";
   public static final String KAFKA_CONSUMER_BOOTSTRAP_SERVER = "kafka_bootstrap_server";
   public static final String KAFKA_CONSUMER_TOPIC_NAME = "kafka_topic";
-  public static final String KAFKA_CONSUMER_PARTITION = "kafka_partition";
 
   public static final String BASE_INDEX_S3_BUCKET_NAME = "base_index_s3_bucket_name";
   public static final String BASE_INDEX_S3_BUCKET_PREFIX = "base_index_s3_bucket_prefix";
