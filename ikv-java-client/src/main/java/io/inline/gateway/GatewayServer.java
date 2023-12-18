@@ -2,7 +2,10 @@ package io.inline.gateway;
 
 import com.google.common.base.Preconditions;
 import io.grpc.ServerBuilder;
+import io.inline.gateway.ddb.DynamoDBEnhancedClientFactory;
 import io.inline.gateway.ddb.IKVStoreContextController;
+import io.inline.gateway.streaming.IKVKafkaWriter;
+import io.inline.gateway.streaming.KafkaProducerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.logging.log4j.LogManager;
@@ -29,8 +32,9 @@ public class GatewayServer {
   public GatewayServer() {}
 
   public void startup() {
-    IKVWriter publisher = new IKVWriter();
-    IKVStoreContextController ikvStoreContextController = new IKVStoreContextController();
+    IKVKafkaWriter publisher = new IKVKafkaWriter(KafkaProducerFactory.createInstance());
+    IKVStoreContextController ikvStoreContextController =
+        new IKVStoreContextController(DynamoDBEnhancedClientFactory.getClient());
     UserStoreContextAccessor userStoreContextAccessor =
         new UserStoreContextAccessor(ikvStoreContextController);
 

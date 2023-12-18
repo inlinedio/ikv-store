@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.inlineio.schemas.Common.IKVStoreConfig;
 import com.inlineio.schemas.Services;
-import io.inline.gateway.IKVStoreConfigConstants;
+import io.inline.gateway.IKVConstants;
 import java.util.Objects;
 import java.util.Set;
 
@@ -21,7 +21,7 @@ public final class ClientOptions {
 
   public Services.UserStoreContextInitializer createUserStoreContextInitializer() {
     return Services.UserStoreContextInitializer.newBuilder()
-        .setStoreName(_config.getStringConfigsOrThrow(IKVStoreConfigConstants.STORE_NAME))
+        .setStoreName(_config.getStringConfigsOrThrow(IKVConstants.STORE_NAME))
         .setCredentials(
             Services.AccountCredentials.newBuilder()
                 .setAccountId(_config.getStringConfigsOrThrow(ClientOptions.Builder.CFG_ACCOUNT_ID))
@@ -43,18 +43,18 @@ public final class ClientOptions {
       _configBuilder = IKVStoreConfig.newBuilder();
 
       // defaults
-      _configBuilder.putStringConfigs(IKVStoreConfigConstants.RUST_CLIENT_LOG_LEVEL, "info");
-      _configBuilder.putBooleanConfigs(IKVStoreConfigConstants.RUST_CLIENT_LOG_TO_CONSOLE, true);
+      _configBuilder.putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, "info");
+      _configBuilder.putBooleanConfigs(IKVConstants.RUST_CLIENT_LOG_TO_CONSOLE, true);
     }
 
     public ClientOptions build() {
       // enforce required configs
       _configBuilder.getStringConfigsOrThrow(CFG_ACCOUNT_ID);
       _configBuilder.getStringConfigsOrThrow(CFG_ACCOUNT_PASSKEY);
-      _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.STORE_NAME);
-      _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.MOUNT_DIRECTORY);
-      _configBuilder.getNumericConfigsOrThrow(IKVStoreConfigConstants.PARTITION);
-      _configBuilder.getStringConfigsOrThrow(IKVStoreConfigConstants.PRIMARY_KEY_FIELD_NAME);
+      _configBuilder.getStringConfigsOrThrow(IKVConstants.STORE_NAME);
+      _configBuilder.getStringConfigsOrThrow(IKVConstants.MOUNT_DIRECTORY);
+      _configBuilder.getNumericConfigsOrThrow(IKVConstants.PARTITION);
+      _configBuilder.getStringConfigsOrThrow(IKVConstants.PRIMARY_KEY_FIELD_NAME);
 
       return new ClientOptions(_configBuilder.build());
     }
@@ -62,20 +62,19 @@ public final class ClientOptions {
     public Builder withMountDirectory(String mountDirectory) {
       // user specified mount path
       Preconditions.checkArgument(mountDirectory != null && !mountDirectory.isEmpty());
-      _configBuilder.putStringConfigs(IKVStoreConfigConstants.MOUNT_DIRECTORY, mountDirectory);
+      _configBuilder.putStringConfigs(IKVConstants.MOUNT_DIRECTORY, mountDirectory);
       return this;
     }
 
     public Builder withStoreName(String storeName) {
       Preconditions.checkArgument(storeName != null && !storeName.isEmpty());
-      _configBuilder.putStringConfigs(IKVStoreConfigConstants.STORE_NAME, storeName);
+      _configBuilder.putStringConfigs(IKVConstants.STORE_NAME, storeName);
       return this;
     }
 
     public Builder withStorePartition(int partition) {
       Preconditions.checkArgument(partition > 0);
-      _configBuilder.putNumericConfigs(IKVStoreConfigConstants.PARTITION, partition);
-      _configBuilder.putNumericConfigs(IKVStoreConfigConstants.KAFKA_CONSUMER_PARTITION, partition);
+      _configBuilder.putNumericConfigs(IKVConstants.PARTITION, partition);
       return this;
     }
 
@@ -95,9 +94,8 @@ public final class ClientOptions {
       Preconditions.checkArgument(level != null && !level.isEmpty());
       Preconditions.checkArgument(
           LOG_LEVELS.contains(level.toLowerCase()), "log-level should be one of: {}", LOG_LEVELS);
-      _configBuilder.putStringConfigs(
-          IKVStoreConfigConstants.RUST_CLIENT_LOG_LEVEL, level.toLowerCase());
-      _configBuilder.putBooleanConfigs(IKVStoreConfigConstants.RUST_CLIENT_LOG_TO_CONSOLE, true);
+      _configBuilder.putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, level.toLowerCase());
+      _configBuilder.putBooleanConfigs(IKVConstants.RUST_CLIENT_LOG_TO_CONSOLE, true);
       return this;
     }
 
@@ -106,10 +104,9 @@ public final class ClientOptions {
       Preconditions.checkArgument(level != null && !level.isEmpty());
       Preconditions.checkArgument(
           LOG_LEVELS.contains(level.toLowerCase()), "log-level should be one of: {}", LOG_LEVELS);
-      _configBuilder.putStringConfigs(
-          IKVStoreConfigConstants.RUST_CLIENT_LOG_LEVEL, level.toLowerCase());
-      _configBuilder.putBooleanConfigs(IKVStoreConfigConstants.RUST_CLIENT_LOG_TO_CONSOLE, false);
-      _configBuilder.putStringConfigs(IKVStoreConfigConstants.RUST_CLIENT_LOG_FILE, filePath);
+      _configBuilder.putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, level.toLowerCase());
+      _configBuilder.putBooleanConfigs(IKVConstants.RUST_CLIENT_LOG_TO_CONSOLE, false);
+      _configBuilder.putStringConfigs(IKVConstants.RUST_CLIENT_LOG_FILE, filePath);
       return this;
     }
   }

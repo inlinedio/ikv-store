@@ -25,6 +25,7 @@ message FieldSchema {
   FieldType fieldType = 3;
 }
 
+// TODO: declare all required types
 enum FieldType {
   // usually signifies writer/producer is ahead
   // w.r.t the symbol list

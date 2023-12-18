@@ -10,7 +10,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
  * Data model for a row in IKVStoreContextObjects DynamoDB table. Row holds all metadata like schema
  * and options to operate an IKV Store.
  *
- * <p>Primary Key: PartitioningKey - accountId, SortKey - storeName
+ * <p>See annotations for partitioning and sort keys.
  */
 @DynamoDbBean
 public class IKVStoreContext {

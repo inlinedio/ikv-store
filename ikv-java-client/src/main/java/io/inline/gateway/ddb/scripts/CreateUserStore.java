@@ -2,55 +2,40 @@ package io.inline.gateway.ddb.scripts;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common;
+import io.inline.gateway.ddb.DynamoDBEnhancedClientFactory;
+import io.inline.gateway.ddb.IKVStoreContextController;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
-import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 public class CreateUserStore {
   private static final Logger LOGGER = LogManager.getLogger(CreateUserStore.class);
   private static final TableSchema<IKVStoreContext> TABLE_SCHEMA =
       TableSchema.fromBean(IKVStoreContext.class);
 
-  private final DynamoDbTable<IKVStoreContext> _table;
+  private final IKVStoreContextController _ikvStoreContextController;
 
-  private CreateUserStore() {
-    DynamoDbEnhancedClient client =
-        DynamoDbEnhancedClient.builder()
-            .dynamoDbClient(
-                DynamoDbClient.builder()
-                    .endpointOverride(URI.create("http://localhost:8000"))
-                    // .region(Region.US_EAST_1)
-                    .credentialsProvider(ProfileCredentialsProvider.create())
-                    .build())
-            .build();
-    _table = client.table(IKVStoreContext.TABLE_NAME, TABLE_SCHEMA);
+  private CreateUserStore(IKVStoreContextController ikvStoreContextController) {
+    _ikvStoreContextController = Objects.requireNonNull(ikvStoreContextController);
   }
 
   private void putItem(IKVStoreContext context) {
-    Key primaryKey =
-        Key.builder()
-            .partitionValue(context.getAccountId())
-            .sortValue(context.getStoreName())
-            .build();
-    IKVStoreContext existingContext;
+    Optional<IKVStoreContext> existingContext;
     try {
-      existingContext = _table.getItem(primaryKey);
+      existingContext =
+          _ikvStoreContextController.getItem(context.getAccountId(), context.getStoreName());
     } catch (Exception e) {
       LOGGER.error("Cannot check if entry already exists.", e);
       return;
     }
-    Preconditions.checkArgument(existingContext == null, "item already exists, abort!");
+    Preconditions.checkArgument(existingContext.isEmpty(), "item already exists, abort!");
 
-    _table.putItem(context);
+    _ikvStoreContextController.putItem(context);
   }
 
   public static void main(String[] args) {
@@ -90,7 +75,9 @@ public class CreateUserStore {
     ikvStoreContext.setFieldSchema(schema);
 
     LOGGER.info("Inserting item: {}", ikvStoreContext);
-    CreateUserStore createUserStore = new CreateUserStore();
+    IKVStoreContextController contextController =
+        new IKVStoreContextController(DynamoDBEnhancedClientFactory.getClient());
+    CreateUserStore createUserStore = new CreateUserStore(contextController);
     createUserStore.putItem(ikvStoreContext);
     LOGGER.info("Done.");
   }
