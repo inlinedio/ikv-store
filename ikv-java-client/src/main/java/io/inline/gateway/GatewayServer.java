@@ -3,21 +3,22 @@ package io.inline.gateway;
 import com.google.common.base.Preconditions;
 import io.grpc.ServerBuilder;
 import io.inline.gateway.ddb.IKVStoreContextController;
-import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.io.InputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.ConfigurationFactory;
+import org.apache.logging.log4j.core.config.ConfigurationSource;
+import org.apache.logging.log4j.core.config.xml.XmlConfigurationFactory;
 
 public class GatewayServer {
   private static final Logger LOGGER = LogManager.getLogger(GatewayServer.class);
-  private static final int DEFAULT_PORT = 8081;
+  private static final int DEFAULT_PORT = 8080;
   private volatile io.grpc.Server _server;
 
   public static void main(String[] args) throws IOException, InterruptedException {
-    // Setup log4j
     configureLog4j();
 
     GatewayServer server = new GatewayServer();
@@ -28,7 +29,6 @@ public class GatewayServer {
   public GatewayServer() {}
 
   public void startup() {
-    LOGGER.info("Starting server!");
     IKVWriter publisher = new IKVWriter();
     IKVStoreContextController ikvStoreContextController = new IKVStoreContextController();
     UserStoreContextAccessor userStoreContextAccessor =
@@ -51,7 +51,7 @@ public class GatewayServer {
 
   public void blockUntilShutdown() throws InterruptedException {
     Preconditions.checkNotNull(_server);
-    System.out.println("Server is listening!");
+    LOGGER.info("Server is listening!");
     _server.awaitTermination();
   }
 
@@ -68,26 +68,13 @@ public class GatewayServer {
   }
 
   private static void configureLog4j() throws IOException {
-    URL url = GatewayServer.class.getClassLoader().getResource("log4j.xml");
-    File file;
-    try {
-      file = new File(url.toURI());
-    } catch (NullPointerException e) {
-      throw e;
-    } catch (URISyntaxException e) {
-      file = new File(url.getPath());
-    }
-
-    /*
-    LoggerContext context = (LoggerContext) LogManager.getContext();
-    ConfigurationSource source = new ConfigurationSource(GatewayServer.class.getClassLoader().getResourceAsStream("log4j.xml"));
+    InputStream in = GatewayServer.class.getClassLoader().getResourceAsStream("log4j.xml");
+    Preconditions.checkNotNull(in);
+    ConfigurationSource source = new ConfigurationSource(in);
     ConfigurationFactory factory = new XmlConfigurationFactory();
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
     Configuration configuration = factory.getConfiguration(context, source);
     context.start(configuration);
     context.updateLoggers();
-    */
-
-    LoggerContext context = (LoggerContext) LogManager.getContext(false);
-    context.setConfigLocation(file.toURI());
   }
 }

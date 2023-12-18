@@ -40,8 +40,7 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
   }
 
   @Override
-  public void shutdown() {
-  }
+  public void shutdown() {}
 
   @Override
   public void shutdownReader() throws RuntimeException {
