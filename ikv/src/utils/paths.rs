@@ -25,7 +25,7 @@ pub fn create_mount_directory(config: &IKVStoreConfig) -> anyhow::Result<String>
 
     // TODO: is partition really a client specified config?
     let partition = config
-        .numericConfigs
+        .intConfigs
         .get("partition")
         .copied()
         .ok_or(anyhow!("partition is a required client-specified config"))?;

@@ -53,7 +53,7 @@ public class Worker {
         IKVStoreConfig.newBuilder()
             .mergeFrom(sotConfigs)
             .putStringConfigs(IKVConstants.MOUNT_DIRECTORY, mountDirectory)
-            .putNumericConfigs(IKVConstants.PARTITION, 0) // todo! change
+            .putIntConfigs(IKVConstants.PARTITION, 0) // todo! change - invoke for all partitions.
             .build();
 
     LOGGER.info(

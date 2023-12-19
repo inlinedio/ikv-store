@@ -76,8 +76,11 @@ impl Controller {
         for (k, v) in client_supplied_config.stringConfigs.iter() {
             config.stringConfigs.insert(k.to_string(), v.to_string());
         }
-        for (k, v) in client_supplied_config.numericConfigs.iter() {
-            config.numericConfigs.insert(k.to_string(), *v);
+        for (k, v) in client_supplied_config.intConfigs.iter() {
+            config.intConfigs.insert(k.to_string(), *v);
+        }
+        for (k, v) in client_supplied_config.floatConfigs.iter() {
+            config.floatConfigs.insert(k.to_string(), *v);
         }
         for (k, v) in client_supplied_config.bytesConfigs.iter() {
             config.bytesConfigs.insert(k.to_string(), v.clone());
@@ -134,7 +137,8 @@ impl Controller {
         // TODO: resolve multiple proto objects from protoc and tonic
         let mut copied_config = IKVStoreConfig::new();
         copied_config.stringConfigs = server_config.string_configs;
-        copied_config.numericConfigs = server_config.numeric_configs;
+        copied_config.intConfigs = server_config.int_configs;
+        copied_config.floatConfigs = server_config.float_configs;
         copied_config.bytesConfigs = server_config.bytes_configs;
         copied_config.booleanConfigs = server_config.boolean_configs;
 

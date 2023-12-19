@@ -98,7 +98,7 @@ async fn orchestrate_index_upload(
         .to_string();
 
     let partition = config
-        .numericConfigs
+        .intConfigs
         .get("partition")
         .copied()
         .ok_or(anyhow!("partition is a required user-specified config"))?;
@@ -159,7 +159,7 @@ async fn orchestrate_index_download(
         .to_string();
 
     let partition = config
-        .numericConfigs
+        .intConfigs
         .get("partition")
         .copied()
         .ok_or(anyhow!("partition is a required client-specified config"))?;

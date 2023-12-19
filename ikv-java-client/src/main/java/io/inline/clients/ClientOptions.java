@@ -53,7 +53,7 @@ public final class ClientOptions {
       _configBuilder.getStringConfigsOrThrow(CFG_ACCOUNT_PASSKEY);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.STORE_NAME);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.MOUNT_DIRECTORY);
-      _configBuilder.getNumericConfigsOrThrow(IKVConstants.PARTITION);
+      _configBuilder.getIntConfigsOrThrow(IKVConstants.PARTITION);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.PRIMARY_KEY_FIELD_NAME);
 
       return new ClientOptions(_configBuilder.build());
@@ -74,7 +74,7 @@ public final class ClientOptions {
 
     public Builder withStorePartition(int partition) {
       Preconditions.checkArgument(partition > 0);
-      _configBuilder.putNumericConfigs(IKVConstants.PARTITION, partition);
+      _configBuilder.putIntConfigs(IKVConstants.PARTITION, partition);
       return this;
     }
 
