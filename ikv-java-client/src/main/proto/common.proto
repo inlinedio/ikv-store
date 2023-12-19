@@ -14,17 +14,6 @@ message FieldValue {
   bytes value = 2;
 }
 
-message FieldSchema {
-  // the case-sensitive field name
-  string name = 1;
-
-  // unique field-id. `name` and `id`
-  // have 1:1 mappings.
-  int32 id = 2;
-
-  FieldType fieldType = 3;
-}
-
 enum FieldType {
   // usually signifies writer/producer is ahead
   // w.r.t the symbol list

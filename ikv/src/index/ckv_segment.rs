@@ -8,18 +8,22 @@ use std::{
 };
 
 use anyhow::bail;
+use integer_encoding::VarInt;
 use memmap2::MmapMut;
-use protobuf::Message;
+use protobuf::{Enum, Message};
 
 use crate::{
     proto::{
         self,
-        generated_proto::index::{
-            offset_table_entry, CKVIndexSegmentMetadata, DeleteDoc, DeleteDocFields,
-            OffsetTableEntry, UpdateDocFields,
+        generated_proto::{
+            common::{FieldType, FieldValue},
+            index::{
+                offset_table_entry, CKVIndexSegmentMetadata, DeleteDoc, DeleteDocFields,
+                OffsetTableEntry, UpdateDocFields,
+            },
         },
     },
-    schema::field::{Field, IndexedValue},
+    schema::field::FieldId,
 };
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
@@ -29,6 +33,8 @@ pub struct CKVIndexSegment {
     // hash-table index, document_id bytes -> vector of offsets
     // offsets point into the memory map
     offset_table_file_writer: BufWriter<File>,
+
+    // TODO: offset table should hold u64 for cross platform index builds
     offset_table: HashMap<Vec<u8>, Vec<usize>>,
 
     // current (usable) offset for new writes into the mmap
@@ -222,64 +228,90 @@ impl CKVIndexSegment {
         Ok(())
     }
 
-    pub fn read_field(&self, primary_key: &[u8], field: &Field) -> Option<Vec<u8>> {
+    pub fn read_field(&self, primary_key: &[u8], field_id: FieldId) -> Option<Vec<u8>> {
         let offsets = self.offset_table.get(primary_key)?;
+        let maybe_offset = offsets.get(field_id as usize).copied();
+        if let Some(offset) = maybe_offset {
+            if offset == usize::MAX {
+                return None;
+            }
 
-        let maybe_offset = offsets.get(field.id() as usize).copied();
-        if maybe_offset.is_none() || maybe_offset.unwrap() == usize::MAX {
-            return None;
+            let result = self.read_from_mmap(offset)?;
+            return Some(result.to_vec());
         }
 
-        let result = self.read_from_mmap(field, maybe_offset.unwrap());
-        Some(result.to_vec())
+        None
     }
 
     /// Read all fields for a given primary-key and push the values at the end of `dest` vector.
     /// Values are size/length prefixed with i32 values. Size=0 for missing values.
     ///
     /// Format of dest: [(size)field1][(size)field2]...[(size)fieldn]
-    pub fn read_fields(&self, primary_key: &[u8], fields: &[&Field], dest: &mut Vec<u8>) {
+    pub fn read_fields(
+        &self,
+        primary_key: &[u8],
+        field_ids: &[Option<FieldId>],
+        dest: &mut Vec<u8>,
+    ) {
         let maybe_offsets = self.offset_table.get(primary_key);
         if maybe_offsets.is_none() {
-            for _ in 0..fields.len() {
+            for _ in 0..field_ids.len() {
                 dest.extend(ZERO_I32);
             }
             return;
         }
 
         let offsets = maybe_offsets.unwrap();
-        for field in fields {
-            let maybe_offset = offsets.get(field.id() as usize).copied();
+        for field_id in field_ids {
+            if field_id.is_none() {
+                dest.extend(ZERO_I32);
+                continue;
+            }
+
+            let maybe_offset = offsets.get(field_id.unwrap() as usize).copied();
             if maybe_offset.is_none() || maybe_offset.unwrap() == usize::MAX {
                 dest.extend(ZERO_I32);
                 continue;
             }
-            let value = self.read_from_mmap(field, maybe_offset.unwrap());
 
-            dest.extend((value.len() as i32).to_le_bytes());
-            dest.extend_from_slice(value);
+            match self.read_from_mmap(maybe_offset.unwrap()) {
+                None => {
+                    dest.extend(ZERO_I32);
+                }
+                Some(value) => {
+                    dest.extend((value.len() as i32).to_le_bytes());
+                    dest.extend_from_slice(value);
+                }
+            };
         }
     }
 
-    fn read_from_mmap(&self, field: &Field, mmap_offset: usize) -> &[u8] {
-        let value = match field.value_len() {
-            Some(fixed_width) => {
-                // fixed width
-                &self.mmap[mmap_offset..mmap_offset + fixed_width]
-            }
-            None => {
-                // dynamic size
-                let value_len_bytes = &self.mmap[mmap_offset..mmap_offset + 4];
-                let value_len = u32::from_le_bytes(
-                    value_len_bytes
-                        .try_into()
-                        .expect("persisted value_len must be 4 bytes in length"),
-                ) as usize;
-                &self.mmap[mmap_offset + 4..mmap_offset + 4 + value_len]
-            }
-        };
+    fn read_from_mmap(&self, mmap_offset: usize) -> Option<&[u8]> {
+        // mmap_offset points to a bytes section where:
+        // [2 bytes for field-type][data]
+        // where data can be prefixed with vbytes for variable length types
 
-        value
+        let field_type_bytes = &self.mmap[mmap_offset..mmap_offset + 2];
+        let field_type: u16 = u16::from_le_bytes(
+            field_type_bytes
+                .try_into()
+                .expect("mmap value must be prefixed with 2 byte field types"),
+        );
+        let field_type: FieldType = FieldType::from_i32(i32::from(field_type))?;
+
+        let mmap_offset = mmap_offset + 2;
+        match field_type {
+            FieldType::UNKNOWN => None,
+            FieldType::INT32 | FieldType::FLOAT32 => Some(&self.mmap[mmap_offset..mmap_offset + 4]),
+            FieldType::INT64 | FieldType::FLOAT64 => Some(&self.mmap[mmap_offset..mmap_offset + 8]),
+            FieldType::BOOLEAN => Some(&self.mmap[mmap_offset..mmap_offset + 1]),
+            FieldType::STRING | FieldType::BYTES => {
+                // extract size (varint decoding)
+                let (size, bytes_read) = u32::decode_var(&self.mmap[mmap_offset..])?;
+                let mmap_offset = mmap_offset + bytes_read;
+                Some(&self.mmap[mmap_offset..mmap_offset + size as usize])
+            }
+        }
     }
 
     /// Hook to persist incremental writes to disk
@@ -299,24 +331,97 @@ impl CKVIndexSegment {
         Ok(())
     }
 
+    fn size_of_mmap_entry(field_value: &FieldValue) -> anyhow::Result<usize> {
+        if field_value.fieldType.value() > u16::MAX as i32 {
+            bail!("Cannot store field type in 2 bytes");
+        }
+        let mut size: usize = 2; // for storing type
+
+        match field_value.fieldType.enum_value_or_default() {
+            FieldType::UNKNOWN => bail!("unknown feld type cannot be indexed in mmap"),
+            FieldType::INT32 | FieldType::FLOAT32 => size += 4,
+            FieldType::INT64 | FieldType::FLOAT64 => size += 8,
+            FieldType::BOOLEAN => size += 1,
+            FieldType::STRING | FieldType::BYTES => {
+                // length varint + actual content
+                let value_len = field_value.value.len();
+                if value_len > u32::MAX as usize {
+                    bail!("size of value cannot exceed 4GB");
+                }
+
+                let value_len_prefix = u32::required_space(value_len as u32);
+                size += value_len_prefix + value_len
+            }
+        };
+
+        Ok(size)
+    }
+
+    /// Write provided value to mmap at provided offset, returning the number of bytes written.
+    fn write_to_mmap(
+        mmap: &mut [u8],
+        write_offset: usize,
+        field_value: &FieldValue,
+    ) -> anyhow::Result<usize> {
+        if field_value.fieldType.value() > u16::MAX as i32 {
+            bail!("Cannot store field type in 2 bytes");
+        }
+
+        // write field_type
+        let field_type = (field_value.fieldType.value() as u16).to_le_bytes();
+        mmap[write_offset..write_offset + 2].copy_from_slice(&field_type[..]);
+
+        let mut num_bytes = 2;
+        let write_offset = write_offset + 2;
+
+        // write value
+        num_bytes += match field_value.fieldType.enum_value_or_default() {
+            FieldType::UNKNOWN => bail!("unknown feld type cannot be indexed in mmap"),
+            FieldType::INT32 | FieldType::FLOAT32 => {
+                mmap[write_offset..write_offset + 4].copy_from_slice(&field_value.value[..]);
+                4
+            }
+            FieldType::INT64 | FieldType::FLOAT64 => {
+                mmap[write_offset..write_offset + 8].copy_from_slice(&field_value.value[..]);
+                8
+            }
+            FieldType::BOOLEAN => {
+                mmap[write_offset..write_offset + 1].copy_from_slice(&field_value.value[..]);
+                1
+            }
+            FieldType::STRING | FieldType::BYTES => {
+                let value_len = field_value.value.len();
+
+                // value length prefix
+                let x = u32::encode_var(value_len as u32, &mut mmap[write_offset..]);
+
+                // value
+                mmap[write_offset + x..write_offset + x + value_len]
+                    .copy_from_slice(&field_value.value[..]);
+
+                x + value_len
+            }
+        };
+
+        Ok(num_bytes)
+    }
+
     /// Upsert field values for a document.
     pub fn upsert_document(
         &mut self,
         primary_key: &[u8],
-        fields: Vec<&Field>,
-        field_values: Vec<IndexedValue>,
-    ) -> io::Result<()> {
+        field_ids: Vec<FieldId>,
+        field_values: Vec<&FieldValue>,
+    ) -> anyhow::Result<()> {
+        if primary_key.is_empty() || field_ids.is_empty() {
+            return Ok(());
+        }
+
         {
             // mmap instantiation
-            let mut total_num_bytes: usize = 0;
-            for i in 0..fields.len() {
-                let field: &Field = fields[i];
-                let field_value = &field_values[i];
-                if let Some(fixed_size) = field.value_len() {
-                    total_num_bytes += fixed_size;
-                } else {
-                    total_num_bytes += 4 + field_value.len();
-                }
+            let mut total_num_bytes = 0;
+            for field_value in field_values.iter() {
+                total_num_bytes += Self::size_of_mmap_entry(field_value)?;
             }
 
             // mmap instantiation
@@ -327,41 +432,29 @@ impl CKVIndexSegment {
         // propagate to disk (OffsetTableEntry.proto)
         let mut update_doc_fields = UpdateDocFields::new();
         update_doc_fields.primary_key = primary_key.to_vec();
-        update_doc_fields.field_ids = Vec::with_capacity(fields.len());
-        update_doc_fields.offsets = Vec::with_capacity(fields.len());
+        update_doc_fields.field_ids = Vec::with_capacity(field_ids.len());
+        update_doc_fields.offsets = Vec::with_capacity(field_ids.len());
 
         let offsets = self.offset_table.entry(primary_key.to_vec()).or_default();
 
-        for i in 0..fields.len() {
-            let field = fields[i];
-            let field_id = field.id() as usize;
+        // TODO: refactor below this method!!!
+        for i in 0..field_ids.len() {
+            let field_id = field_ids[i];
             let field_value = &field_values[i];
 
             let write_offset = self.write_offset;
 
-            // write to mmap
-            let num_bytes = if let Some(fixed_size) = field.value_len() {
-                mmap[write_offset..write_offset + fixed_size]
-                    .copy_from_slice(field_value.serialized_ref());
-
-                fixed_size
-            } else {
-                let value_len = (field_value.len() as u32).to_le_bytes();
-                mmap[write_offset..write_offset + 4].copy_from_slice(&value_len[..]);
-                mmap[write_offset + 4..write_offset + 4 + field_value.len()]
-                    .copy_from_slice(field_value.serialized_ref());
-
-                4 + field_value.len()
-            };
+            // write value to mmap
+            let num_bytes = Self::write_to_mmap(mmap, write_offset, field_value)?;
 
             // write to in-memory index
-            if field_id >= offsets.len() {
-                offsets.resize(field_id + 1, usize::MAX);
+            if field_id >= offsets.len() as u32 {
+                offsets.resize(field_id as usize + 1, usize::MAX);
             }
-            offsets[field_id] = write_offset;
+            offsets[field_id as usize] = write_offset;
 
             // propagate to disk (OffsetTableEntry.proto)
-            update_doc_fields.field_ids.push(field_id as i32);
+            update_doc_fields.field_ids.push(field_id);
             update_doc_fields.offsets.push(write_offset as i64);
 
             // update global offset
@@ -374,16 +467,18 @@ impl CKVIndexSegment {
                 update_doc_fields,
             ),
         );
-        self.persist_offset_table_update(offset_table_entry)
+        self.persist_offset_table_update(offset_table_entry)?;
+
+        Ok(())
     }
 
     /// Delete field values for a document.
     pub fn delete_field_values(
         &mut self,
         primary_key: &[u8],
-        fields: Vec<&Field>,
+        field_ids: Vec<FieldId>,
     ) -> io::Result<()> {
-        if primary_key.is_empty() || fields.is_empty() {
+        if primary_key.is_empty() || field_ids.is_empty() {
             return Ok(());
         }
 
@@ -393,8 +488,8 @@ impl CKVIndexSegment {
             return Ok(());
         }
         let offsets = maybe_offsets.unwrap();
-        for field in fields.iter() {
-            let field_id = field.id() as usize;
+        for field_id in field_ids.iter() {
+            let field_id = *field_id as usize;
             if offsets.get(field_id).is_some() {
                 offsets[field_id] = usize::MAX;
             }
@@ -403,10 +498,9 @@ impl CKVIndexSegment {
         // propagate to disk (OffsetTableEntry.proto)
         let mut delete_doc_fields = DeleteDocFields::new();
         delete_doc_fields.primary_key = primary_key.to_vec();
-        delete_doc_fields.field_ids = Vec::with_capacity(fields.len());
-        for field in fields.iter() {
-            let field_id = field.id() as i32;
-            delete_doc_fields.field_ids.push(field_id);
+        delete_doc_fields.field_ids = Vec::with_capacity(field_ids.len());
+        for field_id in field_ids.iter() {
+            delete_doc_fields.field_ids.push(*field_id);
         }
         let mut offset_table_entry = OffsetTableEntry::new();
         offset_table_entry.operation = Some(

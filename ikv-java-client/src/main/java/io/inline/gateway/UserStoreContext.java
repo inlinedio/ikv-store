@@ -1,7 +1,6 @@
 package io.inline.gateway;
 
 import com.google.common.base.Preconditions;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.inlineio.schemas.Common.*;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
 import io.inline.gateway.streaming.KafkaProducerFactory;
@@ -13,9 +12,8 @@ import java.util.*;
  */
 public class UserStoreContext {
   private final IKVStoreContext _ikvStoreContext;
-  private final HashMap<String, FieldSchema> _schema;
 
-  private UserStoreContext(IKVStoreContext ikvStoreContext, HashMap<String, FieldSchema> schema) {
+  private UserStoreContext(IKVStoreContext ikvStoreContext) {
     _ikvStoreContext = Objects.requireNonNull(ikvStoreContext);
 
     // validate required inner fields of _ikvStoreContext
@@ -32,22 +30,10 @@ public class UserStoreContext {
     Preconditions.checkArgument(
         _ikvStoreContext.getPartitioningKeyFieldName() != null
             && !_ikvStoreContext.getPartitioningKeyFieldName().isEmpty());
-
-    _schema = Objects.requireNonNull(schema);
   }
 
-  public static UserStoreContext from(IKVStoreContext ikvStoreContext)
-      throws InvalidProtocolBufferException {
-    HashMap<String, FieldSchema> schema = new HashMap<>();
-
-    // deserialize schema
-    List<byte[]> serializedSchema = ikvStoreContext.getFieldSchema();
-    for (byte[] bytes : serializedSchema) {
-      FieldSchema fieldSchema = FieldSchema.parseFrom(bytes);
-      schema.put(fieldSchema.getName(), fieldSchema);
-    }
-
-    return new UserStoreContext(ikvStoreContext, schema);
+  public static UserStoreContext from(IKVStoreContext ikvStoreContext) {
+    return new UserStoreContext(ikvStoreContext);
   }
 
   public String storeName() {

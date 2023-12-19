@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableMap;
 import com.inlineio.schemas.Common;
 import com.inlineio.schemas.Streaming;
 import io.inline.clients.internal.IKVClientJNI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -47,23 +46,8 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
     _defaultInlineKVReader.shutdownReader();
   }
 
-  private void updateSchema(IKVDocument document) {
-    Map<String, Common.FieldValue> fieldValues = document.asMap();
-    List<Common.FieldSchema> schema = extractSchema(fieldValues);
-
-    Streaming.IKVDataEvent event =
-        Streaming.IKVDataEvent.newBuilder()
-            .setUpdateFieldSchemaEvent(
-                Streaming.UpdateFieldSchemaEvent.newBuilder().addAllNewFieldsToAdd(schema).build())
-            .build();
-
-    IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
-  }
-
   @Override
   public void upsertFieldValues(IKVDocument document) {
-    updateSchema(document);
-
     Map<String, Common.FieldValue> fieldValues = document.asMap();
     Common.IKVDocumentOnWire documentOnWire =
         Common.IKVDocumentOnWire.newBuilder().putAllDocument(fieldValues).build();
@@ -113,23 +97,6 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
     // jni call
     IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
-  }
-
-  private static List<Common.FieldSchema> extractSchema(
-      Map<String, Common.FieldValue> fieldValues) {
-    List<Common.FieldSchema> schema = new ArrayList<>(fieldValues.size());
-    for (Map.Entry<String, Common.FieldValue> entry : fieldValues.entrySet()) {
-      String name = entry.getKey();
-      int id = FIELD_NAME_TO_FIELD_ID_MAPPING.get(name);
-
-      Common.FieldType fieldType = entry.getValue().getFieldType();
-
-      Common.FieldSchema fieldSchema =
-          Common.FieldSchema.newBuilder().setName(name).setId(id).setFieldType(fieldType).build();
-      schema.add(fieldSchema);
-    }
-
-    return schema;
   }
 
   @Nullable

@@ -1,6 +1,5 @@
 package io.inline.gateway.indexbuilder;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.inlineio.schemas.Common.*;
 import io.inline.clients.internal.IKVClientJNI;
 import io.inline.gateway.IKVConstants;
@@ -30,8 +29,7 @@ public class Worker {
   }
 
   // Build for all stores.
-  public void build(String accountId, String storeName)
-      throws InvalidProtocolBufferException, IOException {
+  public void build(String accountId, String storeName) throws IOException {
     Optional<IKVStoreContext> maybeContext = _controller.getItem(accountId, storeName);
     if (maybeContext.isEmpty()) {
       // Invalid args

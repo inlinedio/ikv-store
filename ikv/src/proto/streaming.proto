@@ -19,7 +19,6 @@ message IKVDataEvent {
     UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 2;
     DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 3;
     DeleteDocumentEvent deleteDocumentEvent = 4;
-    UpdateFieldSchemaEvent updateFieldSchemaEvent = 5;
   }
 }
 
@@ -37,9 +36,4 @@ message DeleteDocumentFieldsEvent {
 // Delete specified document.
 message DeleteDocumentEvent {
   IKVDocumentOnWire documentId = 1;
-}
-
-// Changes to field schema.
-message UpdateFieldSchemaEvent {
-  repeated FieldSchema newFieldsToAdd = 2;
 }
