@@ -78,7 +78,7 @@ public class UserStoreContext {
         .putStringConfigs(IKVConstants.STORE_NAME, storeName)
         .putStringConfigs(IKVConstants.PRIMARY_KEY_FIELD_NAME, primaryKeyFieldName())
         .putStringConfigs(IKVConstants.PARTITIONING_KEY_FIELD_NAME, partitioningKeyFieldName())
-        .putNumericConfigs(IKVConstants.NUM_KAFKA_PARTITIONS, numKafkaPartitions())
+        .putIntConfigs(IKVConstants.NUM_KAFKA_PARTITIONS, numKafkaPartitions())
         .putStringConfigs(
             IKVConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER,
             KafkaProducerFactory.KAFKA_BOOTSTRAP_SERVER)

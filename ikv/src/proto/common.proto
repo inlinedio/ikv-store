@@ -36,13 +36,15 @@ enum FieldType {
   FLOAT64 = 4;
   STRING = 5;
   BYTES = 6;
+  BOOLEAN = 7;
 }
 
 message IKVStoreConfig {
   // Map key uniquely defines a config key
   // Config keys are unique across all typed maps
   map<string, string> stringConfigs = 1;
-  map<string, int64> numericConfigs = 2;
-  map<string, bytes> bytesConfigs = 3;
-  map<string, bool> booleanConfigs = 4;
+  map<string, int64> intConfigs = 2;
+  map<string, float> floatConfigs = 3;
+  map<string, bytes> bytesConfigs = 4;
+  map<string, bool> booleanConfigs = 5;
 }

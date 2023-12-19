@@ -26,7 +26,8 @@ impl Field {
     /// Length of the field's value - if known (ie fixed width).
     pub fn value_len(&self) -> Option<usize> {
         match self.field_type {
-            generated_proto::common::FieldType::UNKNOWN => unreachable!(),
+            generated_proto::common::FieldType::UNKNOWN
+            | generated_proto::common::FieldType::BOOLEAN => unreachable!(),
             generated_proto::common::FieldType::INT32 => Some(4),
             generated_proto::common::FieldType::INT64 => Some(8),
             generated_proto::common::FieldType::FLOAT32 => Some(4),

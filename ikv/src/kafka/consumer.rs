@@ -73,7 +73,7 @@ impl IKVKafkaConsumer {
                 "kafka_topic is a required gateway-specified config".to_string(),
             ),
         )?;
-        let partition = config.numericConfigs.get("partition").ok_or(
+        let partition = config.intConfigs.get("partition").ok_or(
             rdkafka::error::KafkaError::ClientCreation(
                 "partition is a required user-specified config".to_string(),
             ),

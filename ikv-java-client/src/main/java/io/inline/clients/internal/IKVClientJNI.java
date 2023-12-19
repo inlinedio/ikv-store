@@ -9,9 +9,6 @@ public final class IKVClientJNI {
     System.load("/Users/pushkar/projects/inlineio/ikv/target/release/libikv.dylib");
   }
 
-  /** For simple testing. */
-  public static native String provideHelloWorld();
-
   private IKVClientJNI() {}
 
   public static void main(String[] args) {
@@ -19,6 +16,9 @@ public final class IKVClientJNI {
     String output = IKVClientJNI.provideHelloWorld();
     System.out.println(output);
   }
+
+  /** For linkage testing. */
+  public static native String provideHelloWorld();
 
   // Open or create.
   // config: Serialized IKVStoreConfig.proto
