@@ -5,8 +5,7 @@ use anyhow::Ok;
 use crate::index::ckv::CKVIndex;
 use crate::proto::generated_proto::streaming::ikvdata_event::Event;
 use crate::proto::generated_proto::streaming::{
-    DeleteDocumentEvent, DeleteDocumentFieldsEvent, IKVDataEvent, UpdateFieldSchemaEvent,
-    UpsertDocumentFieldsEvent,
+    DeleteDocumentEvent, DeleteDocumentFieldsEvent, IKVDataEvent, UpsertDocumentFieldsEvent,
 };
 
 pub struct WritesProcessor {
@@ -32,7 +31,6 @@ impl WritesProcessor {
                 Event::UpsertDocumentFieldsEvent(e) => return self.process_upsert(e),
                 Event::DeleteDocumentFieldsEvent(e) => return self.process_field_delete(e),
                 Event::DeleteDocumentEvent(e) => return self.process_document_delete(e),
-                Event::UpdateFieldSchemaEvent(e) => return self.process_update_field_schema(e),
             };
         }
 
@@ -71,16 +69,5 @@ impl WritesProcessor {
 
         let document_on_wire = event.documentId.as_ref().unwrap();
         self.ckv_index.delete_document(&document_on_wire.document)
-    }
-
-    fn process_update_field_schema(&self, event: &UpdateFieldSchemaEvent) -> anyhow::Result<()> {
-        // update schema
-        let field_schema = event.newFieldsToAdd.as_slice();
-        if field_schema.len() == 0 {
-            return Ok(());
-        }
-
-        // errors usually correspond to unsupported field types
-        self.ckv_index.update_schema(field_schema)
     }
 }

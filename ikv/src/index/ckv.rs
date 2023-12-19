@@ -3,12 +3,9 @@ use anyhow::{anyhow, bail};
 use crate::{
     proto::generated_proto::{
         common::FieldValue,
-        common::{FieldSchema, IKVStoreConfig},
+        common::{FieldType, IKVStoreConfig},
     },
-    schema::{
-        ckvindex_schema::CKVIndexSchema,
-        field::{Field, IndexedValue},
-    },
+    schema::{ckvindex_schema::CKVIndexSchema, field::FieldId},
 };
 
 use super::{ckv_segment::CKVIndexSegment, offset_store::OffsetStore};
@@ -119,40 +116,18 @@ impl CKVIndex {
         Ok(())
     }
 
-    pub fn update_schema(&self, fields: &[FieldSchema]) -> anyhow::Result<()> {
-        if fields.is_empty() {
-            return Ok(());
-        }
-
-        // check if needs update
-        let mut needs_update = false;
-        {
-            let schema = self.schema.read().unwrap();
-            for field in fields {
-                if schema.fetch_field_by_name(&field.name).is_none() {
-                    needs_update = true;
-                    break;
-                }
-            }
-        }
-
-        if !needs_update {
-            return Ok(());
-        }
-
-        let mut schema = self.schema.write().unwrap();
-        schema.update(fields)
-    }
-
     /// Fetch field value for a primary key.
     pub fn get_field_value(&self, primary_key: &[u8], field_name: &str) -> Option<Vec<u8>> {
-        let schema = self.schema.read().unwrap();
-        let field = schema.fetch_field_by_name(field_name)?;
+        let field_id: FieldId;
+        {
+            let schema = self.schema.read().unwrap();
+            field_id = schema.fetch_id_by_name(field_name)?;
+        }
 
         let index_id: usize = fxhash::hash(primary_key) % NUM_SEGMENTS;
         let ckv_segment = self.segments[index_id].read().unwrap();
 
-        ckv_segment.read_field(primary_key, field)
+        ckv_segment.read_field(primary_key, field_id)
     }
 
     /// Fetch field values for multiple primary keys.
@@ -171,16 +146,16 @@ impl CKVIndex {
 
         let mut result: Vec<u8> = Vec::with_capacity(capacity);
 
-        // resolve field name strings to &Field
-        let schema = self.schema.read().unwrap();
-        let mut fields: Vec<&Field> = Vec::with_capacity(field_names.len());
-        for field_name in field_names {
-            let field = schema
-                .fetch_field_by_name(&field_name)
-                .expect("cannot handle unknown field_names");
-            fields.push(field);
+        // resolve field name strings to field_id(s)
+        let mut field_ids: Vec<Option<FieldId>> = Vec::with_capacity(field_names.len());
+
+        {
+            let schema = self.schema.read().unwrap();
+            for field_name in field_names {
+                let maybe_field_id = schema.fetch_id_by_name(&field_name);
+                field_ids.push(maybe_field_id);
+            }
         }
-        let fields = fields.as_slice();
 
         // holds read acquired locks, released when we exit function scope
         let mut acquired_ckv_segments = Vec::with_capacity(NUM_SEGMENTS);
@@ -195,7 +170,7 @@ impl CKVIndex {
             }
 
             let ckv_segment = acquired_ckv_segments[index_id].as_ref().unwrap();
-            ckv_segment.read_fields(primary_key, fields, &mut result);
+            ckv_segment.read_fields(primary_key, &field_ids, &mut result);
         }
 
         result
@@ -227,37 +202,45 @@ impl CKVIndex {
             return Ok(());
         }
 
-        // ensure we know schema of each field
-        self.has_known_fields(document)?;
+        // upsert schema
+        self.upsert_schema(document)?;
 
         // extract primary key
         let primary_key = self
-            .extract_primary_key(document)
+            .extract_primary_key(document)?
             .ok_or(anyhow!("Cannot upsert with missing primary-key"))?;
         if primary_key.len() > u16::MAX as usize {
             bail!("primary_key larger than 64KB is unsupported");
         }
 
-        let schema = self.schema.read().unwrap();
-
         // flatten to vectors
-        let mut fields = Vec::with_capacity(document.len());
+        let mut field_ids = Vec::with_capacity(document.len());
         let mut values = Vec::with_capacity(document.len());
-        for (field_name, field_value) in document.iter() {
-            fields.push(
-                schema
-                    .fetch_field_by_name(field_name)
-                    .expect("has_known_fields ensures schema is known"),
-            );
-            values.push(
-                TryInto::<IndexedValue>::try_into(field_value)
-                    .expect("has_known_fields ensures schema is known"),
-            );
+        {
+            let schema = self.schema.read().unwrap();
+            for (field_name, field_value) in document.iter() {
+                // Filter out unknown field types
+                if field_value.fieldType.enum_value_or_default() == FieldType::UNKNOWN {
+                    continue;
+                }
+
+                field_ids.push(
+                    schema
+                        .fetch_id_by_name(field_name)
+                        .expect("upsert_field_values ensures schema is known"),
+                );
+                values.push(field_value);
+            }
+        }
+
+        if field_ids.is_empty() {
+            // can occur when only unknown field types were inserted
+            return Ok(());
         }
 
         let index_id = fxhash::hash(&primary_key) % NUM_SEGMENTS;
         let mut ckv_index_segment = self.segments[index_id].write().unwrap();
-        ckv_index_segment.upsert_document(&primary_key, fields, values)?;
+        ckv_index_segment.upsert_document(&primary_key, field_ids, values)?;
         Ok(())
     }
 
@@ -270,29 +253,27 @@ impl CKVIndex {
             return Ok(());
         }
 
-        // ensure we know schema of each field
-        self.has_known_fields(document)?;
+        // no schema upserts - we ignore unknown field names
 
         // extract primary key
         let primary_key = self
-            .extract_primary_key(document)
+            .extract_primary_key(document)?
             .ok_or(anyhow!("Cannot delete with missing primary-key"))?;
 
-        let schema = self.schema.read().unwrap();
-
         // flatten to vectors
-        let mut fields = Vec::with_capacity(document.len());
-        for field_name in field_names.iter() {
-            fields.push(
-                schema
-                    .fetch_field_by_name(field_name)
-                    .expect("no new fields expected"), // TODO: there can be a mismatch b/w rust and proto enums
-            );
+        let mut field_ids = Vec::with_capacity(field_names.len());
+        {
+            let schema = self.schema.read().unwrap();
+            for field_name in field_names {
+                if let Some(field_id) = schema.fetch_id_by_name(field_name) {
+                    field_ids.push(field_id);
+                }
+            }
         }
 
         let index_id = fxhash::hash(&primary_key) % NUM_SEGMENTS;
         let mut ckv_index_segment = self.segments[index_id].write().unwrap();
-        ckv_index_segment.delete_field_values(&primary_key, fields)?;
+        ckv_index_segment.delete_field_values(&primary_key, field_ids)?;
 
         Ok(())
     }
@@ -303,12 +284,11 @@ impl CKVIndex {
             return Ok(());
         }
 
-        // ensure we know schema of each field
-        self.has_known_fields(document)?;
+        // no schema upserts - we ignore unknown field names
 
         // extract primary key
         let primary_key = self
-            .extract_primary_key(document)
+            .extract_primary_key(document)?
             .ok_or(anyhow!("Cannot delete with missing primary-key"))?;
 
         let index_id = fxhash::hash(&primary_key) % NUM_SEGMENTS;
@@ -318,31 +298,49 @@ impl CKVIndex {
         Ok(())
     }
 
-    // Checks if every field in the document has known schema.
-    fn has_known_fields(&self, document: &HashMap<String, FieldValue>) -> anyhow::Result<()> {
-        let schema = self.schema.read().unwrap();
-        for fieldname in document.keys() {
-            schema
-                .fetch_field_by_name(fieldname)
-                .ok_or(anyhow!("Schema not known for field: {}", fieldname))?;
+    fn upsert_schema(&self, document: &HashMap<String, FieldValue>) -> anyhow::Result<()> {
+        let mut needs_update = false;
+        {
+            let schema = self.schema.read().unwrap();
+            for field_name in document.keys() {
+                if schema.fetch_id_by_name(field_name).is_none() {
+                    needs_update = true;
+                    break;
+                }
+            }
+        }
+
+        if needs_update {
+            let mut schema = self.schema.write().unwrap();
+            schema.upsert_schema(document)?;
         }
 
         Ok(())
     }
 
-    fn extract_primary_key(&self, document: &HashMap<String, FieldValue>) -> Option<Vec<u8>> {
+    fn extract_primary_key(
+        &self,
+        document: &HashMap<String, FieldValue>,
+    ) -> anyhow::Result<Option<Vec<u8>>> {
         if document.is_empty() {
-            return None;
+            return Ok(None);
         }
 
         let schema = self.schema.read().unwrap();
 
         // extract primary key
-        let primary_key = schema.extract_primary_key_value(document)?;
-
-        match TryInto::<IndexedValue>::try_into(primary_key) {
-            Ok(iv) => Some(iv.serialize()),
-            Err(_) => None,
+        let maybe_primary_key = schema.extract_primary_key_value(document);
+        if maybe_primary_key.is_none() {
+            return Ok(None);
         }
+
+        let primary_key = maybe_primary_key.unwrap();
+
+        if primary_key.fieldType.enum_value_or_default() == FieldType::UNKNOWN {
+            bail!("Unsupported primary key type");
+        }
+
+        let serialized_primary_key = primary_key.value.clone();
+        Ok(Some(serialized_primary_key))
     }
 }

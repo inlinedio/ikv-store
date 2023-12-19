@@ -174,43 +174,6 @@ public class InlineKVWriteServiceImpl
     _ikvKafkaWriter.publishDocumentDeletes(ctx, documentIds);
   }
 
-  @Deprecated
-  @Override
-  public void userStoreSchemaUpdate(
-      UserStoreSchemaUpdateRequest request, StreamObserver<Status> responseObserver) {
-    UserStoreContextInitializer initializer = request.getUserStoreContextInitializer();
-    Optional<UserStoreContext> maybeContext = _userStoreContextAccessor.getCtx(initializer);
-    if (maybeContext.isEmpty()) {
-      Exception e =
-          new IllegalArgumentException(
-              String.format("Not a valid store: %s", initializer.getStoreName()));
-      propagateError(e, responseObserver);
-      return;
-    }
-
-    // Update context
-    try {
-      _userStoreContextAccessor.registerSchemaForNewFields(
-          initializer, request.getNewFieldsToAddList());
-    } catch (Exception e) {
-      propagateError(e, responseObserver);
-      return;
-    }
-
-    // Broadcast to all readers
-    maybeContext = _userStoreContextAccessor.getCtx(initializer);
-    try {
-      _ikvKafkaWriter.publishFieldSchemaUpdates(
-          maybeContext.get(), request.getNewFieldsToAddList());
-    } catch (Exception e) {
-      propagateError(e, responseObserver);
-      return;
-    }
-
-    responseObserver.onNext(Status.newBuilder().build());
-    responseObserver.onCompleted();
-  }
-
   @Override
   public void getUserStoreConfig(
       GetUserStoreConfigRequest request,

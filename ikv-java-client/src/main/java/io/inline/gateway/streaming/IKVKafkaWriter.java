@@ -45,8 +45,7 @@ public class IKVKafkaWriter {
       FieldValue kafkaPartitioningKey =
           Objects.requireNonNull(extractPartitioningKeyValue(context, document));
 
-      // TODO: IMPORTANT (refactor as per schema-less design) !! filter out unknown fields by
-      // fetching schema
+      // Forward all fields, schema (field name to id) mapping happens on reader end locally
       IKVDocumentOnWire ikvDocumentOnWire =
           IKVDocumentOnWire.newBuilder().putAllDocument(document).build();
 
@@ -112,33 +111,6 @@ public class IKVKafkaWriter {
           new ProducerRecord<>(context.kafkaTopic(), partitioningKey, event);
 
       publishToKafkaWithRetries(producerRecord, 3);
-    }
-  }
-
-  // Broadcast schema updates to all partitions for reader clients.
-  // Ok to fail partially and propagate error.
-  @Deprecated
-  public void publishFieldSchemaUpdates(
-      UserStoreContext context, Collection<FieldSchema> newFieldsToAdd)
-      throws InterruptedException {
-    Preconditions.checkNotNull(context);
-    if (newFieldsToAdd == null || newFieldsToAdd.isEmpty()) {
-      return;
-    }
-
-    IKVDataEvent event =
-        IKVDataEvent.newBuilder()
-            .setEventHeader(EventHeader.newBuilder().build())
-            .setUpdateFieldSchemaEvent(
-                UpdateFieldSchemaEvent.newBuilder().addAllNewFieldsToAdd(newFieldsToAdd).build())
-            .build();
-
-    // Broadcast!
-    int numPartitions = context.numKafkaPartitions();
-    for (int i = 0; i < numPartitions; i++) {
-      ProducerRecord<FieldValue, IKVDataEvent> producerRecord =
-          new ProducerRecord<>(context.kafkaTopic(), 0, null, event);
-      publishToKafkaWithRetries(producerRecord, 3); // can throw
     }
   }
 

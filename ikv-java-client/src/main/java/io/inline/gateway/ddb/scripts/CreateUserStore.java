@@ -1,12 +1,9 @@
 package io.inline.gateway.ddb.scripts;
 
 import com.google.common.base.Preconditions;
-import com.inlineio.schemas.Common;
 import io.inline.gateway.ddb.DynamoDBEnhancedClientFactory;
 import io.inline.gateway.ddb.IKVStoreContextController;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
@@ -46,23 +43,6 @@ public class CreateUserStore {
     String kafkaTopicName = "testing-topic";
     String primaryKeyFieldName = "messageid";
     String partitioningKeyFieldName = "messagepartition";
-    int fieldSchemaVersion = 2; // since we have 2 fields to start with
-    // Construct schema
-    List<byte[]> schema = new ArrayList<>();
-    Common.FieldSchema primaryKeyField =
-        Common.FieldSchema.newBuilder()
-            .setName(primaryKeyFieldName)
-            .setFieldType(Common.FieldType.STRING)
-            .setId(0)
-            .build();
-    Common.FieldSchema partitioningKeyField =
-        Common.FieldSchema.newBuilder()
-            .setName(partitioningKeyFieldName)
-            .setFieldType(Common.FieldType.STRING)
-            .setId(1)
-            .build();
-    schema.add(primaryKeyField.toByteArray());
-    schema.add(partitioningKeyField.toByteArray());
 
     IKVStoreContext ikvStoreContext = new IKVStoreContext();
     ikvStoreContext.setAccountId(accountId);
@@ -71,8 +51,6 @@ public class CreateUserStore {
     ikvStoreContext.setKafkaTopicName(kafkaTopicName);
     ikvStoreContext.setPrimaryKeyFieldName(primaryKeyFieldName);
     ikvStoreContext.setPartitioningKeyFieldName(partitioningKeyFieldName);
-    ikvStoreContext.setFieldSchemaVersion(fieldSchemaVersion);
-    ikvStoreContext.setFieldSchema(schema);
 
     LOGGER.info("Inserting item: {}", ikvStoreContext);
     IKVStoreContextController contextController =

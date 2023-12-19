@@ -6,6 +6,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 
+// TODO: pending code review.
 public class KafkaProducerFactory {
   public static final String KAFKA_BOOTSTRAP_SERVER = "127.0.0.1:9092";
 

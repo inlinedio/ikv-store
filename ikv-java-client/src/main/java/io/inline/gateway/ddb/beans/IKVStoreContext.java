@@ -1,6 +1,5 @@
 package io.inline.gateway.ddb.beans;
 
-import java.util.List;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
@@ -23,10 +22,6 @@ public class IKVStoreContext {
 
   private String PrimaryKeyFieldName;
   private String PartitioningKeyFieldName;
-
-  // List of serialized FieldSchema.proto objects
-  private List<byte[]> FieldSchema;
-  private Integer FieldSchemaVersion; // starts from 1
 
   @DynamoDbPartitionKey
   @DynamoDbAttribute("AccountId")
@@ -80,22 +75,6 @@ public class IKVStoreContext {
     this.PartitioningKeyFieldName = partitioningKeyFieldName;
   }
 
-  public List<byte[]> getFieldSchema() {
-    return FieldSchema;
-  }
-
-  public void setFieldSchema(List<byte[]> fieldSchema) {
-    this.FieldSchema = fieldSchema;
-  }
-
-  public Integer getFieldSchemaVersion() {
-    return FieldSchemaVersion;
-  }
-
-  public void setFieldSchemaVersion(Integer fieldSchemaVersion) {
-    this.FieldSchemaVersion = fieldSchemaVersion;
-  }
-
   @Override
   public String toString() {
     return "IKVStoreContext{"
@@ -116,10 +95,6 @@ public class IKVStoreContext {
         + ", PartitioningKeyFieldName='"
         + PartitioningKeyFieldName
         + '\''
-        + ", FieldSchema="
-        + FieldSchema
-        + ", FieldSchemaVersion="
-        + FieldSchemaVersion
         + '}';
   }
 }

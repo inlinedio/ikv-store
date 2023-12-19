@@ -19,7 +19,7 @@ service InlineKVWriteService {
   rpc batchDeleteDocuments(BatchDeleteDocumentsRequest) returns (Status) {}
 
   // Schema Management
-  rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (Status) {}
+  // rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (Status) {}
 
   // Gateway-specified configuration
   rpc getUserStoreConfig(GetUserStoreConfigRequest) returns (GetUserStoreConfigResponse) {}
@@ -73,6 +73,18 @@ message UserStoreSchemaUpdateRequest {
   // duplicates (exact match) are ignored
   // conflicts throw an error (ex. re-registering with different type)
   repeated FieldSchema newFieldsToAdd = 2;
+}
+
+// TO BE DEPRECATED
+message FieldSchema {
+  // the case-sensitive field name
+  string name = 1;
+
+  // unique field-id. `name` and `id`
+  // have 1:1 mappings.
+  int32 id = 2;
+
+  FieldType fieldType = 3;
 }
 
 message GetUserStoreConfigRequest {

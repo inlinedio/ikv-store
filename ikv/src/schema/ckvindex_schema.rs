@@ -6,22 +6,18 @@ use std::{
 };
 
 use anyhow::bail;
-use log::error;
 use protobuf::Message;
 
-use crate::proto::generated_proto::{
-    common::FieldSchema, common::FieldValue, index::SavedCKVIndexSchema,
-};
+use crate::proto::generated_proto::{common::FieldValue, index::SavedCKVIndexSchema};
 
-use super::field::Field;
+use super::field::FieldId;
 
 pub struct CKVIndexSchema {
     mount_directory: String,
 
     primary_key_field_name: String,
 
-    // field-name -> Field
-    fieldname_field_table: HashMap<String, Field>,
+    field_name_to_id: HashMap<String, FieldId>,
 }
 
 impl CKVIndexSchema {
@@ -31,7 +27,7 @@ impl CKVIndexSchema {
         Self {
             mount_directory: mount_directory.to_string(),
             primary_key_field_name: primary_key,
-            fieldname_field_table: HashMap::new(),
+            field_name_to_id: HashMap::new(),
         }
     }
 
@@ -55,16 +51,15 @@ impl CKVIndexSchema {
         let saved_schema = SavedCKVIndexSchema::parse_from_bytes(&contents)?;
         let primary_key_field_name = saved_schema.primary_key_field_name;
 
-        let mut fieldname_field_table = HashMap::new();
-        for (fieldname, fieldschema) in saved_schema.fields.iter() {
-            let field = fieldschema.try_into()?;
-            fieldname_field_table.insert(fieldname.to_string(), field);
+        let mut field_name_to_id = HashMap::new();
+        for (fieldname, fieldid) in saved_schema.field_ids.iter() {
+            field_name_to_id.insert(fieldname.to_string(), *fieldid);
         }
 
         Ok(CKVIndexSchema {
             mount_directory: mount_directory.to_string(),
             primary_key_field_name,
-            fieldname_field_table,
+            field_name_to_id,
         })
     }
 
@@ -86,8 +81,8 @@ impl CKVIndexSchema {
         Ok(())
     }
 
-    pub fn fetch_field_by_name<'a>(&'a self, field_name: &str) -> Option<&'a Field> {
-        self.fieldname_field_table.get(field_name)
+    pub fn fetch_id_by_name(&self, field_name: &str) -> Option<FieldId> {
+        self.field_name_to_id.get(field_name).copied()
     }
 
     pub fn extract_primary_key_value<'a>(
@@ -99,33 +94,23 @@ impl CKVIndexSchema {
 
     /// Update the internal fields table with new field-info if required.
     /// Known fields are skipped, new start getting tracked.
-    /// This operation can fail partially - ie schema for only some fields gets updated.
-    pub fn update(&mut self, fields: &[FieldSchema]) -> anyhow::Result<()> {
-        let mut conversion_error: Option<anyhow::Error> = None;
+    ///
+    /// TODO - This operation can fail partially - ie schema for only some fields gets updated.
+    pub fn upsert_schema(&mut self, document: &HashMap<String, FieldValue>) -> anyhow::Result<()> {
         let mut updated = false;
 
-        let table = &mut self.fieldname_field_table;
-        for field_schema in fields {
-            if !table.contains_key(&field_schema.name) {
-                match field_schema.try_into() {
-                    Ok(field) => {
-                        table.insert(field_schema.name.to_string(), field);
-                        updated = true;
-                    }
-                    Err(e) => {
-                        error!("Cannot convert FieldSchema.proto to Field: {}", e);
-                        conversion_error = Some(e)
-                    }
-                }
+        let table = &mut self.field_name_to_id;
+        for field_name in document.keys() {
+            if !table.contains_key(field_name) {
+                let field_id = table.len();
+                table.insert(field_name.clone(), field_id as FieldId);
+
+                updated = true; /* needs disk update */
             }
         }
 
         if updated {
             self.save(&self.mount_directory)?;
-        }
-
-        if let Some(e) = conversion_error {
-            return Err(e);
         }
 
         Ok(())
@@ -134,18 +119,14 @@ impl CKVIndexSchema {
     /// TODO: how to handle failures (ex. persisting to disk) gracefully??
     fn save(&self, mount_directory: &str) -> std::io::Result<()> {
         // serialize with proto
-        let mut fields = HashMap::new();
-        for (fieldname, field) in self.fieldname_field_table.iter() {
-            let mut field_schema = FieldSchema::new();
-            field_schema.name = field.name().to_string();
-            field_schema.id = field.id() as i32;
-            field_schema.fieldType = field.field_type().clone().into();
-            fields.insert(fieldname.clone(), field_schema);
+        let mut field_ids = HashMap::new();
+        for (fieldname, fieldid) in self.field_name_to_id.iter() {
+            field_ids.insert(fieldname.clone(), *fieldid);
         }
 
         let mut saved_schema = SavedCKVIndexSchema::new();
         saved_schema.primary_key_field_name = self.primary_key_field_name.clone();
-        saved_schema.fields = fields;
+        saved_schema.field_ids = field_ids;
 
         let contents = saved_schema.write_to_bytes()?;
 
