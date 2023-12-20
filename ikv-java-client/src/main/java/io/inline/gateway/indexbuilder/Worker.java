@@ -4,7 +4,7 @@ import com.inlineio.schemas.Common.*;
 import io.inline.clients.internal.IKVClientJNI;
 import io.inline.gateway.IKVConstants;
 import io.inline.gateway.UserStoreContext;
-import io.inline.gateway.ddb.IKVStoreContextController;
+import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
 import java.io.IOException;
 import java.nio.file.*;
@@ -22,9 +22,9 @@ public class Worker {
   private static final String WORKING_DIR =
       String.format("/tmp/ikv-index-builds/%d", Instant.now().toEpochMilli());
 
-  private final IKVStoreContextController _controller;
+  private final IKVStoreContextObjectsAccessor _controller;
 
-  public Worker(IKVStoreContextController dynamoDBAccessor) {
+  public Worker(IKVStoreContextObjectsAccessor dynamoDBAccessor) {
     _controller = Objects.requireNonNull(dynamoDBAccessor);
   }
 

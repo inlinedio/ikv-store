@@ -43,6 +43,7 @@ public class IKVStoreContext {
     this.StoreName = storeName;
   }
 
+  @DynamoDbAttribute("NumPartitions")
   public Integer getNumPartitions() {
     return NumPartitions;
   }
@@ -51,6 +52,7 @@ public class IKVStoreContext {
     this.NumPartitions = numPartitions;
   }
 
+  @DynamoDbAttribute("KafkaTopicName")
   public String getKafkaTopicName() {
     return KafkaTopicName;
   }
@@ -59,6 +61,7 @@ public class IKVStoreContext {
     this.KafkaTopicName = kafkaTopicName;
   }
 
+  @DynamoDbAttribute("PrimaryKeyFieldName")
   public String getPrimaryKeyFieldName() {
     return PrimaryKeyFieldName;
   }
@@ -67,6 +70,7 @@ public class IKVStoreContext {
     this.PrimaryKeyFieldName = primaryKeyFieldName;
   }
 
+  @DynamoDbAttribute("PartitioningKeyFieldName")
   public String getPartitioningKeyFieldName() {
     return PartitioningKeyFieldName;
   }

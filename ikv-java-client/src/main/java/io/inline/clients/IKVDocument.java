@@ -7,11 +7,32 @@ import com.inlineio.schemas.Common.FieldValue;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Data model which represents documents indexed in IKV. See: {@link IKVDocument.Builder} to
+ * construct.
+ */
 public interface IKVDocument {
 
-  @Deprecated
-  Map<String, FieldValue> asMap();
+  Map<String, FieldValue> asNameToFieldValueMap();
 
+  /**
+   * Builder for creating {@link IKVDocument}s.
+   *
+   * <p>For every new document, a new builder should be instantiated and then fields can be added
+   * with put***() methods.
+   *
+   * <p>Example -
+   *
+   * <pre>
+   *  IKVDocument document = new IKVDocument.Builder()
+   *      .putStringField("id", "primary-key-value")  // document primary key
+   *      .putStringField("location", "partitioning-key-value") // document partitioning key
+   *      .putStringField("feature1", "value1")
+   *      .putBytesField("feature2", "value2".getBytes(StandardCharsets.UTF_8))
+   *      ...
+   *      .build();
+   * </pre>
+   */
   final class Builder {
     private final Map<String, FieldValue> _fields;
 
@@ -44,7 +65,7 @@ public interface IKVDocument {
     }
 
     public IKVDocument build() {
-      return new MapBasedIKVDocument(_fields);
+      return new SimpleIKVDocument(_fields);
     }
   }
 }

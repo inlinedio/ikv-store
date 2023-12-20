@@ -2,6 +2,7 @@ package io.inline.clients;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import com.inlineio.schemas.Common.FieldType;
 import com.inlineio.schemas.Common.IKVStoreConfig;
 import com.inlineio.schemas.Services;
 import io.inline.gateway.IKVConstants;
@@ -10,13 +11,21 @@ import java.util.Set;
 
 public final class ClientOptions {
   private final IKVStoreConfig _config;
+  private final FieldType _primaryKeyType;
 
-  private ClientOptions(IKVStoreConfig config) {
+  private ClientOptions(IKVStoreConfig config, FieldType primaryKeyType) {
     _config = Objects.requireNonNull(config);
+
+    Preconditions.checkArgument(primaryKeyType != FieldType.UNKNOWN);
+    _primaryKeyType = Objects.requireNonNull(primaryKeyType);
   }
 
   public IKVStoreConfig asIKVStoreConfig() {
     return _config;
+  }
+
+  public FieldType primaryKeyType() {
+    return _primaryKeyType;
   }
 
   public Services.UserStoreContextInitializer createUserStoreContextInitializer() {
@@ -38,6 +47,7 @@ public final class ClientOptions {
         ImmutableSet.of("error", "warn", "info", "debug", "trace");
 
     private final IKVStoreConfig.Builder _configBuilder;
+    private FieldType _primaryKeyType;
 
     public Builder() {
       _configBuilder = IKVStoreConfig.newBuilder();
@@ -56,7 +66,17 @@ public final class ClientOptions {
       _configBuilder.getIntConfigsOrThrow(IKVConstants.PARTITION);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.PRIMARY_KEY_FIELD_NAME);
 
-      return new ClientOptions(_configBuilder.build());
+      return new ClientOptions(_configBuilder.build(), _primaryKeyType);
+    }
+
+    public Builder useStringPrimaryKey() {
+      _primaryKeyType = FieldType.STRING;
+      return this;
+    }
+
+    public Builder useBytesPrimaryKey() {
+      _primaryKeyType = FieldType.BYTES;
+      return this;
     }
 
     public Builder withMountDirectory(String mountDirectory) {

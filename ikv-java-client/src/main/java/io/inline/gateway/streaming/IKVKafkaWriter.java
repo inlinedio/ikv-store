@@ -65,7 +65,61 @@ public class IKVKafkaWriter {
   }
 
   /**
-   * Partition and publish collection of document updates to downstream kafka.
+   * Partition and publish collection of document field deletes to downstream kafka.
+   *
+   * @param context details of user InlineKV store
+   * @param documentIds maps containing primary & partitioning key values
+   * @param fieldNames fields to delete from documents
+   * @throws NullPointerException missing/null required request parameters
+   * @throws IllegalArgumentException primary or partitioning keys unavailable
+   * @throws RuntimeException kafka write errors
+   */
+  public void publishDocumentFieldDeletes(
+      UserStoreContext context,
+      Collection<Map<String, FieldValue>> documentIds,
+      Collection<String> fieldNames) {
+    Objects.requireNonNull(context);
+    Objects.requireNonNull(documentIds);
+    Objects.requireNonNull(fieldNames);
+    if (documentIds.isEmpty() || fieldNames.isEmpty()) {
+      return;
+    }
+
+    String primaryKeyFieldName = context.primaryKeyFieldName();
+    String partitioningKeyFieldName = context.partitioningKeyFieldName();
+
+    for (Map<String, FieldValue> documentId : documentIds) {
+      // project document identifiers
+      FieldValue primaryKey = documentId.get(primaryKeyFieldName);
+      Preconditions.checkArgument(primaryKey != null, "Cannot delete without primary-key");
+
+      FieldValue partitioningKey = documentId.get(partitioningKeyFieldName);
+      Preconditions.checkArgument(
+          partitioningKey != null, "Cannot delete without partitioning-key");
+
+      IKVDocumentOnWire documentIdOnWire =
+          IKVDocumentOnWire.newBuilder().putDocument(primaryKeyFieldName, primaryKey).build();
+
+      IKVDataEvent event =
+          IKVDataEvent.newBuilder()
+              .setEventHeader(EventHeader.newBuilder().build())
+              .setDeleteDocumentFieldsEvent(
+                  DeleteDocumentFieldsEvent.newBuilder()
+                      .setDocumentId(documentIdOnWire)
+                      .addAllFieldsToDelete(fieldNames)
+                      .build())
+              .build();
+
+      // ProducerRecord(String topic, K key, V value)
+      ProducerRecord<FieldValue, IKVDataEvent> producerRecord =
+          new ProducerRecord<>(context.kafkaTopic(), partitioningKey, event);
+
+      publishToKafkaWithRetries(producerRecord, 3);
+    }
+  }
+
+  /**
+   * Partition and publish collection of document deletes downstream kafka.
    *
    * @param context details of user InlineKV store
    * @param documentIds maps containing primary & partitioning key values
@@ -94,10 +148,7 @@ public class IKVKafkaWriter {
           partitioningKey != null, "Cannot delete without partitioning-key");
 
       IKVDocumentOnWire documentIdOnWire =
-          IKVDocumentOnWire.newBuilder()
-              .putDocument(primaryKeyFieldName, primaryKey)
-              .putDocument(partitioningKeyFieldName, partitioningKey)
-              .build();
+          IKVDocumentOnWire.newBuilder().putDocument(primaryKeyFieldName, primaryKey).build();
 
       IKVDataEvent event =
           IKVDataEvent.newBuilder()

@@ -97,13 +97,75 @@ public class InlineKVWriteServiceImpl
   @Override
   public void deleteFieldValues(
       DeleteFieldValueRequest request, StreamObserver<Status> responseObserver) {
-    throw new UnsupportedOperationException("todo");
+    IKVDocumentOnWire documentId = request.getDocumentId();
+    Collection<Map<String, FieldValue>> documentIds =
+        Collections.singletonList(documentId.getDocumentMap());
+    Collection<String> fieldNames = request.getFieldNamesList();
+
+    try {
+      deleteDocumentFieldsImpl(request.getUserStoreContextInitializer(), documentIds, fieldNames);
+    } catch (Exception e) {
+      LOGGER.debug("Error for deleteFieldValues: ", e);
+      propagateError(e, responseObserver);
+      return;
+    }
+
+    responseObserver.onNext(Status.newBuilder().build());
+    responseObserver.onCompleted();
   }
 
   @Override
   public void batchDeleteFieldValues(
       BatchDeleteFieldValuesRequest request, StreamObserver<Status> responseObserver) {
-    throw new UnsupportedOperationException("todo");
+    int batchSize = request.getDocumentIdsCount();
+    Collection<Map<String, FieldValue>> documentIds =
+        request.getDocumentIdsList().stream()
+            .map(IKVDocumentOnWire::getDocumentMap)
+            .collect(Collectors.toCollection(() -> new ArrayList<>(batchSize)));
+    Collection<String> fieldNames = request.getFieldNamesList();
+
+    try {
+      deleteDocumentFieldsImpl(request.getUserStoreContextInitializer(), documentIds, fieldNames);
+    } catch (Exception e) {
+      LOGGER.debug("Error for batchDeleteFieldValues: ", e);
+      propagateError(e, responseObserver);
+      return;
+    }
+
+    responseObserver.onNext(Status.newBuilder().build());
+    responseObserver.onCompleted();
+  }
+
+  /**
+   * Real implementation to delete fields from a batch of documents (given their document-ids).
+   *
+   * @param ctxInitializer for retrieving IKV store's metadata
+   * @param documentIds to delete from
+   * @param fieldNames to delete from documentIds
+   * @throws NullPointerException missing/null required request parameters
+   * @throws IllegalArgumentException invalid user-context initializer
+   */
+  private void deleteDocumentFieldsImpl(
+      UserStoreContextInitializer ctxInitializer,
+      Collection<Map<String, FieldValue>> documentIds,
+      Collection<String> fieldNames) {
+    Objects.requireNonNull(ctxInitializer); // error
+    Objects.requireNonNull(documentIds); // error
+    Objects.requireNonNull(fieldNames); // error
+    if (documentIds.isEmpty() || fieldNames.isEmpty()) { // no op
+      return;
+    }
+
+    Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
+    Preconditions.checkArgument(
+        maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
+
+    UserStoreContext ctx = maybeCtx.get();
+
+    // This need not be a transaction, ok for a failure to happen for certain documents
+    // The client can republish the entire batch if write for any single document fails
+    // We return an error as soon as a single write fails.
+    _ikvKafkaWriter.publishDocumentFieldDeletes(ctx, documentIds, fieldNames);
   }
 
   @Override
