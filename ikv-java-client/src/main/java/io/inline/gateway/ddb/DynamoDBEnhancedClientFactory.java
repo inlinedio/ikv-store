@@ -1,9 +1,9 @@
 package io.inline.gateway.ddb;
 
-import java.net.URI;
 import javax.annotation.Nullable;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 /** Singleton dynamodb client. */
@@ -19,9 +19,11 @@ public class DynamoDBEnhancedClientFactory {
           DynamoDbEnhancedClient.builder()
               .dynamoDbClient(
                   DynamoDbClient.builder()
-                      .endpointOverride(URI.create("http://localhost:8000"))
-                      // .region(Region.US_EAST_1)
-                      .credentialsProvider(ProfileCredentialsProvider.create())
+                      // .endpointOverride(URI.create("http://localhost:8000"))
+                      .region(Region.EU_NORTH_1)
+                      // use:
+                      // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/ContainerCredentialsProvider.html
+                      .credentialsProvider(DefaultCredentialsProvider.builder().build())
                       .build())
               .build();
     }
