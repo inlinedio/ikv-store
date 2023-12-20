@@ -8,10 +8,8 @@ import java.util.List;
 import org.junit.jupiter.api.Assertions;
 
 public class DirectJNIIntegrationTests {
-  private static final FieldAccessor NAME_FIELD_ACCESSOR =
-      FieldAccessor.stringFieldAccessor("name");
-  private static final FieldAccessor PROFILE_FIELD_ACCESSOR =
-      FieldAccessor.bytesFieldAccessor("profile");
+  private static final String NAME_FIELD_ACCESSOR = "name";
+  private static final String PROFILE_FIELD_ACCESSOR = "profile";
 
   private final ClientOptions _clientOptions =
       new ClientOptions.Builder()
@@ -24,14 +22,14 @@ public class DirectJNIIntegrationTests {
 
   // @Test
   public void openAndClose() {
-    InlineKVReader client = new TestingInlineKVReader(_clientOptions);
+    InlineKVReader client = new DirectJNITestingClient(_clientOptions);
     client.startupReader();
     client.shutdownReader();
   }
 
   // @Test
   public void singleAndBatchReads() {
-    TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
+    DirectJNITestingClient client = new DirectJNITestingClient(_clientOptions);
     client.startupWriter();
 
     // document1
@@ -62,10 +60,8 @@ public class DirectJNIIntegrationTests {
     client.upsertFieldValues(document);
 
     // READS on doc1
-    Assertions.assertEquals(
-        name1, client.getStringValue(PrimaryKey.from(key1), NAME_FIELD_ACCESSOR));
-    Assertions.assertArrayEquals(
-        profile1, client.getBytesValue(PrimaryKey.from(key1), PROFILE_FIELD_ACCESSOR));
+    Assertions.assertEquals(name1, client.getStringValue(key1, NAME_FIELD_ACCESSOR));
+    Assertions.assertArrayEquals(profile1, client.getBytesValue(key1, PROFILE_FIELD_ACCESSOR));
 
     // WRITE doc2 and doc3
     document =
@@ -81,19 +77,15 @@ public class DirectJNIIntegrationTests {
     client.upsertFieldValues(document);
 
     // READS on doc2
-    Assertions.assertEquals(
-        name2, client.getStringValue(PrimaryKey.from(key2), NAME_FIELD_ACCESSOR));
-    Assertions.assertArrayEquals(
-        profile2, client.getBytesValue(PrimaryKey.from(key2), PROFILE_FIELD_ACCESSOR));
+    Assertions.assertEquals(name2, client.getStringValue(key2, NAME_FIELD_ACCESSOR));
+    Assertions.assertArrayEquals(profile2, client.getBytesValue(key2, PROFILE_FIELD_ACCESSOR));
 
     // READS on doc3
-    Assertions.assertEquals(
-        name3, client.getStringValue(PrimaryKey.from(key3), NAME_FIELD_ACCESSOR));
-    Assertions.assertNull(client.getBytesValue(PrimaryKey.from(key3), PROFILE_FIELD_ACCESSOR));
+    Assertions.assertEquals(name3, client.getStringValue(key3, NAME_FIELD_ACCESSOR));
+    Assertions.assertNull(client.getBytesValue(key3, PROFILE_FIELD_ACCESSOR));
 
     // BATCH READ
-    List<PrimaryKey> keys =
-        ImmutableList.of(PrimaryKey.from(key1), PrimaryKey.from(key2), PrimaryKey.from(key3));
+    List<Object> keys = ImmutableList.of((Object) key1, (Object) key2, (Object) key3);
 
     List<String> names = client.multiGetStringValue(keys, NAME_FIELD_ACCESSOR);
     Assertions.assertArrayEquals(names.toArray(new String[0]), new String[] {name1, name2, name3});
@@ -107,7 +99,7 @@ public class DirectJNIIntegrationTests {
 
   // @Test
   public void deletes() {
-    TestingInlineKVReader client = new TestingInlineKVReader(_clientOptions);
+    DirectJNITestingClient client = new DirectJNITestingClient(_clientOptions);
     client.startupWriter();
 
     // document1
@@ -138,22 +130,19 @@ public class DirectJNIIntegrationTests {
     client.upsertFieldValues(document2);
 
     // READS on doc1 and doc2
-    Assertions.assertEquals(
-        name1, client.getStringValue(PrimaryKey.from(key1), NAME_FIELD_ACCESSOR));
-    Assertions.assertEquals(
-        name2, client.getStringValue(PrimaryKey.from(key2), NAME_FIELD_ACCESSOR));
+    Assertions.assertEquals(name1, client.getStringValue(key1, NAME_FIELD_ACCESSOR));
+    Assertions.assertEquals(name2, client.getStringValue(key2, NAME_FIELD_ACCESSOR));
 
     // DELETE all doc1, name for doc2
     client.deleteDocument(document1);
     client.deleteFieldValues(document2, Collections.singleton("name"));
 
     // all null for doc1
-    Assertions.assertNull(client.getStringValue(PrimaryKey.from(key1), NAME_FIELD_ACCESSOR));
-    Assertions.assertNull(client.getBytesValue(PrimaryKey.from(key1), PROFILE_FIELD_ACCESSOR));
+    Assertions.assertNull(client.getStringValue(key1, NAME_FIELD_ACCESSOR));
+    Assertions.assertNull(client.getBytesValue(key1, PROFILE_FIELD_ACCESSOR));
 
     // name null, profile not-null for doc2
-    Assertions.assertNull(client.getStringValue(PrimaryKey.from(key2), NAME_FIELD_ACCESSOR));
-    Assertions.assertArrayEquals(
-        profile2, client.getBytesValue(PrimaryKey.from(key2), PROFILE_FIELD_ACCESSOR));
+    Assertions.assertNull(client.getStringValue(key2, NAME_FIELD_ACCESSOR));
+    Assertions.assertArrayEquals(profile2, client.getBytesValue(key2, PROFILE_FIELD_ACCESSOR));
   }
 }

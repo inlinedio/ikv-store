@@ -1,6 +1,5 @@
 package io.inline.clients;
 
-import com.google.common.collect.ImmutableMap;
 import com.inlineio.schemas.Common;
 import com.inlineio.schemas.Streaming;
 import io.inline.clients.internal.IKVClientJNI;
@@ -9,20 +8,11 @@ import java.util.List;
 import java.util.Map;
 import org.jetbrains.annotations.Nullable;
 
-public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
+public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
   private final DefaultInlineKVReader _defaultInlineKVReader;
-  private final ClientOptions _options;
 
-  public static final Map<String, Integer> FIELD_NAME_TO_FIELD_ID_MAPPING =
-      new ImmutableMap.Builder<String, Integer>()
-          .put("key", 0) // primary-key, bytes field
-          .put("name", 1) // string field
-          .put("profile", 2) // bytes field
-          .build();
-
-  public TestingInlineKVReader(ClientOptions options) {
-    _options = options;
-    _defaultInlineKVReader = new DefaultInlineKVReader(_options);
+  public DirectJNITestingClient(ClientOptions options) {
+    _defaultInlineKVReader = new DefaultInlineKVReader(options);
   }
 
   @Override
@@ -33,13 +23,12 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
   @Override
   public void startupWriter() {
-    // Writer startup
-    // Call reader once again
-    startupWriter();
+    // Writer startup, no op
+    _defaultInlineKVReader.startupReader();
   }
 
   @Override
-  public void shutdown() {}
+  public void shutdownWriter() {}
 
   @Override
   public void shutdownReader() throws RuntimeException {
@@ -48,7 +37,7 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
   @Override
   public void upsertFieldValues(IKVDocument document) {
-    Map<String, Common.FieldValue> fieldValues = document.asMap();
+    Map<String, Common.FieldValue> fieldValues = document.asNameToFieldValueMap();
     Common.IKVDocumentOnWire documentOnWire =
         Common.IKVDocumentOnWire.newBuilder().putAllDocument(fieldValues).build();
 
@@ -66,7 +55,7 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
   @Override
   public void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete) {
-    Map<String, Common.FieldValue> fieldValues = documentId.asMap();
+    Map<String, Common.FieldValue> fieldValues = documentId.asNameToFieldValueMap();
     Common.IKVDocumentOnWire documentOnWire =
         Common.IKVDocumentOnWire.newBuilder().putAllDocument(fieldValues).build();
 
@@ -85,7 +74,7 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
   @Override
   public void deleteDocument(IKVDocument documentId) {
-    Map<String, Common.FieldValue> fieldValues = documentId.asMap();
+    Map<String, Common.FieldValue> fieldValues = documentId.asNameToFieldValueMap();
     Common.IKVDocumentOnWire documentOnWire =
         Common.IKVDocumentOnWire.newBuilder().putAllDocument(fieldValues).build();
 
@@ -101,39 +90,23 @@ public class TestingInlineKVReader implements InlineKVReader, InlineKVWriter {
 
   @Nullable
   @Override
-  public byte[] getBytesValue(PrimaryKey key, FieldAccessor fieldAccessor) {
-    return _defaultInlineKVReader.getBytesValue(key, fieldAccessor);
+  public byte[] getBytesValue(Object key, String fieldName) {
+    return _defaultInlineKVReader.getBytesValue(key, fieldName);
   }
 
   @Override
-  public List<byte[]> multiGetBytesValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor) {
-    return _defaultInlineKVReader.multiGetBytesValue(keys, fieldAccessor);
+  public List<byte[]> multiGetBytesValue(List<Object> keys, String fieldName) {
+    return _defaultInlineKVReader.multiGetBytesValue(keys, fieldName);
   }
 
   @Nullable
   @Override
-  public String getStringValue(PrimaryKey key, FieldAccessor fieldAccessor) {
-    return _defaultInlineKVReader.getStringValue(key, fieldAccessor);
+  public String getStringValue(Object key, String fieldName) {
+    return _defaultInlineKVReader.getStringValue(key, fieldName);
   }
 
   @Override
-  public List<String> multiGetStringValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor) {
-    return _defaultInlineKVReader.multiGetStringValue(keys, fieldAccessor);
-  }
-
-  @Override
-  public void batchUpsertFieldValues(Collection<IKVDocument> documents) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void batchDeleteFieldValues(
-      Collection<IKVDocument> documentIds, Collection<String> fieldsToDelete) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void batchDeleteDocuments(Collection<IKVDocument> documentIds) {
-    throw new UnsupportedOperationException();
+  public List<String> multiGetStringValue(List<Object> keys, String fieldName) {
+    return _defaultInlineKVReader.multiGetStringValue(keys, fieldName);
   }
 }

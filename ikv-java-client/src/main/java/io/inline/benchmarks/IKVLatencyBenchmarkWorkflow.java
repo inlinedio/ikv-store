@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
@@ -39,10 +40,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
     System.exit(0);
   }
 
-  private static final FieldAccessor PROFILE_FIELD_ACCESSOR =
-      FieldAccessor.bytesFieldAccessor("profile");
-
-  private final TestingInlineKVReader _testingClient;
+  private final DirectJNITestingClient _testingClient;
 
   private final KeyValuesGenerator _keyValuesGenerator;
   private final ConcurrentHashMap<KeyValuesGenerator.BytesKey, byte[]> _sourceOfTruth;
@@ -61,7 +59,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
             .withAccountPassKey("testing-account-passkey")
             .build();
 
-    _testingClient = new TestingInlineKVReader(clientOptions);
+    _testingClient = new DirectJNITestingClient(clientOptions);
 
     _numEntries = params.getIntegerParameter("num_entries").get();
     _batchSize = params.getIntegerParameter("batch_size").get();
@@ -108,12 +106,11 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
   private void benchmarkSingleGetImpl(@Nullable Histogram histogram) {
     for (int i = 0; i < _numEntries; i++) {
       KeyValuesGenerator.BytesKey key = _keyValuesGenerator.getKey(i);
-      PrimaryKey primaryKey = PrimaryKey.from(key.getInnerBytes());
       byte[] valueBytes = _sourceOfTruth.get(key);
 
       // IKV lookup
       Instant start = Instant.now();
-      byte[] returnedValueBytes = _testingClient.getBytesValue(primaryKey, PROFILE_FIELD_ACCESSOR);
+      byte[] returnedValueBytes = _testingClient.getBytesValue(key.getInnerBytes(), "profile");
       Instant end = Instant.now();
 
       if (histogram != null) {
@@ -144,11 +141,11 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
           _keyValuesGenerator.getKeyBatch(startEntry, endEntry).stream()
               .map(KeyValuesGenerator.BytesKey::getInnerBytes)
               .toList();
-      List<PrimaryKey> primaryKeys = bytesKeys.stream().map(PrimaryKey::from).toList();
+      List<Object> primaryKeys =
+          bytesKeys.stream().map(pk -> (Object) pk).collect(Collectors.toList());
 
       Instant start = Instant.now();
-      List<byte[]> returnedValues =
-          _testingClient.multiGetBytesValue(primaryKeys, PROFILE_FIELD_ACCESSOR);
+      List<byte[]> returnedValues = _testingClient.multiGetBytesValue(primaryKeys, "profile");
       Instant end = Instant.now();
 
       if (histogram != null) {

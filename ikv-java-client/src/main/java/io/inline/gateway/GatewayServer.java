@@ -2,8 +2,8 @@ package io.inline.gateway;
 
 import com.google.common.base.Preconditions;
 import io.grpc.ServerBuilder;
-import io.inline.gateway.ddb.DynamoDBEnhancedClientFactory;
-import io.inline.gateway.ddb.IKVStoreContextController;
+import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
+import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
 import io.inline.gateway.streaming.IKVKafkaWriter;
 import io.inline.gateway.streaming.KafkaProducerFactory;
 import java.io.IOException;
@@ -33,10 +33,10 @@ public class GatewayServer {
 
   public void startup() {
     IKVKafkaWriter publisher = new IKVKafkaWriter(KafkaProducerFactory.createInstance());
-    IKVStoreContextController ikvStoreContextController =
-        new IKVStoreContextController(DynamoDBEnhancedClientFactory.getClient());
+    IKVStoreContextObjectsAccessor ikvStoreContextObjectsAccessor =
+        IKVStoreContextObjectsAccessorFactory.getAccessor();
     UserStoreContextAccessor userStoreContextAccessor =
-        new UserStoreContextAccessor(ikvStoreContextController);
+        new UserStoreContextAccessor(ikvStoreContextObjectsAccessor);
 
     // start grpc service
     try {

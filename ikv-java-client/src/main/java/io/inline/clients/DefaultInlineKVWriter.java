@@ -14,11 +14,11 @@ import java.util.Collection;
 import java.util.Objects;
 
 /** RPC based writer instance. */
-public class GRPCInlineKVWriter implements InlineKVWriter {
+public class DefaultInlineKVWriter implements InlineKVWriter {
   private volatile InlineKVWriteServiceGrpc.InlineKVWriteServiceBlockingStub _stub;
   private final UserStoreContextInitializer _userStoreCtxInitializer;
 
-  public GRPCInlineKVWriter(ClientOptions clientOptions) {
+  public DefaultInlineKVWriter(ClientOptions clientOptions) {
     Objects.requireNonNull(clientOptions);
     _userStoreCtxInitializer = clientOptions.createUserStoreContextInitializer();
   }
@@ -33,7 +33,7 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
   }
 
   @Override
-  public void shutdown() {
+  public void shutdownWriter() {
     _stub = null;
   }
 
@@ -41,10 +41,11 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
   public void upsertFieldValues(IKVDocument document) {
     Preconditions.checkState(
         _stub != null, "client cannot be used before finishing startup() or after shutdown()");
-    Preconditions.checkArgument(document.asMap().size() >= 1, "empty document not allowed");
+    Preconditions.checkArgument(
+        document.asNameToFieldValueMap().size() >= 1, "empty document not allowed");
 
     IKVDocumentOnWire documentOnWire =
-        IKVDocumentOnWire.newBuilder().putAllDocument(document.asMap()).build();
+        IKVDocumentOnWire.newBuilder().putAllDocument(document.asNameToFieldValueMap()).build();
     Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
     UpsertFieldValuesRequest request =
@@ -69,21 +70,17 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
   }
 
   @Override
-  public void batchUpsertFieldValues(Collection<IKVDocument> documents) {
-    throw new UnsupportedOperationException("batch ops implementation pending.");
-  }
-
-  @Override
   public void deleteFieldValues(IKVDocument documentId, Collection<String> fieldsToDelete) {
     Preconditions.checkState(
         _stub != null, "client cannot be used before finishing startup() or after shutdown()");
-    Preconditions.checkArgument(documentId.asMap().size() >= 1, "need document-identifiers");
+    Preconditions.checkArgument(
+        documentId.asNameToFieldValueMap().size() >= 1, "need document-identifiers");
     if (fieldsToDelete.isEmpty()) {
       return;
     }
 
     IKVDocumentOnWire docId =
-        IKVDocumentOnWire.newBuilder().putAllDocument(documentId.asMap()).build();
+        IKVDocumentOnWire.newBuilder().putAllDocument(documentId.asNameToFieldValueMap()).build();
     Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
     DeleteFieldValueRequest request =
@@ -109,19 +106,14 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
   }
 
   @Override
-  public void batchDeleteFieldValues(
-      Collection<IKVDocument> documentIds, Collection<String> fieldsToDelete) {
-    throw new UnsupportedOperationException("batch ops implementation pending.");
-  }
-
-  @Override
   public void deleteDocument(IKVDocument documentId) {
     Preconditions.checkState(
         _stub != null, "client cannot be used before finishing startup() or after shutdown()");
-    Preconditions.checkArgument(documentId.asMap().size() >= 1, "need document-identifiers");
+    Preconditions.checkArgument(
+        documentId.asNameToFieldValueMap().size() >= 1, "need document-identifiers");
 
     IKVDocumentOnWire docId =
-        IKVDocumentOnWire.newBuilder().putAllDocument(documentId.asMap()).build();
+        IKVDocumentOnWire.newBuilder().putAllDocument(documentId.asNameToFieldValueMap()).build();
     Timestamp timestamp = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
     DeleteDocumentRequest request =
@@ -143,10 +135,5 @@ public class GRPCInlineKVWriter implements InlineKVWriter {
                 + MoreObjects.firstNonNull(errorStatus.getMessage(), "unknown"));
       }
     }
-  }
-
-  @Override
-  public void batchDeleteDocuments(Collection<IKVDocument> documentIds) {
-    throw new UnsupportedOperationException("batch ops implementation pending.");
   }
 }

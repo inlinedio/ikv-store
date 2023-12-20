@@ -1,12 +1,10 @@
 package io.inline;
 
-import com.inlineio.schemas.Common;
 import io.inline.clients.*;
 import org.junit.jupiter.api.Assertions;
 
 public class NearlineIntegrationTests {
-  private static final FieldAccessor USERID_ACCESSOR =
-      new FieldAccessor("userid", Common.FieldType.STRING);
+  private static final String USERID_ACCESSOR = "userid";
 
   private final ClientOptions _clientOptions =
       new ClientOptions.Builder()
@@ -17,7 +15,7 @@ public class NearlineIntegrationTests {
           .withAccountPassKey("testing-account-passkey")
           .build();
 
-  private final GRPCInlineKVWriter _writer = new GRPCInlineKVWriter(_clientOptions);
+  private final DefaultInlineKVWriter _writer = new DefaultInlineKVWriter(_clientOptions);
   private final InlineKVReader _reader = new DefaultInlineKVReader(_clientOptions);
 
   // @Test
@@ -33,7 +31,7 @@ public class NearlineIntegrationTests {
 
     // Read
 
-    String value = _reader.getStringValue(PrimaryKey.from("firstuserid"), USERID_ACCESSOR);
+    String value = _reader.getStringValue("firstuserid", USERID_ACCESSOR);
     Assertions.assertEquals(value, "firstuserid");
   }
 }

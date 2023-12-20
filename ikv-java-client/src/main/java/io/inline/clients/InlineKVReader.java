@@ -9,14 +9,12 @@ public interface InlineKVReader {
   void shutdownReader() throws RuntimeException;
 
   @Nullable
-  byte[] getBytesValue(PrimaryKey key, FieldAccessor fieldAccessor);
+  byte[] getBytesValue(Object primaryKey, String fieldName);
 
-  List<byte[]> multiGetBytesValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor);
+  List<byte[]> multiGetBytesValue(List<Object> primaryKeys, String fieldName);
 
   @Nullable
-  String getStringValue(PrimaryKey key, FieldAccessor fieldAccessor);
+  String getStringValue(Object primaryKey, String fieldName);
 
-  List<String> multiGetStringValue(List<PrimaryKey> keys, FieldAccessor fieldAccessor);
-
-  // TODO - batch gets? Multi documents, multi fields
+  List<String> multiGetStringValue(List<Object> primaryKeys, String fieldName);
 }

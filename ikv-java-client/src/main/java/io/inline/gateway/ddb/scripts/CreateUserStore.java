@@ -1,8 +1,8 @@
 package io.inline.gateway.ddb.scripts;
 
 import com.google.common.base.Preconditions;
-import io.inline.gateway.ddb.DynamoDBEnhancedClientFactory;
-import io.inline.gateway.ddb.IKVStoreContextController;
+import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
+import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,24 +15,24 @@ public class CreateUserStore {
   private static final TableSchema<IKVStoreContext> TABLE_SCHEMA =
       TableSchema.fromBean(IKVStoreContext.class);
 
-  private final IKVStoreContextController _ikvStoreContextController;
+  private final IKVStoreContextObjectsAccessor _ikvStoreContextObjectsAccessor;
 
-  private CreateUserStore(IKVStoreContextController ikvStoreContextController) {
-    _ikvStoreContextController = Objects.requireNonNull(ikvStoreContextController);
+  private CreateUserStore(IKVStoreContextObjectsAccessor ikvStoreContextObjectsAccessor) {
+    _ikvStoreContextObjectsAccessor = Objects.requireNonNull(ikvStoreContextObjectsAccessor);
   }
 
   private void putItem(IKVStoreContext context) {
     Optional<IKVStoreContext> existingContext;
     try {
       existingContext =
-          _ikvStoreContextController.getItem(context.getAccountId(), context.getStoreName());
+          _ikvStoreContextObjectsAccessor.getItem(context.getAccountId(), context.getStoreName());
     } catch (Exception e) {
       LOGGER.error("Cannot check if entry already exists.", e);
       return;
     }
     Preconditions.checkArgument(existingContext.isEmpty(), "item already exists, abort!");
 
-    _ikvStoreContextController.putItem(context);
+    _ikvStoreContextObjectsAccessor.putItem(context);
   }
 
   public static void main(String[] args) {
@@ -53,8 +53,8 @@ public class CreateUserStore {
     ikvStoreContext.setPartitioningKeyFieldName(partitioningKeyFieldName);
 
     LOGGER.info("Inserting item: {}", ikvStoreContext);
-    IKVStoreContextController contextController =
-        new IKVStoreContextController(DynamoDBEnhancedClientFactory.getClient());
+    IKVStoreContextObjectsAccessor contextController =
+        IKVStoreContextObjectsAccessorFactory.getAccessor();
     CreateUserStore createUserStore = new CreateUserStore(contextController);
     createUserStore.putItem(ikvStoreContext);
     LOGGER.info("Done.");
