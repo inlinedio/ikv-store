@@ -15,7 +15,7 @@ use crate::proto::ikvserviceschemas::{
 use super::index_loader;
 
 // TODO: change backend url
-const SERVER_URL: &str = "localhost:8081";
+const SERVER_URL: &str = "ec2-16-16-215-52.eu-north-1.compute.amazonaws.com:8080";
 
 /// Stateful controller for managing IKV core key-val storage.
 pub struct Controller {

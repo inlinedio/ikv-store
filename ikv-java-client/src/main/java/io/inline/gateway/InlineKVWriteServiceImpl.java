@@ -27,6 +27,17 @@ public class InlineKVWriteServiceImpl
   }
 
   @Override
+  public void helloWorld(
+      HelloWorldRequest request, StreamObserver<HelloWorldResponse> responseObserver) {
+    String echo = request.getEcho();
+    LOGGER.info("Received helloWorld echo: {}", echo);
+
+    // echo back
+    responseObserver.onNext(HelloWorldResponse.newBuilder().setEcho(echo).build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
   public void upsertFieldValues(
       UpsertFieldValuesRequest request, StreamObserver<Status> responseObserver) {
     IKVDocumentOnWire document = request.getDocument();

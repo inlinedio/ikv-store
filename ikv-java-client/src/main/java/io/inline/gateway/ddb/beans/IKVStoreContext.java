@@ -13,7 +13,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
  */
 @DynamoDbBean
 public class IKVStoreContext {
-  public static final String TABLE_NAME = "IKVStoreContextObjects";
+  public static final String TABLE_NAME = "IKVStoreContextObjects-test-v1";
 
   private String AccountId;
   private String StoreName;

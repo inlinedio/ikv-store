@@ -69,13 +69,16 @@ public final class ClientOptions {
       return new ClientOptions(_configBuilder.build(), _primaryKeyType);
     }
 
-    public Builder useStringPrimaryKey() {
+    public Builder useStringPrimaryKey(String fieldName) {
+      // TODO: inspect how to pass in primary key field name
       _primaryKeyType = FieldType.STRING;
+      _configBuilder.putStringConfigs(IKVConstants.PRIMARY_KEY_FIELD_NAME, fieldName);
       return this;
     }
 
-    public Builder useBytesPrimaryKey() {
+    public Builder useBytesPrimaryKey(String fieldName) {
       _primaryKeyType = FieldType.BYTES;
+      _configBuilder.putStringConfigs(IKVConstants.PRIMARY_KEY_FIELD_NAME, fieldName);
       return this;
     }
 
@@ -93,7 +96,7 @@ public final class ClientOptions {
     }
 
     public Builder withStorePartition(int partition) {
-      Preconditions.checkArgument(partition > 0);
+      Preconditions.checkArgument(partition >= 0);
       _configBuilder.putIntConfigs(IKVConstants.PARTITION, partition);
       return this;
     }

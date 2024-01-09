@@ -27,7 +27,7 @@ public class DefaultInlineKVWriter implements InlineKVWriter {
   public void startupWriter() {
     // TODO: stub creation- use dns
     ManagedChannelBuilder<?> channelBuilder =
-        ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext();
+        ManagedChannelBuilder.forAddress("ec2-16-16-215-52.eu-north-1.compute.amazonaws.com", 8080).usePlaintext();
     ManagedChannel channel = channelBuilder.build();
     _stub = InlineKVWriteServiceGrpc.newBlockingStub(channel);
   }

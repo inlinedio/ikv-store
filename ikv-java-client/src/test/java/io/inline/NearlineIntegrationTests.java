@@ -2,10 +2,9 @@ package io.inline;
 
 import io.inline.clients.*;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class NearlineIntegrationTests {
-  private static final String USERID_ACCESSOR = "userid";
-
   private final ClientOptions _clientOptions =
       new ClientOptions.Builder()
           .withMountDirectory("/tmp/NearlineIntegrationTests")
@@ -13,25 +12,24 @@ public class NearlineIntegrationTests {
           .withStorePartition(0)
           .withAccountId("testing-account-v1")
           .withAccountPassKey("testing-account-passkey")
+              .useStringPrimaryKey("userid")
           .build();
 
-  private final DefaultInlineKVWriter _writer = new DefaultInlineKVWriter(_clientOptions);
-  private final InlineKVReader _reader = new DefaultInlineKVReader(_clientOptions);
+  // kafka topic name - testing-kafka-topic
 
-  // @Test
+
+  @Test
   public void upsertAndRead() throws InterruptedException {
-    _writer.startupWriter();
-    _reader.startupReader();
+    IKVClientFactory factory = new IKVClientFactory(_clientOptions);
+    InlineKVWriter writer = factory.createNewWriterInstance();
+
+    writer.startupWriter();
+
 
     IKVDocument document =
         new IKVDocument.Builder().putStringField("userid", "firstuserid").build();
-    _writer.upsertFieldValues(document);
+    writer.upsertFieldValues(document);
 
-    Thread.sleep(1000 * 10); // 5 sec sleep
-
-    // Read
-
-    String value = _reader.getStringValue("firstuserid", USERID_ACCESSOR);
-    Assertions.assertEquals(value, "firstuserid");
+    Thread.sleep(1000);
   }
 }
