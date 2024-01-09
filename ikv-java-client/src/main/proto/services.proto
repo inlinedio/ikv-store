@@ -8,6 +8,8 @@ import "google/protobuf/timestamp.proto";
 import "common.proto";
 
 service InlineKVWriteService {
+  rpc helloWorld(HelloWorldRequest) returns (HelloWorldResponse) {}
+
   // Write methods
   rpc upsertFieldValues(UpsertFieldValuesRequest) returns (Status) {}
   rpc batchUpsertFieldValues(BatchUpsertFieldValuesRequest) returns (Status) {}
@@ -24,6 +26,15 @@ service InlineKVWriteService {
   // Gateway-specified configuration
   rpc getUserStoreConfig(GetUserStoreConfigRequest) returns (GetUserStoreConfigResponse) {}
 }
+
+message HelloWorldRequest {
+  string echo = 1;
+}
+
+message HelloWorldResponse {
+  string echo = 1;
+}
+
 
 message UpsertFieldValuesRequest {
   UserStoreContextInitializer userStoreContextInitializer = 1;
