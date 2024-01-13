@@ -47,6 +47,23 @@ impl IKVKafkaConsumer {
     /// Create a new consumer.
     pub fn new(config: &IKVStoreConfig, processor: Arc<WritesProcessor>) -> anyhow::Result<Self> {
         let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+
+        let account_id = config
+        .stringConfigs
+        .get("account_id")
+        .ok_or(rdkafka::error::KafkaError::ClientCreation(
+            "account_id is a required client-specified config"
+                .to_string(),
+        ))?;
+
+        let account_passkey = config
+        .stringConfigs
+        .get("account_passkey")
+        .ok_or(rdkafka::error::KafkaError::ClientCreation(
+            "account_passkey is a required client-specified config"
+                .to_string(),
+        ))?;
+
         let kafka_consumer_bootstrap_server = config
             .stringConfigs
             .get("kafka_consumer_bootstrap_server")
@@ -55,7 +72,6 @@ impl IKVKafkaConsumer {
                     .to_string(),
             ))?;
 
-        // TODO: we might need SSL access
         // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
         let client_config = ClientConfig::new()
             .set("group.id", "ikv-default-consumer") // we don't use offset management or automatic partition assignment
@@ -65,6 +81,11 @@ impl IKVKafkaConsumer {
             .set("max.poll.interval.ms", "3600000")
             .set("enable.auto.commit", "false")
             .set("auto.offset.reset", "earliest")
+            // todo: review the sasl/scram configuration
+            .set("security.protocol", "SASL_SSL")
+            .set("sasl.mechanisms", "SCRAM-SHA-512")
+            .set("sasl.username", account_id)
+            .set("sasl.password", account_passkey)
             .clone();
 
         // topic and parition

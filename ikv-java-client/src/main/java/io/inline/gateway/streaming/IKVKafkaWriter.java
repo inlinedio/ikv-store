@@ -57,6 +57,7 @@ public class IKVKafkaWriter {
               .build();
 
       // ProducerRecord(String topic, K key, V value)
+      // BUG! partitioning key- cast to string error.
       ProducerRecord<FieldValue, IKVDataEvent> producerRecord =
           new ProducerRecord<>(context.kafkaTopic(), kafkaPartitioningKey, event);
 

@@ -1,5 +1,6 @@
 package io.inline.gateway;
 
+import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Services;
 import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
@@ -18,17 +19,24 @@ public class UserStoreContextAccessor {
   }
 
   public Optional<UserStoreContext> getCtx(Services.UserStoreContextInitializer initializer)
-      throws IllegalArgumentException {
+      throws IllegalArgumentException, NullPointerException {
     Objects.requireNonNull(initializer);
 
-    // TODO: match credentials
-    String accountId = initializer.getCredentials().getAccountId();
-    String storeName = initializer.getStoreName();
+    String accountId = Objects.requireNonNull(initializer.getCredentials().getAccountId());
+    String accountPasskey =
+        Objects.requireNonNull(initializer.getCredentials().getAccountPasskey());
+    String storeName = Objects.requireNonNull(initializer.getStoreName());
 
     // Lookup from cache
     String key = String.join(",", accountId, storeName);
     @Nullable UserStoreContext ctx = _contextCache.get(key);
     if (ctx != null) {
+      // cache hit
+
+      // match passkey
+      Preconditions.checkArgument(
+          accountPasskey.equals(ctx.accountPasskey()), "Incorrect AccountPasskey");
+
       return Optional.of(ctx);
     }
 
@@ -39,6 +47,10 @@ public class UserStoreContextAccessor {
     }
 
     ctx = UserStoreContext.from(maybeIKVStoreContext.get());
+
+    // match passkey
+    Preconditions.checkArgument(
+        accountPasskey.equals(ctx.accountPasskey()), "Incorrect AccountPasskey");
 
     // Update Cache
     _contextCache.putIfAbsent(key, ctx);

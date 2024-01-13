@@ -145,7 +145,7 @@ async fn orchestrate_index_download(
     // ikv-base-indexes-v1
     let bucket_name = config
         .stringConfigs
-        .get("s3_bucket_name")
+        .get("base_index_s3_bucket_name")
         .ok_or(anyhow!(
             "base_index_s3_bucket_name is a required gateway-specified config"
         ))?

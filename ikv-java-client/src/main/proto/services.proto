@@ -20,9 +20,6 @@ service InlineKVWriteService {
   rpc deleteDocument(DeleteDocumentRequest) returns (Status) {}
   rpc batchDeleteDocuments(BatchDeleteDocumentsRequest) returns (Status) {}
 
-  // Schema Management
-  // rpc userStoreSchemaUpdate(UserStoreSchemaUpdateRequest) returns (Status) {}
-
   // Gateway-specified configuration
   rpc getUserStoreConfig(GetUserStoreConfigRequest) returns (GetUserStoreConfigResponse) {}
 }

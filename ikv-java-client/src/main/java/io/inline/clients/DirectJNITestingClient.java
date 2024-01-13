@@ -12,7 +12,7 @@ public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
   private final DefaultInlineKVReader _defaultInlineKVReader;
 
   public DirectJNITestingClient(ClientOptions options) {
-    _defaultInlineKVReader = new DefaultInlineKVReader(options);
+    _defaultInlineKVReader = new DefaultInlineKVReader(options, options.asIKVStoreConfig());
   }
 
   @Override
