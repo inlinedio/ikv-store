@@ -135,10 +135,10 @@ impl CKVIndexSchema {
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)
+            .create(true)
             .open(filepath)?;
         let mut writer = BufWriter::new(file);
         writer.write_all(&contents)?;
-
         Ok(())
     }
 }

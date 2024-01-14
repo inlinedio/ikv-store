@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail};
-use log::{error, info, warn};
+use log::{error, warn};
 use rdkafka::consumer::DefaultConsumerContext;
 use rdkafka::message::Message;
 use rdkafka::util::Timeout;
@@ -48,28 +48,23 @@ impl IKVKafkaConsumer {
     pub fn new(config: &IKVStoreConfig, processor: Arc<WritesProcessor>) -> anyhow::Result<Self> {
         let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
 
-        let account_id = config
-        .stringConfigs
-        .get("account_id")
-        .ok_or(rdkafka::error::KafkaError::ClientCreation(
-            "account_id is a required client-specified config"
-                .to_string(),
-        ))?;
+        let account_id = config.stringConfigs.get("account_id").ok_or(
+            rdkafka::error::KafkaError::ClientCreation(
+                "account_id is a required client-specified config".to_string(),
+            ),
+        )?;
 
-        let account_passkey = config
-        .stringConfigs
-        .get("account_passkey")
-        .ok_or(rdkafka::error::KafkaError::ClientCreation(
-            "account_passkey is a required client-specified config"
-                .to_string(),
-        ))?;
+        let account_passkey = config.stringConfigs.get("account_passkey").ok_or(
+            rdkafka::error::KafkaError::ClientCreation(
+                "account_passkey is a required client-specified config".to_string(),
+            ),
+        )?;
 
         let kafka_consumer_bootstrap_server = config
             .stringConfigs
-            .get("kafka_consumer_bootstrap_server")
+            .get("kafka_bootstrap_server")
             .ok_or(rdkafka::error::KafkaError::ClientCreation(
-                "kafka_consumer_bootstrap_server is a required gateway-specified config"
-                    .to_string(),
+                "kafka_bootstrap_server is a required gateway-specified config".to_string(),
             ))?;
 
         // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
@@ -125,6 +120,7 @@ impl IKVKafkaConsumer {
 
     /// Consumes all pending events, and consume all new incoming events.
     /// Can be stopped by invoking stop()
+    /// TODO: if the consumer thread panics, there is currently no early return - dangerous!
     pub fn run_in_background(&self) -> anyhow::Result<()> {
         let offset_store = Arc::new(OffsetStore::open_or_create(self.mount_directory.clone())?);
         let offset_committer = Arc::new(OffsetCommitter::new(offset_store.clone()));
@@ -222,7 +218,6 @@ impl IKVKafkaConsumer {
         topic: String,
         partition: i32,
     ) {
-        info!("Initializing kafka stream consumer.");
         let consumer = match initialize(offset_store, &client_config, &topic, partition).await {
             Ok(c) => c,
             Err(e) => {
@@ -235,7 +230,6 @@ impl IKVKafkaConsumer {
         };
 
         // Consume lag or existing events for offline index build
-        info!("Starting consumption of pending writes.");
         if let Err(e) = consume_till_high_watermark(
             &consumer,
             writes_processor.clone(),
@@ -253,7 +247,6 @@ impl IKVKafkaConsumer {
         }
 
         // Successful startup!
-        info!("All pending writes consumed, kafka startup successful.");
         let _ = async_consumer_channel.send(Ok(()));
         if stop_at_high_watermark {
             return;

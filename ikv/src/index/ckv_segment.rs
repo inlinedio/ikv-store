@@ -9,6 +9,7 @@ use std::{
 
 use anyhow::bail;
 use integer_encoding::VarInt;
+use log::info;
 use memmap2::MmapMut;
 use protobuf::{Enum, Message};
 
@@ -322,7 +323,8 @@ impl CKVIndexSegment {
         // TODO: inspect if this needs to be a transaction and
         // what ordering we need.
 
-        self.mmap.flush()?;
+        // TODO: do we need this? self.mmap.flush()?;
+        self.mmap_file.flush()?;
 
         write_metadata(&mut self.metadata_file_writer, self.write_offset as u64)?;
 
@@ -557,7 +559,7 @@ impl CKVIndexSegment {
             (1.0 + ((end_offset - self.mmap.len()) as f64 / CHUNK_SIZE as f64)) as usize;
         assert!(num_chunks >= 1);
 
-        println!(
+        info!(
             "Need to resize the mmap. curr_len: {} write_offset: {} end_offset: {} num_chunks: {}",
             self.mmap.len(),
             write_offset,
@@ -565,12 +567,11 @@ impl CKVIndexSegment {
             num_chunks
         );
 
-        self.mmap.flush()?;
+        // TODO: do we need this? self.mmap.flush().expect("cannot flush1");
         self.mmap_file
             .write_all(&vec![0_u8; CHUNK_SIZE * num_chunks])?;
         self.mmap_file.flush()?;
         self.mmap = unsafe { MmapMut::map_mut(&self.mmap_file)? };
-
         Ok(())
     }
 }
@@ -586,6 +587,11 @@ fn write_metadata(writer: &mut BufWriter<File>, write_offset: u64) -> io::Result
 }
 
 fn create_new_offset_table_file(dir: &str, index_id: usize) -> io::Result<File> {
+    let segment_dir = format!("{}/index/segment_{}", dir, index_id);
+    if !Path::new(&segment_dir).exists() {
+        std::fs::create_dir_all(&segment_dir)?;
+    }
+
     let filename = format!("{}/index/segment_{}/offset_table", dir, index_id);
     let file = OpenOptions::new()
         .read(true)
@@ -607,6 +613,11 @@ fn open_offset_table_file(dir: &str, index_id: usize) -> io::Result<File> {
 }
 
 fn create_new_mmap_file(dir: &str, index_id: usize) -> io::Result<File> {
+    let segment_dir = format!("{}/index/segment_{}", dir, index_id);
+    if !Path::new(&segment_dir).exists() {
+        std::fs::create_dir_all(&segment_dir)?;
+    }
+
     let filename = format!("{}/index/segment_{}/mmap", dir, index_id);
     let file = OpenOptions::new()
         .read(true)
@@ -628,6 +639,11 @@ fn open_mmap_file(dir: &str, index_id: usize) -> io::Result<File> {
 }
 
 fn create_new_metadata_file(dir: &str, index_id: usize) -> io::Result<File> {
+    let segment_dir = format!("{}/index/segment_{}", dir, index_id);
+    if !Path::new(&segment_dir).exists() {
+        std::fs::create_dir_all(&segment_dir)?;
+    }
+
     let filename = format!("{}/index/segment_{}/metadata", dir, index_id);
     let file = OpenOptions::new()
         .read(true)
@@ -646,4 +662,13 @@ fn open_metadata_file(dir: &str, index_id: usize) -> io::Result<File> {
         .open(filename)?;
     file.seek(io::SeekFrom::Start(0))?;
     Ok(file)
+}
+
+#[test]
+pub fn test_new() {
+    let index = CKVIndexSegment::new("/tmp/NearlineIntegrationTests/testing-store/0", 0);
+    if let Err(e) = &index {
+        println!("{}", e.to_string());
+    }
+    assert!(index.is_ok())
 }

@@ -137,12 +137,11 @@ async fn orchestrate_index_download(
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_ListObjects_section.html
 
     // TODO: client initialization
-    // Ref: https://docs.rs/aws-config/latest/aws_config/ecs/index.html 
-    // https://docs.aws.amazon.com/sdk-for-rust/latest/dg/getting-started.html#getting-started-step1 
+    // Ref: https://docs.rs/aws-config/latest/aws_config/ecs/index.html
+    // https://docs.aws.amazon.com/sdk-for-rust/latest/dg/getting-started.html#getting-started-step1
     let aws_config = aws_config::load_from_env().await;
     let client = S3Client::new(&aws_config);
 
-    // ikv-base-indexes-v1
     let bucket_name = config
         .stringConfigs
         .get("base_index_s3_bucket_name")

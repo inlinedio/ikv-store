@@ -12,7 +12,7 @@ use crate::proto::ikvserviceschemas::{
     AccountCredentials, GetUserStoreConfigRequest, UserStoreContextInitializer,
 };
 
-use tonic::transport::{Channel, ClientTlsConfig, Identity, Certificate};
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
 use super::index_loader;
 
@@ -134,12 +134,12 @@ impl Controller {
         let tls = ClientTlsConfig::new().domain_name("www.inlined.io");
 
         let channel = Channel::from_static(SERVER_URL)
-        .tls_config(tls)?
-        .connect()
-        .await?;
+            .tls_config(tls)?
+            .connect()
+            .await?;
 
         let mut client = InlineKvWriteServiceClient::new(channel);
-        
+
         let tonic_response = client.get_user_store_config(request).await?;
 
         let response = tonic_response.get_ref();

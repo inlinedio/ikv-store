@@ -1,5 +1,3 @@
-use anyhow::{anyhow, bail};
-
 use crate::{
     proto::generated_proto::{
         common::FieldValue,
@@ -7,6 +5,7 @@ use crate::{
     },
     schema::{ckvindex_schema::CKVIndexSchema, field::FieldId},
 };
+use anyhow::{anyhow, bail};
 
 use super::{ckv_segment::CKVIndexSegment, offset_store::OffsetStore};
 use std::{
