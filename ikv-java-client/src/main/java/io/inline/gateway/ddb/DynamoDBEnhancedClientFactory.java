@@ -20,7 +20,7 @@ public class DynamoDBEnhancedClientFactory {
               .dynamoDbClient(
                   DynamoDbClient.builder()
                       // .endpointOverride(URI.create("http://localhost:8000"))
-                      .region(Region.EU_NORTH_1)
+                      .region(Region.US_WEST_2)
                       // use:
                       // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/ContainerCredentialsProvider.html
                       .credentialsProvider(DefaultCredentialsProvider.builder().build())

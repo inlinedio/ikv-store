@@ -12,10 +12,16 @@ use crate::proto::ikvserviceschemas::{
     AccountCredentials, GetUserStoreConfigRequest, UserStoreContextInitializer,
 };
 
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
+
 use super::index_loader;
 
+#[cfg(test)]
+#[path = "main_test.rs"]
+mod main_test;
+
 // TODO: change backend url
-const SERVER_URL: &str = "ec2-16-16-215-52.eu-north-1.compute.amazonaws.com:8080";
+const SERVER_URL: &str = "https://gateway-writer-alb-1-1639339774.us-west-2.elb.amazonaws.com:443";
 
 /// Stateful controller for managing IKV core key-val storage.
 pub struct Controller {
@@ -25,9 +31,9 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn open(client_supplied_config: &IKVStoreConfig) -> anyhow::Result<Self> {
+    pub fn open(config: &IKVStoreConfig) -> anyhow::Result<Self> {
         // fetch server configs and override|merge with client supplied configs
-        let config = Controller::merge_with_server_config(client_supplied_config)?;
+        // let config = Controller::merge_with_server_config(client_supplied_config)?;
 
         // Load index
         index_loader::load_index(&config)?;
@@ -67,6 +73,9 @@ impl Controller {
         Ok(())
     }
 
+    /// Unused, there are issues with using client TLS certificate
+    /// Client code (ex. java reader) will fetch and merge with
+    /// server supplied config temporarily.
     fn merge_with_server_config(
         client_supplied_config: &IKVStoreConfig,
     ) -> anyhow::Result<IKVStoreConfig> {
@@ -93,7 +102,7 @@ impl Controller {
     }
 
     #[tokio::main(flavor = "current_thread")]
-    async fn fetch_server_configs(
+    pub async fn fetch_server_configs(
         client_supplied_config: &IKVStoreConfig,
     ) -> anyhow::Result<IKVStoreConfig> {
         // Build request
@@ -122,7 +131,15 @@ impl Controller {
             }),
         });
 
-        let mut client = InlineKvWriteServiceClient::connect(SERVER_URL).await?;
+        let tls = ClientTlsConfig::new().domain_name("www.inlined.io");
+
+        let channel = Channel::from_static(SERVER_URL)
+            .tls_config(tls)?
+            .connect()
+            .await?;
+
+        let mut client = InlineKvWriteServiceClient::new(channel);
+
         let tonic_response = client.get_user_store_config(request).await?;
 
         let response = tonic_response.get_ref();

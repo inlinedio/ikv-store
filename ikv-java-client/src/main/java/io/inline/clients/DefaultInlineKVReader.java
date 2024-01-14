@@ -13,11 +13,14 @@ import javax.annotation.Nullable;
 public class DefaultInlineKVReader implements InlineKVReader {
   private static final long UNINITIALIZED_HANDLE = -1;
   private final ClientOptions _clientOptions;
+  private final Common.IKVStoreConfig _clientServerMergedConfig;
   private volatile long _handle;
 
-  public DefaultInlineKVReader(ClientOptions options) {
+  public DefaultInlineKVReader(
+      ClientOptions options, Common.IKVStoreConfig clientServerMergedConfig) {
     _handle = UNINITIALIZED_HANDLE;
     _clientOptions = Objects.requireNonNull(options);
+    _clientServerMergedConfig = clientServerMergedConfig;
   }
 
   @Override
@@ -27,7 +30,7 @@ public class DefaultInlineKVReader implements InlineKVReader {
     }
 
     // can throw
-    _handle = IKVClientJNI.open(_clientOptions.asIKVStoreConfig().toByteArray());
+    _handle = IKVClientJNI.open(_clientServerMergedConfig.toByteArray());
   }
 
   @Override

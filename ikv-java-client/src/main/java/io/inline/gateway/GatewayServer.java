@@ -5,10 +5,9 @@ import io.grpc.ServerBuilder;
 import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
 import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
 import io.inline.gateway.streaming.IKVKafkaWriter;
+import io.inline.gateway.streaming.KafkaProducerFactory;
 import java.io.IOException;
 import java.io.InputStream;
-
-import io.inline.gateway.streaming.KafkaProducerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -56,6 +55,7 @@ public class GatewayServer {
 
   public void blockUntilShutdown() throws InterruptedException {
     Preconditions.checkNotNull(_server);
+    System.out.println("Server is listening!");
     LOGGER.info("Server is listening!");
     _server.awaitTermination();
   }

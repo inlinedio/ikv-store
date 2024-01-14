@@ -47,15 +47,26 @@ impl IKVKafkaConsumer {
     /// Create a new consumer.
     pub fn new(config: &IKVStoreConfig, processor: Arc<WritesProcessor>) -> anyhow::Result<Self> {
         let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+
+        let account_id = config.stringConfigs.get("account_id").ok_or(
+            rdkafka::error::KafkaError::ClientCreation(
+                "account_id is a required client-specified config".to_string(),
+            ),
+        )?;
+
+        let account_passkey = config.stringConfigs.get("account_passkey").ok_or(
+            rdkafka::error::KafkaError::ClientCreation(
+                "account_passkey is a required client-specified config".to_string(),
+            ),
+        )?;
+
         let kafka_consumer_bootstrap_server = config
             .stringConfigs
-            .get("kafka_consumer_bootstrap_server")
+            .get("kafka_bootstrap_server")
             .ok_or(rdkafka::error::KafkaError::ClientCreation(
-                "kafka_consumer_bootstrap_server is a required gateway-specified config"
-                    .to_string(),
+                "kafka_bootstrap_server is a required gateway-specified config".to_string(),
             ))?;
 
-        // TODO: we might need SSL access
         // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
         let client_config = ClientConfig::new()
             .set("group.id", "ikv-default-consumer") // we don't use offset management or automatic partition assignment
@@ -65,6 +76,10 @@ impl IKVKafkaConsumer {
             .set("max.poll.interval.ms", "3600000")
             .set("enable.auto.commit", "false")
             .set("auto.offset.reset", "earliest")
+            .set("security.protocol", "SASL_SSL")
+            .set("sasl.mechanisms", "SCRAM-SHA-512")
+            .set("sasl.username", account_id)
+            .set("sasl.password", account_passkey)
             .clone();
 
         // topic and parition
@@ -104,6 +119,7 @@ impl IKVKafkaConsumer {
 
     /// Consumes all pending events, and consume all new incoming events.
     /// Can be stopped by invoking stop()
+    /// TODO: if the consumer thread panics, there is currently no early return - dangerous!
     pub fn run_in_background(&self) -> anyhow::Result<()> {
         let offset_store = Arc::new(OffsetStore::open_or_create(self.mount_directory.clone())?);
         let offset_committer = Arc::new(OffsetCommitter::new(offset_store.clone()));

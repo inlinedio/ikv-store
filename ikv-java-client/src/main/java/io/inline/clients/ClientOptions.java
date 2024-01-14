@@ -96,6 +96,8 @@ public final class ClientOptions {
     }
 
     public Builder withStorePartition(int partition) {
+      // TODO: this should not be user specified - we need
+      // partition co-ordination.
       Preconditions.checkArgument(partition >= 0);
       _configBuilder.putIntConfigs(IKVConstants.PARTITION, partition);
       return this;

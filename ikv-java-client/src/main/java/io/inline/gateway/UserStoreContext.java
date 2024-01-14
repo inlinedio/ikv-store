@@ -3,7 +3,6 @@ package io.inline.gateway;
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
-import io.inline.gateway.streaming.KafkaProducerFactory;
 import java.util.*;
 
 /**
@@ -11,6 +10,9 @@ import java.util.*;
  * metadata for a user provisioned IKV store.
  */
 public class UserStoreContext {
+  // TODO: consider storing this per store in dynamodb
+  private static final String PUBLIC_SASL_SCRAM_KAFKA_BOOTSTRAP_SERVER =
+      "b-2-public.mskcluster1.yz62h3.c5.kafka.us-west-2.amazonaws.com:9196";
   private final IKVStoreContext _ikvStoreContext;
 
   private UserStoreContext(IKVStoreContext ikvStoreContext) {
@@ -34,6 +36,11 @@ public class UserStoreContext {
 
   public static UserStoreContext from(IKVStoreContext ikvStoreContext) {
     return new UserStoreContext(ikvStoreContext);
+  }
+
+  // sensitive field, do not log
+  public String accountPasskey() {
+    return _ikvStoreContext.getAccountPasskey();
   }
 
   public String storeName() {
@@ -66,8 +73,7 @@ public class UserStoreContext {
         .putStringConfigs(IKVConstants.PARTITIONING_KEY_FIELD_NAME, partitioningKeyFieldName())
         .putIntConfigs(IKVConstants.NUM_KAFKA_PARTITIONS, numKafkaPartitions())
         .putStringConfigs(
-            IKVConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER,
-            KafkaProducerFactory.KAFKA_BOOTSTRAP_SERVER)
+            IKVConstants.KAFKA_CONSUMER_BOOTSTRAP_SERVER, PUBLIC_SASL_SCRAM_KAFKA_BOOTSTRAP_SERVER)
         .putStringConfigs(IKVConstants.KAFKA_CONSUMER_TOPIC_NAME, kafkaTopic())
         .putStringConfigs(
             IKVConstants.BASE_INDEX_S3_BUCKET_PREFIX, String.format("%s/%s", accountId, storeName))

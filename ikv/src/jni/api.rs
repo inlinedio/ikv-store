@@ -77,7 +77,7 @@ fn open<'local>(
     _class: JClass<'local>,
     config: JByteArray<'local>,
 ) -> anyhow::Result<jlong> {
-    // parse user supplied configs
+    // parse supplied configs
     let config = utils::jbyte_array_to_vec(env, config)?;
     let ikv_config = IKVStoreConfig::parse_from_bytes(&config)?;
 

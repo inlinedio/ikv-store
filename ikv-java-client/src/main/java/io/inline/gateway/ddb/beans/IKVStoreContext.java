@@ -13,10 +13,11 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
  */
 @DynamoDbBean
 public class IKVStoreContext {
-  public static final String TABLE_NAME = "IKVStoreContextObjects-test-v1";
+  public static final String TABLE_NAME = "IKVStoreContextObjects";
 
   private String AccountId;
   private String StoreName;
+  private String AccountPasskey; // sensitive field
   private Integer NumPartitions;
   private String KafkaTopicName;
 
@@ -41,6 +42,15 @@ public class IKVStoreContext {
 
   public void setStoreName(String storeName) {
     this.StoreName = storeName;
+  }
+
+  @DynamoDbAttribute("AccountPasskey")
+  public String getAccountPasskey() {
+    return AccountPasskey;
+  }
+
+  public void setAccountPasskey(String accountPasskey) {
+    this.AccountPasskey = accountPasskey;
   }
 
   @DynamoDbAttribute("NumPartitions")

@@ -1,5 +1,3 @@
-use anyhow::{anyhow, bail};
-
 use crate::{
     proto::generated_proto::{
         common::FieldValue,
@@ -7,6 +5,7 @@ use crate::{
     },
     schema::{ckvindex_schema::CKVIndexSchema, field::FieldId},
 };
+use anyhow::{anyhow, bail};
 
 use super::{ckv_segment::CKVIndexSegment, offset_store::OffsetStore};
 use std::{
@@ -38,8 +37,8 @@ impl CKVIndex {
         // open_or_create saved schema
         let primary_key = config
             .stringConfigs
-            .get("primary_key")
-            .ok_or(anyhow!("primary_key is a required client-specified config",))?;
+            .get("primary_key_field_name")
+            .ok_or(anyhow!("primary_key is a required client-specified config"))?;
         let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
 
         // open_or_create index segments
