@@ -2,7 +2,6 @@ package io.inline.clients;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.inlineio.schemas.Common;
-
 import java.util.Objects;
 
 public class IKVClientFactory {
@@ -23,11 +22,9 @@ public class IKVClientFactory {
   }
 
   @VisibleForTesting
-  public static Common.IKVStoreConfig mergeConfigs(Common.IKVStoreConfig clientCfg, Common.IKVStoreConfig serverCfg) {
-    return Common.IKVStoreConfig.newBuilder()
-            .mergeFrom(serverCfg)
-            .mergeFrom(clientCfg)
-            .build();
+  public static Common.IKVStoreConfig mergeConfigs(
+      Common.IKVStoreConfig clientCfg, Common.IKVStoreConfig serverCfg) {
+    return Common.IKVStoreConfig.newBuilder().mergeFrom(serverCfg).mergeFrom(clientCfg).build();
   }
 
   public InlineKVWriter createNewWriterInstance() {

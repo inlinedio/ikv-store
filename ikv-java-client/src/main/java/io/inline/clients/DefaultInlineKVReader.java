@@ -16,7 +16,8 @@ public class DefaultInlineKVReader implements InlineKVReader {
   private final Common.IKVStoreConfig _clientServerMergedConfig;
   private volatile long _handle;
 
-  public DefaultInlineKVReader(ClientOptions options, Common.IKVStoreConfig clientServerMergedConfig) {
+  public DefaultInlineKVReader(
+      ClientOptions options, Common.IKVStoreConfig clientServerMergedConfig) {
     _handle = UNINITIALIZED_HANDLE;
     _clientOptions = Objects.requireNonNull(options);
     _clientServerMergedConfig = clientServerMergedConfig;

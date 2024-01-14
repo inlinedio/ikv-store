@@ -28,8 +28,8 @@ public class NearlineIntegrationTests {
 
     IKVDocument document =
         new IKVDocument.Builder()
-                .putStringField("userid", "id_1")  // primary key
-                .build();
+            .putStringField("userid", "id_1") // primary key
+            .build();
     writer.upsertFieldValues(document);
 
     Thread.sleep(1000);

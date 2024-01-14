@@ -76,7 +76,6 @@ impl IKVKafkaConsumer {
             .set("max.poll.interval.ms", "3600000")
             .set("enable.auto.commit", "false")
             .set("auto.offset.reset", "earliest")
-            // todo: review the sasl/scram configuration
             .set("security.protocol", "SASL_SSL")
             .set("sasl.mechanisms", "SCRAM-SHA-512")
             .set("sasl.username", account_id)
