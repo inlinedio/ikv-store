@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail};
-use log::{error, warn};
+use log::{error, info, warn};
 use rdkafka::consumer::DefaultConsumerContext;
 use rdkafka::message::Message;
 use rdkafka::util::Timeout;
@@ -218,6 +218,7 @@ impl IKVKafkaConsumer {
         topic: String,
         partition: i32,
     ) {
+        info!("Initializing kafka stream consumer.");
         let consumer = match initialize(offset_store, &client_config, &topic, partition).await {
             Ok(c) => c,
             Err(e) => {
@@ -230,6 +231,7 @@ impl IKVKafkaConsumer {
         };
 
         // Consume lag or existing events for offline index build
+        info!("Starting consumption of pending writes.");
         if let Err(e) = consume_till_high_watermark(
             &consumer,
             writes_processor.clone(),
@@ -247,6 +249,7 @@ impl IKVKafkaConsumer {
         }
 
         // Successful startup!
+        info!("All pending writes consumed, kafka startup successful.");
         let _ = async_consumer_channel.send(Ok(()));
         if stop_at_high_watermark {
             return;
