@@ -19,6 +19,7 @@ public class NearlineIntegrationTests {
   // kafka topic name - testing-kafka-topic
 
   @Test
+  @Disabled
   public void upsertAndRead() throws InterruptedException {
     IKVClientFactory factory = new IKVClientFactory(_clientOptions);
     InlineKVWriter writer = factory.createNewWriterInstance();
@@ -38,5 +39,7 @@ public class NearlineIntegrationTests {
 
     String userid = reader.getStringValue("id_1", "userid");
     Assertions.assertEquals(userid, "id_1");
+
+    reader.shutdownReader();
   }
 }

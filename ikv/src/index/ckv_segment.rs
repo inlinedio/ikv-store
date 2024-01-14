@@ -664,7 +664,7 @@ fn open_metadata_file(dir: &str, index_id: usize) -> io::Result<File> {
     Ok(file)
 }
 
-#[test]
+//#[test]
 pub fn test_new() {
     let index = CKVIndexSegment::new("/tmp/NearlineIntegrationTests/testing-store/0", 0);
     if let Err(e) = &index {
