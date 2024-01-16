@@ -3,17 +3,23 @@ use crate::{
         common::FieldValue,
         common::{FieldType, IKVStoreConfig},
     },
-    schema::{ckvindex_schema::CKVIndexSchema, field::FieldId},
+    schema::field::FieldId,
 };
 use anyhow::{anyhow, bail};
 
-use super::{ckv_segment::CKVIndexSegment, offset_store::OffsetStore};
+use super::{
+    ckv_segment::CKVIndexSegment, offset_store::OffsetStore, schema_store::CKVIndexSchema,
+};
 use std::{
     collections::HashMap,
     fs::{self},
     path::Path,
     sync::RwLock,
 };
+
+#[cfg(test)]
+#[path = "ckv_test.rs"]
+mod ckv_test;
 
 const NUM_SEGMENTS: usize = 16;
 
@@ -29,16 +35,17 @@ pub struct CKVIndex {
 
 impl CKVIndex {
     pub fn open_or_create(config: &IKVStoreConfig) -> anyhow::Result<Self> {
-        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
+        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
 
         // create mount directory if it does not exist
         fs::create_dir_all(&mount_directory)?;
 
-        // open_or_create saved schema
+        // open_or_create schema
         let primary_key = config
             .stringConfigs
             .get("primary_key_field_name")
             .ok_or(anyhow!("primary_key is a required client-specified config"))?;
+
         let schema = CKVIndexSchema::open_or_create(&mount_directory, primary_key.clone())?;
 
         // open_or_create index segments
@@ -47,6 +54,9 @@ impl CKVIndex {
             let segment = CKVIndexSegment::open_or_create(&mount_directory, index_id)?;
             segments.push(RwLock::new(segment));
         }
+
+        // open_or_create kafka store, done to initialize correctly
+        let _ = OffsetStore::open_or_create(mount_directory.to_string())?;
 
         Ok(Self {
             segments,
@@ -59,16 +69,21 @@ impl CKVIndex {
         Ok(())
     }
 
-    pub fn is_empty_index(config: &IKVStoreConfig) -> anyhow::Result<bool> {
-        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
+    pub fn index_not_present(config: &IKVStoreConfig) -> anyhow::Result<bool> {
+        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
         let index_path = format!("{}/index", &mount_directory);
-        Ok(!Path::new(&index_path).exists())
+
+        let not_present = !Path::new(&index_path).exists()
+            || CKVIndexSchema::index_not_present(&mount_directory)
+            || OffsetStore::index_not_present(&mount_directory);
+
+        Ok(not_present)
     }
 
     // checks if a valid index is loaded at the mount directory
     // Returns error with some details if empty or invalid, else ok.
     pub fn is_valid_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
+        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
 
         // root path should exist
         let index_path = format!("{}/index", &mount_directory);
@@ -78,11 +93,13 @@ impl CKVIndex {
 
         // check if all segments are valid
         for i in 0..NUM_SEGMENTS {
-            CKVIndexSegment::is_valid_index(&mount_directory, i)?;
+            CKVIndexSegment::is_valid_segment(&mount_directory, i)?;
         }
 
         // check if schema is valid
         CKVIndexSchema::is_valid_index(&mount_directory)?;
+
+        // check if kafka offset store is valid
         OffsetStore::is_valid_index(&mount_directory)?;
 
         // valid index!
@@ -91,11 +108,13 @@ impl CKVIndex {
 
     /// Clears out all index structures from disk.
     pub fn delete_all(config: &IKVStoreConfig) -> anyhow::Result<()> {
-        let mount_directory = crate::utils::paths::create_mount_directory(config)?;
+        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
+
         let index_path = format!("{}/index", &mount_directory);
         if Path::new(&index_path).exists() {
             std::fs::remove_dir_all(&index_path)?;
         }
+
         CKVIndexSchema::delete_all(&mount_directory)?;
         OffsetStore::delete_all(&mount_directory)?;
         Ok(())
@@ -243,6 +262,7 @@ impl CKVIndex {
         Ok(())
     }
 
+    // Note: deleting pkey from document is ok.
     pub fn delete_field_values(
         &self,
         document: &HashMap<String, FieldValue>,

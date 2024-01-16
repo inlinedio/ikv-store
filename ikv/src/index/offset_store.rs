@@ -11,6 +11,10 @@ use rdkafka::TopicPartitionList;
 
 use crate::proto::generated_proto::index::{KafkaOffsetStore, KafkaOffsetStoreEntry};
 
+#[cfg(test)]
+#[path = "offset_store_test.rs"]
+mod offset_store_test;
+
 pub struct OffsetStore {
     lock: RwLock<()>,
     file: File,
@@ -43,10 +47,15 @@ impl OffsetStore {
         })
     }
 
+    pub fn index_not_present(mount_directory: &str) -> bool {
+        let filepath = format!("{}/kafka_offsets", mount_directory);
+        !Path::new(&filepath).exists()
+    }
+
     pub fn delete_all(mount_directory: &str) -> anyhow::Result<()> {
         let filepath = format!("{}/kafka_offsets", mount_directory);
         if Path::new(&filepath).exists() {
-            std::fs::remove_dir_all(&filepath)?;
+            std::fs::remove_file(&filepath)?;
         }
         Ok(())
     }

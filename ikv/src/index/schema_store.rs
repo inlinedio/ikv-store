@@ -9,8 +9,11 @@ use anyhow::bail;
 use protobuf::Message;
 
 use crate::proto::generated_proto::{common::FieldValue, index::SavedCKVIndexSchema};
+use crate::schema::field::FieldId;
 
-use super::field::FieldId;
+#[cfg(test)]
+#[path = "schema_store_test.rs"]
+mod schema_store_test;
 
 pub struct CKVIndexSchema {
     mount_directory: String,
@@ -23,19 +26,25 @@ pub struct CKVIndexSchema {
 impl CKVIndexSchema {
     /// Create with no fields.
     /// Fields are added lazily with update() methods.
-    fn new(mount_directory: &str, primary_key: String) -> Self {
-        Self {
+    fn new(mount_directory: &str, primary_key: String) -> anyhow::Result<Self> {
+        let mut field_name_to_id = HashMap::new();
+        field_name_to_id.insert(primary_key.clone(), 0 as FieldId);
+
+        let index = Self {
             mount_directory: mount_directory.to_string(),
             primary_key_field_name: primary_key,
-            field_name_to_id: HashMap::new(),
-        }
+            field_name_to_id,
+        };
+
+        index.save(mount_directory)?;
+        Ok(index)
     }
 
     pub fn open_or_create(mount_directory: &str, primary_key: String) -> anyhow::Result<Self> {
         let file_path = format!("{}/schema", mount_directory);
         if !Path::new(&file_path).exists() {
             // no schema file, assume new store for host
-            return Ok(CKVIndexSchema::new(mount_directory, primary_key));
+            return CKVIndexSchema::new(mount_directory, primary_key);
         }
 
         let file = OpenOptions::new().read(true).open(file_path)?;
@@ -44,23 +53,28 @@ impl CKVIndexSchema {
         let mut contents: Vec<u8> = vec![];
         reader.read_to_end(&mut contents)?;
         if contents.len() == 0 {
-            // empty schema file, assume new store for host
-            return Ok(CKVIndexSchema::new(mount_directory, primary_key));
+            // empty schema file, unreachable
+            // TODO: add this to is_valid_index check
+            bail!("Index schema store has no content and no primary key, invalid state");
         }
 
         let saved_schema = SavedCKVIndexSchema::parse_from_bytes(&contents)?;
-        let primary_key_field_name = saved_schema.primary_key_field_name;
-
-        let mut field_name_to_id = HashMap::new();
-        for (fieldname, fieldid) in saved_schema.field_ids.iter() {
-            field_name_to_id.insert(fieldname.to_string(), *fieldid);
-        }
 
         Ok(CKVIndexSchema {
             mount_directory: mount_directory.to_string(),
-            primary_key_field_name,
-            field_name_to_id,
+            primary_key_field_name: saved_schema.primary_key_field_name,
+            field_name_to_id: saved_schema.field_ids,
         })
+    }
+
+    #[cfg(test)]
+    pub fn close(self) {
+        // no op
+    }
+
+    pub fn index_not_present(mount_directory: &str) -> bool {
+        let filepath = format!("{}/schema", mount_directory);
+        !Path::new(&filepath).exists()
     }
 
     // checks if a valid index is loaded at the mount directory
@@ -76,7 +90,7 @@ impl CKVIndexSchema {
     pub fn delete_all(mount_directory: &str) -> anyhow::Result<()> {
         let filepath = format!("{}/schema", mount_directory);
         if Path::new(&filepath).exists() {
-            std::fs::remove_dir_all(&filepath)?;
+            std::fs::remove_file(&filepath)?;
         }
         Ok(())
     }

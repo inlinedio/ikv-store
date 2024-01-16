@@ -2,13 +2,13 @@ use crate::proto::generated_proto::common::IKVStoreConfig;
 
 use anyhow::anyhow;
 
-/// Create path for mount_directory for internal use.
+/// Construct FQN path of the mount_directory for internal use.
 ///
 /// Online reads: ..path/to/user_supplied_mount_directory/<storename>/<partition>
 ///
 /// Offline index builds: ..path/to/worker_supplied_mount_directory/<storename>/<partition>
 /// where worker_supplied_mount_directory: /tmp/ikv-index-builds/epoch/
-pub fn create_mount_directory(config: &IKVStoreConfig) -> anyhow::Result<String> {
+pub fn get_mount_directory_fqn(config: &IKVStoreConfig) -> anyhow::Result<String> {
     let user_supplied_mount_directory = config
         .stringConfigs
         .get("mount_directory")

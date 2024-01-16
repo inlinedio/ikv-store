@@ -19,13 +19,13 @@ use crate::proto::generated_proto::common::IKVStoreConfig;
 
 pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     // create mount directory if it does not exist
-    let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+    let mount_directory = crate::utils::paths::get_mount_directory_fqn(&config)?;
     std::fs::create_dir_all(&mount_directory)?;
 
     // TODO: we might need to load a new base index based on age (for compaction!!)
     let mut download = false;
 
-    if CKVIndex::is_empty_index(config)? {
+    if CKVIndex::index_not_present(config)? {
         info!("Base index not found");
         download = true;
     }
@@ -48,7 +48,7 @@ pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
 }
 
 pub fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-    let mount_directory = crate::utils::paths::create_mount_directory(config)?;
+    let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
 
     // check if index exists, error if not
     if let Err(e) = CKVIndex::is_valid_index(config) {

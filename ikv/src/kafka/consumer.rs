@@ -46,7 +46,7 @@ pub struct IKVKafkaConsumer {
 impl IKVKafkaConsumer {
     /// Create a new consumer.
     pub fn new(config: &IKVStoreConfig, processor: Arc<WritesProcessor>) -> anyhow::Result<Self> {
-        let mount_directory = crate::utils::paths::create_mount_directory(&config)?;
+        let mount_directory = crate::utils::paths::get_mount_directory_fqn(&config)?;
 
         let account_id = config.stringConfigs.get("account_id").ok_or(
             rdkafka::error::KafkaError::ClientCreation(
@@ -145,8 +145,6 @@ impl IKVKafkaConsumer {
                         "Cannot initialize write ingestion, error: {}",
                         e.to_string()
                     );
-                } else {
-                    Ok(())
                 }
             }
             Err(e) => {
@@ -157,6 +155,8 @@ impl IKVKafkaConsumer {
                 );
             }
         }
+
+        Ok(())
     }
 
     /// Stop run_in_background() message consumption.
@@ -205,7 +205,9 @@ impl IKVKafkaConsumer {
         Ok(())
     }
 
-    // blocking run.
+    // There is no returned value, since this function first consumes pending writes
+    // as part of application startup and then continues to consume any incoming writes.
+    // Success/Error status of startup routine is communicated via the asyn channel.
     async fn run(
         offset_store: Arc<OffsetStore>,
         writes_processor: Arc<WritesProcessor>,
@@ -360,6 +362,18 @@ async fn consume_till_high_watermark(
                     let event = <IKVDataEvent as protobuf::Message>::parse_from_bytes(bytes)?;
                     writes_processor.process(&event)?;
 
+                    // flush index and commit offset in batches
+                    // we do this for startup pending event catchup as well to store incremental progress
+                    if offset_committer.should_commit() {
+                        writes_processor.flush_all()?;
+                        offset_committer.commit(
+                            curr_message.topic(),
+                            curr_message.partition(),
+                            curr_message.offset(),
+                        )?;
+                    }
+
+                    /*
                     let end_offset = end_offset.to_raw().expect("end_offset is pre-validated");
                     if curr_message.offset() >= end_offset {
                         writes_processor.flush_all()?;
@@ -370,6 +384,7 @@ async fn consume_till_high_watermark(
                         )?;
                         return Ok(());
                     }
+                    */
                 }
             }
         };
