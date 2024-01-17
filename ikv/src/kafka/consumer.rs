@@ -1,9 +1,7 @@
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 use log::{error, info, warn};
 use rdkafka::consumer::DefaultConsumerContext;
 use rdkafka::message::Message;
@@ -33,7 +31,6 @@ pub struct IKVKafkaConsumer {
     writes_processor: Arc<WritesProcessor>,
 
     // consumer thread
-    async_consumer_channel: (Sender<anyhow::Result<()>>, Receiver<anyhow::Result<()>>),
     cancellation_token: CancellationToken,
 
     // Consumer configuration - created in constructor
@@ -109,7 +106,6 @@ impl IKVKafkaConsumer {
             mount_directory,
             tokio_runtime: runtime,
             writes_processor: processor,
-            async_consumer_channel: mpsc::channel(),
             cancellation_token: CancellationToken::new(),
             client_config,
             topic: topic.to_string(),
@@ -121,40 +117,36 @@ impl IKVKafkaConsumer {
     /// Can be stopped by invoking stop()
     /// TODO: if the consumer thread panics, there is currently no early return - dangerous!
     pub fn run_in_background(&self) -> anyhow::Result<()> {
-        let offset_store = Arc::new(OffsetStore::open_or_create(self.mount_directory.clone())?);
+        let offset_store = OffsetStore::open_or_create(self.mount_directory.clone())?;
+        let offset_store = Arc::new(offset_store);
         let offset_committer = Arc::new(OffsetCommitter::new(offset_store.clone()));
 
-        // start consumer thread
-        self.tokio_runtime.spawn(IKVKafkaConsumer::run(
-            offset_store.clone(),
-            self.writes_processor.clone(),
-            offset_committer.clone(),
-            self.async_consumer_channel.0.clone(),
-            self.cancellation_token.clone(),
-            false,
-            self.client_config.clone(),
-            self.topic.clone(),
-            self.partition,
-        ));
+        // block to consume all write events till high watermark (startup)
+        let handle = self
+            .tokio_runtime
+            .spawn(IKVKafkaConsumer::run_consume_till_high_watermark(
+                offset_store.clone(),
+                self.writes_processor.clone(),
+                offset_committer.clone(),
+                self.client_config.clone(),
+                self.topic.clone(),
+                self.partition,
+            ));
 
-        // wait for startup of kafka thread
-        match self.async_consumer_channel.1.recv() {
-            Ok(signal) => {
-                if let Err(e) = signal {
-                    bail!(
-                        "Cannot initialize write ingestion, error: {}",
-                        e.to_string()
-                    );
-                }
-            }
-            Err(e) => {
-                // Async thread got killed
-                bail!(
-                    "Async writes processing thread killed, error: {}",
-                    e.to_string()
-                );
-            }
-        }
+        // block and propagate any errors
+        self.tokio_runtime.block_on(handle)??;
+
+        // consume new writes in background
+        self.tokio_runtime
+            .spawn(IKVKafkaConsumer::run_consume_forever(
+                offset_store.clone(),
+                self.writes_processor.clone(),
+                offset_committer.clone(),
+                self.client_config.clone(),
+                self.topic.clone(),
+                self.partition,
+                self.cancellation_token.clone(),
+            ));
 
         Ok(())
     }
@@ -167,95 +159,67 @@ impl IKVKafkaConsumer {
 
     /// Consumes all pending events
     pub fn blocking_run_till_completion(&self) -> anyhow::Result<()> {
-        let offset_store = Arc::new(OffsetStore::open_or_create(self.mount_directory.clone())?);
+        let offset_store = OffsetStore::open_or_create(self.mount_directory.clone())?;
+        let offset_store = Arc::new(offset_store);
         let offset_committer = Arc::new(OffsetCommitter::new(offset_store.clone()));
 
-        // start consumer thread
-        let handle = self.tokio_runtime.spawn(IKVKafkaConsumer::run(
-            offset_store.clone(),
-            self.writes_processor.clone(),
-            offset_committer.clone(),
-            self.async_consumer_channel.0.clone(),
-            self.cancellation_token.clone(),
-            true,
-            self.client_config.clone(),
-            self.topic.clone(),
-            self.partition,
-        ));
-
-        // wait for finish signal
-        match self.async_consumer_channel.1.recv() {
-            Ok(signal) => {
-                if let Err(e) = signal {
-                    bail!("Cannot finish write processing, error: {}", e.to_string());
-                }
-            }
-            Err(e) => {
-                // Async thread got killed
-                bail!(
-                    "Async writes processing thread killed, error: {}",
-                    e.to_string()
-                );
-            }
-        }
+        // block to consume all write events till high watermark
+        let handle = self
+            .tokio_runtime
+            .spawn(IKVKafkaConsumer::run_consume_till_high_watermark(
+                offset_store.clone(),
+                self.writes_processor.clone(),
+                offset_committer.clone(),
+                self.client_config.clone(),
+                self.topic.clone(),
+                self.partition,
+            ));
 
         // cleanup tokio thread
-        self.tokio_runtime.block_on(handle)?;
+        self.tokio_runtime.block_on(handle)??;
 
         Ok(())
     }
 
-    // There is no returned value, since this function first consumes pending writes
-    // as part of application startup and then continues to consume any incoming writes.
-    // Success/Error status of startup routine is communicated via the asyn channel.
-    async fn run(
+    // TODO: we need to handle panics!
+    async fn run_consume_till_high_watermark(
         offset_store: Arc<OffsetStore>,
         writes_processor: Arc<WritesProcessor>,
         offset_committer: Arc<OffsetCommitter>,
-        async_consumer_channel: Sender<anyhow::Result<()>>,
-        cancellation_token: CancellationToken,
-        stop_at_high_watermark: bool,
         client_config: ClientConfig,
         topic: String,
         partition: i32,
-    ) {
-        info!("Initializing kafka stream consumer.");
-        let consumer = match initialize(offset_store, &client_config, &topic, partition).await {
-            Ok(c) => c,
-            Err(e) => {
-                let _ = async_consumer_channel.send(Err(anyhow!(
-                    "Cannot initialize kafka StreamConsumer, error: {}",
-                    e.to_string()
-                )));
-                return;
-            }
-        };
+    ) -> anyhow::Result<()> {
+        info!("Consuming pending write events before startup");
 
-        // Consume lag or existing events for offline index build
-        info!("Starting consumption of pending writes.");
-        if let Err(e) = consume_till_high_watermark(
+        let consumer =
+            initialize_stream_consumer(offset_store, &client_config, &topic, partition).await?;
+        consume_till_high_watermark(
             &consumer,
             writes_processor.clone(),
             offset_committer.clone(),
             &topic,
             partition,
         )
-        .await
-        {
-            let _ = async_consumer_channel.send(Err(anyhow!(
-                "Cannot consume pending writes. Error: {}",
-                e.to_string()
-            )));
-            return;
-        }
+        .await?;
 
-        // Successful startup!
-        info!("All pending writes consumed, kafka startup successful.");
-        let _ = async_consumer_channel.send(Ok(()));
-        if stop_at_high_watermark {
-            return;
-        }
+        info!("All pending writes are consumed");
+        Ok(())
+    }
 
+    async fn run_consume_forever(
+        offset_store: Arc<OffsetStore>,
+        writes_processor: Arc<WritesProcessor>,
+        offset_committer: Arc<OffsetCommitter>,
+        client_config: ClientConfig,
+        topic: String,
+        partition: i32,
+        cancellation_token: CancellationToken,
+    ) -> anyhow::Result<()> {
+        info!("Consuming new write events in background");
+
+        let consumer =
+            initialize_stream_consumer(offset_store, &client_config, &topic, partition).await?;
         if let Err(e) = consume_till_cancelled(
             &consumer,
             writes_processor.clone(),
@@ -264,17 +228,22 @@ impl IKVKafkaConsumer {
         )
         .await
         {
-            error!("Write processor thread has crashed. Try to resolve and restart application. Error: {}", e.to_string())
+            error!("Write processor thread has crashed. Try to resolve and restart application. Error: {}", e.to_string());
+            return Err(e);
         }
+
+        // graceful shutdown
+        Ok(())
     }
 }
 
-async fn initialize(
+async fn initialize_stream_consumer(
     offset_store: Arc<OffsetStore>,
     client_config: &ClientConfig,
     topic: &str,
     partition: i32,
 ) -> anyhow::Result<StreamConsumer<DefaultConsumerContext>> {
+    info!("Initializing kafka stream consumer.");
     let consumer = client_config.create_with_context(DefaultConsumerContext)?;
 
     // initialize - by starting at the very beginning of the topic.
