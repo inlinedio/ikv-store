@@ -19,10 +19,10 @@ public class NearlineIntegrationTests {
   // kafka topic name - testing-kafka-topic
 
   @Test
-  @Disabled
   public void upsertAndRead() throws InterruptedException {
     IKVClientFactory factory = new IKVClientFactory(_clientOptions);
-    InlineKVWriter writer = factory.createNewWriterInstance();
+
+    /*InlineKVWriter writer = factory.createNewWriterInstance();
 
     writer.startupWriter();
 
@@ -32,7 +32,7 @@ public class NearlineIntegrationTests {
             .build();
     writer.upsertFieldValues(document);
 
-    Thread.sleep(1000);
+    Thread.sleep(1000);*/
 
     InlineKVReader reader = factory.createNewReaderInstance();
     reader.startupReader();

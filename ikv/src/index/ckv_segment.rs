@@ -187,7 +187,7 @@ impl CKVIndexSegment {
         })
     }
 
-    pub fn is_valid_index(mount_directory: &str, index_id: usize) -> anyhow::Result<()> {
+    pub fn is_valid_segment(mount_directory: &str, index_id: usize) -> anyhow::Result<()> {
         let filename = format!("{}/index/segment_{}/metadata", mount_directory, index_id);
         if !Path::new(&filename).exists() {
             bail!(
@@ -662,13 +662,4 @@ fn open_metadata_file(dir: &str, index_id: usize) -> io::Result<File> {
         .open(filename)?;
     file.seek(io::SeekFrom::Start(0))?;
     Ok(file)
-}
-
-//#[test]
-pub fn test_new() {
-    let index = CKVIndexSegment::new("/tmp/NearlineIntegrationTests/testing-store/0", 0);
-    if let Err(e) = &index {
-        println!("{}", e.to_string());
-    }
-    assert!(index.is_ok())
 }

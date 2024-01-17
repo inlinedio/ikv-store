@@ -1,18 +1,9 @@
 use std::sync::Arc;
 
-use anyhow::anyhow;
-use log::debug;
-
 use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
 use crate::kafka::processor::WritesProcessor;
 use crate::proto::generated_proto::common::IKVStoreConfig;
-use crate::proto::ikvserviceschemas::inline_kv_write_service_client::InlineKvWriteServiceClient;
-use crate::proto::ikvserviceschemas::{
-    AccountCredentials, GetUserStoreConfigRequest, UserStoreContextInitializer,
-};
-
-use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
 use super::index_loader;
 
@@ -21,7 +12,7 @@ use super::index_loader;
 mod main_test;
 
 // TODO: change backend url
-const SERVER_URL: &str = "https://gateway-writer-alb-1-1639339774.us-west-2.elb.amazonaws.com:443";
+// const SERVER_URL: &str = "https://gateway-writer-alb-1-1639339774.us-west-2.elb.amazonaws.com:443";
 
 /// Stateful controller for managing IKV core key-val storage.
 pub struct Controller {
@@ -73,6 +64,7 @@ impl Controller {
         Ok(())
     }
 
+    /*
     /// Unused, there are issues with using client TLS certificate
     /// Client code (ex. java reader) will fetch and merge with
     /// server supplied config temporarily.
@@ -161,4 +153,5 @@ impl Controller {
 
         Ok(copied_config)
     }
+    */
 }
