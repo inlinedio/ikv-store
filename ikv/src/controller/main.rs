@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use log::info;
+
 use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
 use crate::kafka::processor::WritesProcessor;
@@ -61,6 +63,7 @@ impl Controller {
     pub fn close(self) -> anyhow::Result<()> {
         self.kafka_consumer.stop();
         self.index.close()?;
+        info!("Closing IKV, Bye Bye.");
         Ok(())
     }
 
