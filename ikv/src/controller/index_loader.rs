@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail};
 
+use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client as S3Client;
 
 use aws_sdk_s3::primitives::ByteStream;
@@ -20,6 +21,7 @@ use crate::proto::generated_proto::common::IKVStoreConfig;
 pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     let working_mount_directory = crate::utils::paths::get_working_mount_directory_fqn(config)?;
     let index_mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
+
     // create paths if not exists
     std::fs::create_dir_all(&working_mount_directory)?;
     std::fs::create_dir_all(&index_mount_directory)?;
@@ -83,7 +85,10 @@ async fn orchestrate_index_upload(
     // TODO: need to handle large file uploads!!
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
 
-    let aws_config = aws_config::load_from_env().await;
+    let aws_config = aws_config::defaults(BehaviorVersion::latest())
+        .region("us-west-2")
+        .load()
+        .await;
     let client = S3Client::new(&aws_config);
 
     // ikv-base-indexes-v1
@@ -146,8 +151,15 @@ async fn orchestrate_index_download(
     // TODO: client initialization
     // Ref: https://docs.rs/aws-config/latest/aws_config/ecs/index.html
     // https://docs.aws.amazon.com/sdk-for-rust/latest/dg/getting-started.html#getting-started-step1
-    let aws_config = aws_config::load_from_env().await;
+
+    let aws_config = aws_config::defaults(BehaviorVersion::latest())
+        .region("us-west-2")
+        .load()
+        .await;
     let client = S3Client::new(&aws_config);
+
+    //let aws_config = aws_config::load_from_env().await;
+    //let client = S3Client::new(&aws_config);
 
     let bucket_name = config
         .stringConfigs
