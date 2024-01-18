@@ -18,19 +18,20 @@ use crate::index::ckv::CKVIndex;
 use crate::proto::generated_proto::common::IKVStoreConfig;
 
 pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-    // create mount directory if it does not exist
-    let mount_directory = crate::utils::paths::get_mount_directory_fqn(&config)?;
-    std::fs::create_dir_all(&mount_directory)?;
+    let working_mount_directory = crate::utils::paths::get_working_mount_directory_fqn(config)?;
+    let index_mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
+    // create paths if not exists
+    std::fs::create_dir_all(&working_mount_directory)?;
+    std::fs::create_dir_all(&index_mount_directory)?;
 
     // TODO: we might need to load a new base index based on age (for compaction!!)
     let mut download = false;
 
     if CKVIndex::index_not_present(config)? {
-        info!("Base index not found");
+        info!("No base index present in mount directory.");
+        CKVIndex::delete_all(config)?;
         download = true;
-    }
-
-    if let Err(e) = CKVIndex::is_valid_index(config) {
+    } else if let Err(e) = CKVIndex::is_valid_index(config) {
         info!(
             "Base index found in inconsistent state: {}. Clearing out index.",
             e
@@ -41,14 +42,18 @@ pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
 
     if download {
         info!("Attempting to download from S3 repository.");
-        orchestrate_index_download(&mount_directory, config)?;
+        orchestrate_index_download(&working_mount_directory, &index_mount_directory, config)?;
     }
 
     Ok(())
 }
 
 pub fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-    let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
+    let working_mount_directory = crate::utils::paths::get_working_mount_directory_fqn(config)?;
+    let index_mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
+    // create paths if not exists
+    std::fs::create_dir_all(&working_mount_directory)?;
+    std::fs::create_dir_all(&index_mount_directory)?;
 
     // check if index exists, error if not
     if let Err(e) = CKVIndex::is_valid_index(config) {
@@ -56,22 +61,23 @@ pub fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     }
 
     // upload as base index
-    orchestrate_index_upload(&mount_directory, config)
+    orchestrate_index_upload(&working_mount_directory, &index_mount_directory, config)
 }
 
 #[tokio::main(flavor = "current_thread")]
 async fn orchestrate_index_upload(
-    mount_directory: &str,
+    working_mount_directory: &str,
+    index_mount_directory: &str,
     config: &IKVStoreConfig,
 ) -> anyhow::Result<()> {
-    let tarball_index_filename = format!("{}/base_index.tar.gz", mount_directory);
+    let tarball_index_filename = format!("{}/base_index.tar.gz", working_mount_directory);
 
     // clear any old base index tar archives
     if Path::new(&tarball_index_filename).exists() {
         std::fs::remove_file(&tarball_index_filename)?;
     }
 
-    pack_tarball(mount_directory, &tarball_index_filename)?;
+    pack_tarball(index_mount_directory, &tarball_index_filename)?;
 
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_PutObject_section.html
     // TODO: need to handle large file uploads!!
@@ -129,7 +135,8 @@ async fn orchestrate_index_upload(
 
 #[tokio::main(flavor = "current_thread")]
 async fn orchestrate_index_download(
-    mount_directory: &str,
+    working_mount_directory: &str,
+    index_mount_directory: &str,
     config: &IKVStoreConfig,
 ) -> anyhow::Result<()> {
     // References:
@@ -215,7 +222,7 @@ async fn orchestrate_index_download(
     info!("Found base index, base-index-key: {}", &key);
 
     // download, unpack and delete tarred file
-    let tarball_index_filename = format!("{}/base_index.tar.gz", mount_directory);
+    let tarball_index_filename = format!("{}/base_index.tar.gz", working_mount_directory);
 
     // clear any old base index tar archives
     if Path::new(&tarball_index_filename).exists() {
@@ -223,10 +230,13 @@ async fn orchestrate_index_download(
     }
 
     download_from_s3(&client, &bucket_name, &key, &tarball_index_filename).await?;
-    unpack_tarball(&tarball_index_filename, mount_directory)?;
+    unpack_tarball(&tarball_index_filename, working_mount_directory)?;
 
     // after unpacking, the decompressed index is in <mount-dir>/base_index, move it to <mount-dir>
-    std::fs::rename(format!("{}/base_index", mount_directory), mount_directory)?;
+    std::fs::rename(
+        format!("{}/base_index", working_mount_directory),
+        index_mount_directory,
+    )?;
 
     std::fs::remove_file(tarball_index_filename)?;
 
@@ -258,7 +268,7 @@ async fn download_from_s3(
 }
 
 fn unpack_tarball(input_filepath: &str, destination_dir: &str) -> anyhow::Result<()> {
-    // Unzip mount_directory/<storename>/<partition>/base_index.tar.gz to mount_directory/<storename>/<partition>
+    // Unzip working_mount_dir/base_index.tar.gz to working_mount_dir/base_index
     // Reference: https://rust-lang-nursery.github.io/rust-cookbook/compression/tar.html
     let file = OpenOptions::new().read(true).open(input_filepath)?;
     let tar = GzDecoder::new(file);
@@ -268,6 +278,8 @@ fn unpack_tarball(input_filepath: &str, destination_dir: &str) -> anyhow::Result
     Ok(())
 }
 
+// input_dir: directory to tarball (ex. the index directory)
+// output_filepath: of the the tarball file
 fn pack_tarball(input_dir: &str, output_filepath: &str) -> anyhow::Result<()> {
     let file = OpenOptions::new()
         .read(true)

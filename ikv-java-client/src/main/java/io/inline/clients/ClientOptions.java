@@ -24,6 +24,7 @@ public final class ClientOptions {
     return _config;
   }
 
+  // TODO: deprecate - key type should not be an option
   public FieldType primaryKeyType() {
     return _primaryKeyType;
   }
@@ -33,16 +34,13 @@ public final class ClientOptions {
         .setStoreName(_config.getStringConfigsOrThrow(IKVConstants.STORE_NAME))
         .setCredentials(
             Services.AccountCredentials.newBuilder()
-                .setAccountId(_config.getStringConfigsOrThrow(ClientOptions.Builder.CFG_ACCOUNT_ID))
-                .setAccountPasskey(
-                    _config.getStringConfigsOrThrow(ClientOptions.Builder.CFG_ACCOUNT_PASSKEY))
+                .setAccountId(_config.getStringConfigsOrThrow(IKVConstants.ACCOUNT_ID))
+                .setAccountPasskey(_config.getStringConfigsOrThrow(IKVConstants.ACCOUNT_PASSKEY))
                 .build())
         .build();
   }
 
   public static final class Builder {
-    private static final String CFG_ACCOUNT_ID = "account_id";
-    private static final String CFG_ACCOUNT_PASSKEY = "account_passkey";
     private static final Set<String> LOG_LEVELS =
         ImmutableSet.of("error", "warn", "info", "debug", "trace");
 
@@ -59,26 +57,23 @@ public final class ClientOptions {
 
     public ClientOptions build() {
       // enforce required configs
-      _configBuilder.getStringConfigsOrThrow(CFG_ACCOUNT_ID);
-      _configBuilder.getStringConfigsOrThrow(CFG_ACCOUNT_PASSKEY);
+      _configBuilder.getStringConfigsOrThrow(IKVConstants.ACCOUNT_ID);
+      _configBuilder.getStringConfigsOrThrow(IKVConstants.ACCOUNT_PASSKEY);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.STORE_NAME);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.MOUNT_DIRECTORY);
       _configBuilder.getIntConfigsOrThrow(IKVConstants.PARTITION);
-      _configBuilder.getStringConfigsOrThrow(IKVConstants.PRIMARY_KEY_FIELD_NAME);
 
       return new ClientOptions(_configBuilder.build(), _primaryKeyType);
     }
 
-    public Builder useStringPrimaryKey(String fieldName) {
+    public Builder useStringPrimaryKey() {
       // TODO: inspect how to pass in primary key field name
       _primaryKeyType = FieldType.STRING;
-      _configBuilder.putStringConfigs(IKVConstants.PRIMARY_KEY_FIELD_NAME, fieldName);
       return this;
     }
 
-    public Builder useBytesPrimaryKey(String fieldName) {
+    public Builder useBytesPrimaryKey() {
       _primaryKeyType = FieldType.BYTES;
-      _configBuilder.putStringConfigs(IKVConstants.PRIMARY_KEY_FIELD_NAME, fieldName);
       return this;
     }
 
@@ -105,13 +100,13 @@ public final class ClientOptions {
 
     public Builder withAccountId(String accountId) {
       Preconditions.checkArgument(accountId != null && !accountId.isEmpty());
-      _configBuilder.putStringConfigs(CFG_ACCOUNT_ID, accountId);
+      _configBuilder.putStringConfigs(IKVConstants.ACCOUNT_ID, accountId);
       return this;
     }
 
     public Builder withAccountPassKey(String accountPassKey) {
       Preconditions.checkArgument(accountPassKey != null && !accountPassKey.isEmpty());
-      _configBuilder.putStringConfigs(CFG_ACCOUNT_PASSKEY, accountPassKey);
+      _configBuilder.putStringConfigs(IKVConstants.ACCOUNT_PASSKEY, accountPassKey);
       return this;
     }
 
