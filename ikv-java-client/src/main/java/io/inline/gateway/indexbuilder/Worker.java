@@ -1,5 +1,6 @@
 package io.inline.gateway.indexbuilder;
 
+import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
 import io.inline.clients.internal.IKVClientJNI;
 import io.inline.gateway.IKVConstants;
@@ -20,7 +21,7 @@ import org.apache.logging.log4j.Logger;
 // TODO: bug review?
 public class Worker {
   private static final Logger LOGGER = LogManager.getLogger(Worker.class);
-  private static final String WORKING_DIR = "/tmp/ikv-index-builds";
+  private static final String WORKING_DIR = "/home/ubuntu/ikv-index-builds";
 
   private final IKVStoreContextObjectsAccessor _controller;
 
@@ -71,6 +72,8 @@ public class Worker {
         storeName,
         config);
 
+    Preconditions.checkNotNull(IKVClientJNI.provideHelloWorld(), "Linkage error.");
+
     Instant start = Instant.now();
     try {
       IKVClientJNI.buildIndex(config.toByteArray());
@@ -87,8 +90,8 @@ public class Worker {
           Duration.between(start, Instant.now()).toSeconds(),
           e);
     } finally {
-      LOGGER.info("Deleting mount directory: {}", mountDirectory);
-      deleteDirectory(mountDirectory);
+      // LOGGER.info("Deleting mount directory: {}", mountDirectory);
+      // deleteDirectory(mountDirectory);
     }
   }
 
