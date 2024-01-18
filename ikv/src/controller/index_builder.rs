@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use log::info;
+
 use crate::index::ckv::CKVIndex;
 use crate::kafka::consumer::IKVKafkaConsumer;
 use crate::kafka::processor::WritesProcessor;
@@ -30,6 +32,7 @@ impl IndexBuilder {
 
     // NOTE: callers must cleanup their working directories
     pub fn build_and_export(&self, config: &IKVStoreConfig) -> anyhow::Result<()> {
+        info!("Build and Exporting...");
         // start write processing
         // blocks to consume pending messages
         self.kafka_consumer.blocking_run_till_completion()?;

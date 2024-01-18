@@ -35,7 +35,7 @@ pub struct CKVIndex {
 
 impl CKVIndex {
     pub fn open_or_create(config: &IKVStoreConfig) -> anyhow::Result<Self> {
-        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
+        let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
 
         // create mount directory if it does not exist
         fs::create_dir_all(&mount_directory)?;
@@ -70,7 +70,7 @@ impl CKVIndex {
     }
 
     pub fn index_not_present(config: &IKVStoreConfig) -> anyhow::Result<bool> {
-        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
+        let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
         let index_path = format!("{}/index", &mount_directory);
 
         let not_present = !Path::new(&index_path).exists()
@@ -83,7 +83,7 @@ impl CKVIndex {
     // checks if a valid index is loaded at the mount directory
     // Returns error with some details if empty or invalid, else ok.
     pub fn is_valid_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
-        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
+        let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
 
         // root path should exist
         let index_path = format!("{}/index", &mount_directory);
@@ -108,7 +108,7 @@ impl CKVIndex {
 
     /// Clears out all index structures from disk.
     pub fn delete_all(config: &IKVStoreConfig) -> anyhow::Result<()> {
-        let mount_directory = crate::utils::paths::get_mount_directory_fqn(config)?;
+        let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
 
         let index_path = format!("{}/index", &mount_directory);
         if Path::new(&index_path).exists() {

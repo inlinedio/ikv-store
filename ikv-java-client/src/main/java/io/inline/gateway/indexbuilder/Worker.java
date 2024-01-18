@@ -5,6 +5,7 @@ import io.inline.clients.internal.IKVClientJNI;
 import io.inline.gateway.IKVConstants;
 import io.inline.gateway.UserStoreContext;
 import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
+import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
 import io.inline.gateway.ddb.beans.IKVStoreContext;
 import java.io.IOException;
 import java.nio.file.*;
@@ -19,10 +20,15 @@ import org.apache.logging.log4j.Logger;
 // TODO: bug review?
 public class Worker {
   private static final Logger LOGGER = LogManager.getLogger(Worker.class);
-  private static final String WORKING_DIR =
-      String.format("/tmp/ikv-index-builds/%d", Instant.now().toEpochMilli());
+  private static final String WORKING_DIR = "/tmp/ikv-index-builds";
 
   private final IKVStoreContextObjectsAccessor _controller;
+
+  public static void main(String[] args) throws IOException {
+    IKVStoreContextObjectsAccessor accessor = IKVStoreContextObjectsAccessorFactory.getAccessor();
+    Worker worker = new Worker(accessor);
+    worker.build("testing-account-v1", "testing-store");
+  }
 
   public Worker(IKVStoreContextObjectsAccessor dynamoDBAccessor) {
     _controller = Objects.requireNonNull(dynamoDBAccessor);
@@ -44,13 +50,18 @@ public class Worker {
     UserStoreContext context = UserStoreContext.from(maybeContext.get());
     IKVStoreConfig sotConfigs = context.createGatewaySpecifiedConfigs();
 
-    String mountDirectory = String.format("%s/%s", WORKING_DIR, accountId);
+    String mountDirectory =
+        String.format("%s/%d/%s", WORKING_DIR, Instant.now().toEpochMilli(), accountId);
 
     // Set some overrides
     IKVStoreConfig config =
         IKVStoreConfig.newBuilder()
             .mergeFrom(sotConfigs)
+            .putStringConfigs(IKVConstants.ACCOUNT_ID, context.accountId())
+            .putStringConfigs(IKVConstants.ACCOUNT_PASSKEY, context.accountPasskey())
             .putStringConfigs(IKVConstants.MOUNT_DIRECTORY, mountDirectory)
+            .putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, "info")
+            .putBooleanConfigs(IKVConstants.RUST_CLIENT_LOG_TO_CONSOLE, true)
             .putIntConfigs(IKVConstants.PARTITION, 0) // todo! change - invoke for all partitions.
             .build();
 
@@ -76,7 +87,7 @@ public class Worker {
           Duration.between(start, Instant.now()).toSeconds(),
           e);
     } finally {
-      LOGGER.info("Deleting working directory: {}", mountDirectory);
+      LOGGER.info("Deleting mount directory: {}", mountDirectory);
       deleteDirectory(mountDirectory);
     }
   }

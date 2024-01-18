@@ -6,6 +6,10 @@ public class IKVConstants {
       "ikv-base-index-test-v1"; // TODO!: add correct bucket name!
 
   /** IKVStoreConfig keys */
+  public static final String ACCOUNT_ID = "account_id";
+
+  public static final String ACCOUNT_PASSKEY = "account_passkey";
+
   public static final String MOUNT_DIRECTORY = "mount_directory";
 
   public static final String STORE_NAME = "store_name";

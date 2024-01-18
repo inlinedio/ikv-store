@@ -43,7 +43,7 @@ pub struct IKVKafkaConsumer {
 impl IKVKafkaConsumer {
     /// Create a new consumer.
     pub fn new(config: &IKVStoreConfig, processor: Arc<WritesProcessor>) -> anyhow::Result<Self> {
-        let mount_directory = crate::utils::paths::get_mount_directory_fqn(&config)?;
+        let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(&config)?;
 
         let account_id = config.stringConfigs.get("account_id").ok_or(
             rdkafka::error::KafkaError::ClientCreation(

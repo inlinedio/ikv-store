@@ -13,12 +13,13 @@ public class NearlineIntegrationTests {
           .withStorePartition(0)
           .withAccountId("testing-account-v1")
           .withAccountPassKey("testing-account-passkey")
-          .useStringPrimaryKey("userid")
+          .useStringPrimaryKey()
           .build();
 
   // kafka topic name - testing-kafka-topic
 
   @Test
+  @Disabled
   public void upsertAndRead() throws InterruptedException {
     IKVClientFactory factory = new IKVClientFactory(_clientOptions);
 

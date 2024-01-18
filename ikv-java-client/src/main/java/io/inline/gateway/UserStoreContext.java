@@ -38,6 +38,10 @@ public class UserStoreContext {
     return new UserStoreContext(ikvStoreContext);
   }
 
+  public String accountId() {
+    return _ikvStoreContext.getAccountId();
+  }
+
   // sensitive field, do not log
   public String accountPasskey() {
     return _ikvStoreContext.getAccountPasskey();
