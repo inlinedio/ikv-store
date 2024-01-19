@@ -1,3 +1,4 @@
+pub mod encryption;
 pub mod logging;
 pub mod paths;
 
