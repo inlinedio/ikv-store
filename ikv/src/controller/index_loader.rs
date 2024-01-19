@@ -12,11 +12,12 @@ use aws_sdk_s3::primitives::ByteStream;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use log::info;
+use log::{error, info};
 use tar::Archive;
 
 use crate::index::ckv::CKVIndex;
 use crate::proto::generated_proto::common::IKVStoreConfig;
+use crate::utils;
 
 pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     let working_mount_directory = crate::utils::paths::get_working_mount_directory_fqn(config)?;
@@ -86,7 +87,7 @@ async fn orchestrate_index_upload(
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
 
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("us-west-2")
+        .region("eu-north-1")
         .load()
         .await;
     let client = S3Client::new(&aws_config);
@@ -123,10 +124,15 @@ async fn orchestrate_index_upload(
     let base_index_s3_key = format!("{}/{}/{}", &s3_key_prefix, &epoch, partition);
 
     // upload!
-    // TODO: use encryption keys
+    let sse_key_objects = utils::encryption::sse_key_and_digest(config)?;
     let body = ByteStream::from_path(Path::new(&tarball_index_filename)).await?;
+
     client
         .put_object()
+        // https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html
+        .sse_customer_algorithm(aws_sdk_s3::types::ServerSideEncryption::Aes256.as_str())
+        .sse_customer_key(sse_key_objects.0)
+        .sse_customer_key_md5(sse_key_objects.1)
         .bucket(bucket_name)
         .key(base_index_s3_key)
         .body(body)
@@ -153,7 +159,7 @@ async fn orchestrate_index_download(
     // https://docs.aws.amazon.com/sdk-for-rust/latest/dg/getting-started.html#getting-started-step1
 
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("us-west-2")
+        .region("eu-north-1")
         .load()
         .await;
     let client = S3Client::new(&aws_config);
@@ -241,7 +247,7 @@ async fn orchestrate_index_download(
         std::fs::remove_file(&tarball_index_filename)?;
     }
 
-    download_from_s3(&client, &bucket_name, &key, &tarball_index_filename).await?;
+    download_from_s3(&client, config, &bucket_name, &key, &tarball_index_filename).await?;
     unpack_tarball(&tarball_index_filename, working_mount_directory)?;
 
     // after unpacking, the decompressed index is in <mount-dir>/base_index, move it to <mount-dir>
@@ -257,6 +263,7 @@ async fn orchestrate_index_download(
 
 async fn download_from_s3(
     client: &S3Client,
+    config: &IKVStoreConfig,
     bucket: &str,
     key: &str,
     destination: &str,
@@ -267,11 +274,18 @@ async fn download_from_s3(
         .create_new(true)
         .open(destination)?;
 
-    // TODO! use decryption keys!!!
-    // https://docs.rs/aws-sdk-s3/latest/aws_sdk_s3/operation/get_object/builders/struct.GetObjectFluentBuilder.html#method.sse_customer_key
-
+    let sse_key_objects = utils::encryption::sse_key_and_digest(config)?;
     let mut writer = BufWriter::new(&file);
-    let mut result = client.get_object().bucket(bucket).key(key).send().await?;
+    let mut result = client
+        .get_object()
+        // https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html
+        .sse_customer_algorithm(aws_sdk_s3::types::ServerSideEncryption::Aes256.as_str())
+        .sse_customer_key(sse_key_objects.0)
+        .sse_customer_key_md5(sse_key_objects.1)
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await?;
     while let Some(bytes) = result.body.try_next().await? {
         writer.write_all(&bytes)?;
     }
