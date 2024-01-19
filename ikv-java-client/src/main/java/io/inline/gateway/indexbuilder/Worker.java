@@ -18,7 +18,6 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-// TODO: bug review?
 public class Worker {
   private static final Logger LOGGER = LogManager.getLogger(Worker.class);
   private static final String WORKING_DIR = "/tmp/ikv-index-builds";
@@ -58,7 +57,6 @@ public class Worker {
     IKVStoreConfig config =
         IKVStoreConfig.newBuilder()
             .mergeFrom(sotConfigs)
-            .putStringConfigs(IKVConstants.ACCOUNT_ID, context.accountId())
             .putStringConfigs(IKVConstants.ACCOUNT_PASSKEY, context.accountPasskey())
             .putStringConfigs(IKVConstants.MOUNT_DIRECTORY, mountDirectory)
             .putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, "info")
@@ -66,11 +64,8 @@ public class Worker {
             .putIntConfigs(IKVConstants.PARTITION, 0) // todo! change - invoke for all partitions.
             .build();
 
-    LOGGER.info(
-        "Starting offline build for accountid: {} storename: {} config: {}",
-        accountId,
-        storeName,
-        config);
+    // Never print configs since it has passkeys
+    LOGGER.info("Starting offline build for accountid: {} storename: {}", accountId, storeName);
 
     Preconditions.checkNotNull(IKVClientJNI.provideHelloWorld(), "Linkage error.");
 
@@ -82,6 +77,8 @@ public class Worker {
           accountId,
           storeName,
           Duration.between(start, Instant.now()).toSeconds());
+      LOGGER.info("Deleting mount directory: {}", mountDirectory);
+      deleteDirectory(mountDirectory);
     } catch (Exception e) {
       LOGGER.error(
           "Error during offline build for accountid: {} storename: {} time: {}s. Error: ",
@@ -89,9 +86,6 @@ public class Worker {
           storeName,
           Duration.between(start, Instant.now()).toSeconds(),
           e);
-    } finally {
-      LOGGER.info("Deleting mount directory: {}", mountDirectory);
-      deleteDirectory(mountDirectory);
     }
   }
 

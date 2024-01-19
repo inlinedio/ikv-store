@@ -77,6 +77,8 @@ impl IKVKafkaConsumer {
             .set("sasl.mechanisms", "SCRAM-SHA-512")
             .set("sasl.username", account_id)
             .set("sasl.password", account_passkey)
+            // .set("ssl.ca.location", "/etc/ssl/certs") <- required for ubuntu.
+            // TODO: check if instantiation fails on any other OS.
             .clone();
 
         // topic and parition
@@ -341,19 +343,6 @@ async fn consume_till_high_watermark(
                             curr_message.offset(),
                         )?;
                     }
-
-                    /*
-                    let end_offset = end_offset.to_raw().expect("end_offset is pre-validated");
-                    if curr_message.offset() >= end_offset {
-                        writes_processor.flush_all()?;
-                        offset_committer.commit(
-                            curr_message.topic(),
-                            curr_message.partition(),
-                            curr_message.offset(),
-                        )?;
-                        return Ok(());
-                    }
-                    */
                 }
             }
         };

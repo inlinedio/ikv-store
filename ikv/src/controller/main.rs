@@ -62,7 +62,6 @@ impl Controller {
 
     pub fn close(self) -> anyhow::Result<()> {
         self.kafka_consumer.stop();
-        self.index.close()?;
         info!("Closing IKV, Bye Bye.");
         Ok(())
     }

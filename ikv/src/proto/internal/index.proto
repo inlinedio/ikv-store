@@ -6,6 +6,12 @@ package ikvschemas;
 
 import "common.proto";
 
+/// Index level headers and metadata.
+message CKVIndexHeader {
+    /// Epoch (~ build time) of the current base index.
+    uint64 base_index_epoch_millis = 1;
+}
+
 message SavedCKVIndexSchema {
     string primary_key_field_name = 1;
     map<string, uint32> field_ids = 2;
@@ -23,7 +29,7 @@ message OffsetTableEntry {
 message UpdateDocFields {
     bytes primary_key = 1;
     repeated uint32 field_ids = 2;
-    repeated int64 offsets = 3;
+    repeated uint64 offsets = 3;
 }
 
 message DeleteDocFields {

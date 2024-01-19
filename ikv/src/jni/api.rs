@@ -54,6 +54,16 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'
         let _ = env.throw_new("java/lang/RuntimeException", exception);
         return;
     }
+
+    // close
+    if let Err(e) = index_builder.close() {
+        let exception = format!(
+            "Cannot close index_builder, failed with error: {}",
+            e.to_string()
+        );
+        let _ = env.throw_new("java/lang/RuntimeException", exception);
+        return;
+    }
 }
 
 #[no_mangle]

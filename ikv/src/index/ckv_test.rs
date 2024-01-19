@@ -71,11 +71,9 @@ pub fn test_lifecycle() {
 
     // create new and close
     let index = CKVIndex::open_or_create(&ikv_config).unwrap();
-    assert!(index.close().is_ok());
 
     // re-open and close
     let index = CKVIndex::open_or_create(&ikv_config).unwrap();
-    assert!(index.close().is_ok());
 
     // valid and not empty
     assert_eq!(CKVIndex::index_not_present(&ikv_config).unwrap(), false);
