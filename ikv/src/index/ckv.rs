@@ -2,13 +2,15 @@ use crate::{
     proto::generated_proto::{
         common::FieldValue,
         common::{FieldType, IKVStoreConfig},
+        index::CKVIndexHeader,
     },
     schema::field::FieldId,
 };
 use anyhow::{anyhow, bail};
 
 use super::{
-    ckv_segment::CKVIndexSegment, offset_store::OffsetStore, schema_store::CKVIndexSchema,
+    ckv_segment::CKVIndexSegment, header::HeaderStore, offset_store::OffsetStore,
+    schema_store::CKVIndexSchema,
 };
 use std::{
     collections::HashMap,
@@ -31,6 +33,8 @@ pub struct CKVIndex {
     /// field-name -> Field
     // Wrapped around lock to optimize for batch lookups
     schema: RwLock<CKVIndexSchema>,
+
+    header_store: HeaderStore,
 }
 
 impl CKVIndex {
@@ -58,15 +62,14 @@ impl CKVIndex {
         // open_or_create kafka store, done to initialize correctly
         let _ = OffsetStore::open_or_create(mount_directory.to_string())?;
 
+        // index headers
+        let header_store = HeaderStore::open_or_create(&mount_directory)?;
+
         Ok(Self {
             segments,
             schema: RwLock::new(schema),
+            header_store,
         })
-    }
-
-    pub fn close(&self) -> anyhow::Result<()> {
-        // NO OP
-        Ok(())
     }
 
     pub fn index_not_present(config: &IKVStoreConfig) -> anyhow::Result<bool> {
@@ -75,13 +78,15 @@ impl CKVIndex {
 
         let not_present = !Path::new(&index_path).exists()
             || CKVIndexSchema::index_not_present(&mount_directory)
-            || OffsetStore::index_not_present(&mount_directory);
+            || OffsetStore::index_not_present(&mount_directory)
+            || HeaderStore::index_not_present(&mount_directory);
 
         Ok(not_present)
     }
 
     // checks if a valid index is loaded at the mount directory
     // Returns error with some details if empty or invalid, else ok.
+    // TODO: return bool wrapped in result.
     pub fn is_valid_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
         let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
 
@@ -102,6 +107,9 @@ impl CKVIndex {
         // check if kafka offset store is valid
         OffsetStore::is_valid_index(&mount_directory)?;
 
+        // check if headers are valid
+        HeaderStore::is_valid_index(&mount_directory)?;
+
         // valid index!
         Ok(())
     }
@@ -117,6 +125,7 @@ impl CKVIndex {
 
         CKVIndexSchema::delete_all(&mount_directory)?;
         OffsetStore::delete_all(&mount_directory)?;
+        HeaderStore::delete_all(&mount_directory)?;
         Ok(())
     }
 
@@ -198,6 +207,16 @@ impl CKVIndex {
     /// 1. upsert multiple fields for a document
     /// 2. delete multiple fields for a document
     /// 3. delete a document
+
+    // full update - caller should provide all values.
+
+    pub fn write_index_header(&self, header: &CKVIndexHeader) -> anyhow::Result<()> {
+        self.header_store.write_header(header)
+    }
+
+    pub fn read_index_header(&self) -> anyhow::Result<CKVIndexHeader> {
+        self.header_store.read_header()
+    }
 
     /// Hook to persist incremental writes to disk
     /// ie parts of index and mmap files or schema

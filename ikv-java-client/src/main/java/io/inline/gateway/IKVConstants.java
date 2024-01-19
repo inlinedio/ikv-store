@@ -23,7 +23,6 @@ public class IKVConstants {
   public static final String KAFKA_CONSUMER_TOPIC_NAME = "kafka_topic";
 
   public static final String BASE_INDEX_S3_BUCKET_NAME = "base_index_s3_bucket_name";
-  public static final String BASE_INDEX_S3_BUCKET_PREFIX = "base_index_s3_bucket_prefix";
 
   public static final String RUST_CLIENT_LOG_LEVEL = "rust_client_log_level";
   public static final String RUST_CLIENT_LOG_TO_CONSOLE = "rust_client_log_to_console";

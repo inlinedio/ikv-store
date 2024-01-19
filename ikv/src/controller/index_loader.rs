@@ -12,14 +12,17 @@ use aws_sdk_s3::primitives::ByteStream;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use log::{error, info};
+use log::info;
 use tar::Archive;
 
 use crate::index::ckv::CKVIndex;
 use crate::proto::generated_proto::common::IKVStoreConfig;
 use crate::utils;
 
-pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
+const REFRESH_BASE_INDEX_AGE_MILLIS: u128 = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     let working_mount_directory = crate::utils::paths::get_working_mount_directory_fqn(config)?;
     let index_mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
 
@@ -27,31 +30,70 @@ pub fn load_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     std::fs::create_dir_all(&working_mount_directory)?;
     std::fs::create_dir_all(&index_mount_directory)?;
 
-    // TODO: we might need to load a new base index based on age (for compaction!!)
-    let mut download = false;
-
-    if CKVIndex::index_not_present(config)? {
-        info!("No base index present in mount directory.");
+    if base_index_download_required(config).await? {
+        info!("Removing existing base index on disk.");
         CKVIndex::delete_all(config)?;
-        download = true;
-    } else if let Err(e) = CKVIndex::is_valid_index(config) {
-        info!(
-            "Base index found in inconsistent state: {}. Clearing out index.",
-            e
-        );
-        CKVIndex::delete_all(config)?;
-        download = true;
-    }
 
-    if download {
-        info!("Attempting to download from S3 repository.");
-        orchestrate_index_download(&working_mount_directory, &index_mount_directory, config)?;
+        info!("Starting base index download from S3 repository.");
+        orchestrate_index_download(&working_mount_directory, &index_mount_directory, config)
+            .await?;
     }
 
     Ok(())
 }
 
-pub fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
+/// New index downloaded when:
+/// 1) No index is present on disk (ex. bootstrapping new hardware)
+/// 2) Index is corrupt/invalida
+/// 3) Base index age is old and we should refresh it.
+async fn base_index_download_required(config: &IKVStoreConfig) -> anyhow::Result<bool> {
+    if CKVIndex::index_not_present(config)? {
+        info!("No base index present in mount directory, needs download.");
+        return Ok(true);
+    }
+
+    if let Err(e) = CKVIndex::is_valid_index(config) {
+        info!(
+            "Base index found in inconsistent state: {}, needs download.",
+            e
+        );
+        return Ok(true);
+    }
+
+    // Check for download based on age.
+    let base_index_epoch_millis = local_base_index_epoch_millis(config)?.unwrap_or(0); // 0 if missing
+    let curr_time_milis = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+    if (curr_time_milis - base_index_epoch_millis) >= REFRESH_BASE_INDEX_AGE_MILLIS {
+        // Eligible for refresh, check if newer index is available
+        if let Some((remote_index_key, remote_index_age_epoch_millis)) =
+            find_latest_base_index(config).await?
+        {
+            if (curr_time_milis - remote_index_age_epoch_millis) < REFRESH_BASE_INDEX_AGE_MILLIS {
+                info!("Current base index is old with age: {}, found more recent index on S3: {} with age: {}, needs download.", base_index_epoch_millis, remote_index_key, remote_index_age_epoch_millis);
+                return Ok(true);
+            }
+        }
+        info!(
+            "Current base index is old with age: {}, but no eligible index on S3.",
+            base_index_epoch_millis
+        );
+    }
+
+    return Ok(false);
+}
+
+fn local_base_index_epoch_millis(config: &IKVStoreConfig) -> anyhow::Result<Option<u128>> {
+    let ckv_index = CKVIndex::open_or_create(config)?;
+    let header = ckv_index.read_index_header()?;
+    if header.base_index_epoch_millis == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(header.base_index_epoch_millis as u128))
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     let working_mount_directory = crate::utils::paths::get_working_mount_directory_fqn(config)?;
     let index_mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
     // create paths if not exists
@@ -64,10 +106,9 @@ pub fn upload_index(config: &IKVStoreConfig) -> anyhow::Result<()> {
     }
 
     // upload as base index
-    orchestrate_index_upload(&working_mount_directory, &index_mount_directory, config)
+    orchestrate_index_upload(&working_mount_directory, &index_mount_directory, config).await
 }
 
-#[tokio::main(flavor = "current_thread")]
 async fn orchestrate_index_upload(
     working_mount_directory: &str,
     index_mount_directory: &str,
@@ -101,27 +142,29 @@ async fn orchestrate_index_upload(
         ))?
         .to_string();
 
-    let s3_key_prefix = config
+    let account_id = config
         .stringConfigs
-        .get("base_index_s3_bucket_prefix")
-        .ok_or(anyhow!(
-            "base_index_s3_bucket_prefix is a required gateway-specified config"
-        ))?
+        .get("account_id")
+        .ok_or(anyhow!("account_id is a required client-specified config"))?
+        .to_string();
+
+    let store_name = config
+        .stringConfigs
+        .get("store_name")
+        .ok_or(anyhow!("store_name is a required client-specified config"))?
         .to_string();
 
     let partition = config
         .intConfigs
         .get("partition")
         .copied()
-        .ok_or(anyhow!("partition is a required user-specified config"))?;
+        .ok_or(anyhow!("partition is a required client-specified config"))?;
 
-    let epoch = SystemTime::now()
-        .duration_since(UNIX_EPOCH)?
-        .as_millis()
-        .to_string();
+    let epoch = local_base_index_epoch_millis(config)?
+        .ok_or(anyhow!("base_index_epoch_millis missing from index header"))?;
 
-    // key: <account_id><storename>/<epoch>/<partition>
-    let base_index_s3_key = format!("{}/{}/{}", &s3_key_prefix, &epoch, partition);
+    // key: <account_id>/<storename>/<partition>/<epoch>
+    let base_index_s3_key = format!("{}/{}/{}/{}", &account_id, &store_name, partition, &epoch);
 
     // upload!
     let sse_key_objects = utils::encryption::sse_key_and_digest(config)?;
@@ -144,28 +187,14 @@ async fn orchestrate_index_upload(
     Ok(())
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn orchestrate_index_download(
-    working_mount_directory: &str,
-    index_mount_directory: &str,
-    config: &IKVStoreConfig,
-) -> anyhow::Result<()> {
-    // References:
-    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
-    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_ListObjects_section.html
-
-    // TODO: client initialization
-    // Ref: https://docs.rs/aws-config/latest/aws_config/ecs/index.html
-    // https://docs.aws.amazon.com/sdk-for-rust/latest/dg/getting-started.html#getting-started-step1
-
+/// Latest index present in S3.
+/// If present, returns the full S3-key and base-index epoch.
+async fn find_latest_base_index(config: &IKVStoreConfig) -> anyhow::Result<Option<(String, u128)>> {
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
         .region("eu-north-1")
         .load()
         .await;
     let client = S3Client::new(&aws_config);
-
-    //let aws_config = aws_config::load_from_env().await;
-    //let client = S3Client::new(&aws_config);
 
     let bucket_name = config
         .stringConfigs
@@ -175,13 +204,16 @@ async fn orchestrate_index_download(
         ))?
         .to_string();
 
-    // <account-id>/<store-name>
-    let s3_key_prefix = config
+    let account_id = config
         .stringConfigs
-        .get("base_index_s3_bucket_prefix")
-        .ok_or(anyhow!(
-            "base_index_s3_bucket_prefix is a required gateway-specified config"
-        ))?
+        .get("account_id")
+        .ok_or(anyhow!("account_id is a required client-specified config"))?
+        .to_string();
+
+    let store_name = config
+        .stringConfigs
+        .get("store_name")
+        .ok_or(anyhow!("store_name is a required client-specified config"))?
         .to_string();
 
     let partition = config
@@ -189,6 +221,9 @@ async fn orchestrate_index_download(
         .get("partition")
         .copied()
         .ok_or(anyhow!("partition is a required client-specified config"))?;
+
+    // <account-id>/<store-name>/<partition>
+    let s3_key_prefix = format!("{}/{}/{}", account_id, store_name, partition);
 
     // list objects based on prefix
     let mut response = client
@@ -199,45 +234,68 @@ async fn orchestrate_index_download(
         .into_paginator()
         .send();
 
-    let mut base_index_key: Option<String> = None;
+    let mut maybe_base_index_key = None;
     let mut max_epoch = u128::MIN;
 
     while let Some(result) = response.next().await {
         for object in result?.contents() {
-            // key format: <account_id>/<storename>/<epoch>/<partition>
+            // key format: <account_id>/<storename>/<partition>/<epoch>
             if let Some(key) = object.key() {
-                let parts = key.split('/').collect::<Vec<&str>>();
+                let key_parts = key.split('/').collect::<Vec<&str>>();
 
-                let key_partition = parts.get(3).ok_or(anyhow!(
-                    "malformed base index key: {}, expecting partition",
-                    key
-                ))?;
-                let key_partition: i64 = key_partition.parse::<i64>()?;
-
-                if partition != key_partition {
-                    continue;
-                }
-
-                let key_epoch = parts.get(2).ok_or(anyhow!(
+                let epoch = key_parts.get(3).ok_or(anyhow!(
                     "malformed base index key: {}, expecting epoch",
                     key
                 ))?;
-                let key_epoch: u128 = key_epoch.parse::<u128>()?;
-                if max_epoch < key_epoch {
-                    max_epoch = key_epoch;
-                    base_index_key = Some(key.to_string());
+
+                let epoch: u128 = epoch.parse::<u128>()?;
+                if maybe_base_index_key.is_none() || max_epoch < epoch {
+                    max_epoch = epoch;
+                    maybe_base_index_key = Some(key.to_string());
                 }
             }
         }
     }
 
-    if base_index_key.is_none() {
-        info!("Did not find base index prefix: {}", &s3_key_prefix);
+    if maybe_base_index_key.is_none() {
+        info!("No base index found in S3, key-prefix: {}", &s3_key_prefix);
+        return Ok(None);
+    }
+
+    Ok(Some((maybe_base_index_key.unwrap(), max_epoch)))
+}
+
+async fn orchestrate_index_download(
+    working_mount_directory: &str,
+    index_mount_directory: &str,
+    config: &IKVStoreConfig,
+) -> anyhow::Result<()> {
+    // Find latest remote base index.
+    let maybe_base_index = find_latest_base_index(config).await?;
+    if maybe_base_index.is_none() {
         return Ok(());
     }
 
-    let key = base_index_key.unwrap();
+    let key = maybe_base_index.unwrap().0;
     info!("Found base index, base-index-key: {}", &key);
+
+    // References:
+    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
+    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_ListObjects_section.html
+
+    let aws_config = aws_config::defaults(BehaviorVersion::latest())
+        .region("eu-north-1")
+        .load()
+        .await;
+    let client = S3Client::new(&aws_config);
+
+    let bucket_name = config
+        .stringConfigs
+        .get("base_index_s3_bucket_name")
+        .ok_or(anyhow!(
+            "base_index_s3_bucket_name is a required gateway-specified config"
+        ))?
+        .to_string();
 
     // download, unpack and delete tarred file
     let tarball_index_filename = format!("{}/base_index.tar.gz", working_mount_directory);

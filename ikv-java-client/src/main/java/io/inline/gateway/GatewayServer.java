@@ -7,22 +7,20 @@ import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
 import io.inline.gateway.streaming.IKVKafkaWriter;
 import io.inline.gateway.streaming.KafkaProducerFactory;
 import java.io.IOException;
-import java.io.InputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.ConfigurationFactory;
-import org.apache.logging.log4j.core.config.ConfigurationSource;
-import org.apache.logging.log4j.core.config.xml.XmlConfigurationFactory;
 
 public class GatewayServer {
   private static final Logger LOGGER = LogManager.getLogger(GatewayServer.class);
+
+  // tip: lsof -n -i :8080
+  // Sometimes server can fail to bind to the port
+  // Use the above to kill processes.
   private static final int DEFAULT_PORT = 8080;
   private volatile io.grpc.Server _server;
 
   public static void main(String[] args) throws IOException, InterruptedException {
-    configureLog4j();
+    LOGGER.info("Hello from log4j");
 
     GatewayServer server = new GatewayServer();
     server.startup();
@@ -55,7 +53,6 @@ public class GatewayServer {
 
   public void blockUntilShutdown() throws InterruptedException {
     Preconditions.checkNotNull(_server);
-    System.out.println("Server is listening!");
     LOGGER.info("Server is listening!");
     _server.awaitTermination();
   }
@@ -70,18 +67,5 @@ public class GatewayServer {
     }
 
     return DEFAULT_PORT;
-  }
-
-  private static void configureLog4j() throws IOException {
-    System.out.println("Starting LOG4J configuration");
-    InputStream in = GatewayServer.class.getClassLoader().getResourceAsStream("log4j.xml");
-    System.out.println(in.toString());
-    Preconditions.checkNotNull(in);
-    ConfigurationSource source = new ConfigurationSource(in);
-    ConfigurationFactory factory = new XmlConfigurationFactory();
-    LoggerContext context = (LoggerContext) LogManager.getContext(false);
-    Configuration configuration = factory.getConfiguration(context, source);
-    context.start(configuration);
-    context.updateLoggers();
   }
 }

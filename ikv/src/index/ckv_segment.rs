@@ -36,10 +36,11 @@ pub struct CKVIndexSegment {
     offset_table_file_writer: BufWriter<File>,
 
     // TODO: offset table should hold u64 for cross platform index builds
+    // TODO: this is incompatible on 32 bit architecture
     offset_table: HashMap<Vec<u8>, Vec<usize>>,
 
     // current (usable) offset for new writes into the mmap
-    write_offset: usize,
+    write_offset: u64,
 
     // metadata file writer
     metadata_file_writer: BufWriter<File>,
@@ -143,13 +144,13 @@ impl CKVIndexSegment {
         // metadata file
         let metadata_file = open_metadata_file(mount_directory, index_id)?;
 
-        let write_offset: usize;
+        let write_offset: u64;
         {
             let mut metadata_file_reader = BufReader::new(metadata_file.try_clone()?);
             let mut buffer = Vec::new();
             metadata_file_reader.read_to_end(&mut buffer)?;
             let metadata = CKVIndexSegmentMetadata::parse_from_bytes(&buffer)?;
-            write_offset = metadata.mmap_write_offset as usize;
+            write_offset = metadata.mmap_write_offset;
             metadata_file_reader.rewind()?;
         }
 
@@ -233,10 +234,6 @@ impl CKVIndexSegment {
         let offsets = self.offset_table.get(primary_key)?;
         let maybe_offset = offsets.get(field_id as usize).copied();
         if let Some(offset) = maybe_offset {
-            if offset == usize::MAX {
-                return None;
-            }
-
             let result = self.read_from_mmap(offset)?;
             return Some(result.to_vec());
         }
@@ -270,7 +267,7 @@ impl CKVIndexSegment {
             }
 
             let maybe_offset = offsets.get(field_id.unwrap() as usize).copied();
-            if maybe_offset.is_none() || maybe_offset.unwrap() == usize::MAX {
+            if maybe_offset.is_none() {
                 dest.extend(ZERO_I32);
                 continue;
             }
@@ -288,6 +285,10 @@ impl CKVIndexSegment {
     }
 
     fn read_from_mmap(&self, mmap_offset: usize) -> Option<&[u8]> {
+        if mmap_offset == usize::MAX {
+            return None;
+        }
+
         // mmap_offset points to a bytes section where:
         // [2 bytes for field-type][data]
         // where data can be prefixed with vbytes for variable length types
@@ -439,7 +440,6 @@ impl CKVIndexSegment {
 
         let offsets = self.offset_table.entry(primary_key.to_vec()).or_default();
 
-        // TODO: refactor below this method!!!
         for i in 0..field_ids.len() {
             let field_id = field_ids[i];
             let field_value = &field_values[i];
@@ -447,20 +447,20 @@ impl CKVIndexSegment {
             let write_offset = self.write_offset;
 
             // write value to mmap
-            let num_bytes = Self::write_to_mmap(mmap, write_offset, field_value)?;
+            let num_bytes = Self::write_to_mmap(mmap, write_offset as usize, field_value)?;
 
             // write to in-memory index
             if field_id >= offsets.len() as u32 {
                 offsets.resize(field_id as usize + 1, usize::MAX);
             }
-            offsets[field_id as usize] = write_offset;
+            offsets[field_id as usize] = write_offset as usize;
 
             // propagate to disk (OffsetTableEntry.proto)
             update_doc_fields.field_ids.push(field_id);
-            update_doc_fields.offsets.push(write_offset as i64);
+            update_doc_fields.offsets.push(write_offset as u64);
 
             // update global offset
-            self.write_offset += num_bytes;
+            self.write_offset += num_bytes as u64;
         }
 
         let mut offset_table_entry = OffsetTableEntry::new();
@@ -484,19 +484,6 @@ impl CKVIndexSegment {
             return Ok(());
         }
 
-        // remove from in-memory offset_table
-        let maybe_offsets = self.offset_table.get_mut(primary_key);
-        if maybe_offsets.is_none() {
-            return Ok(());
-        }
-        let offsets = maybe_offsets.unwrap();
-        for field_id in field_ids.iter() {
-            let field_id = *field_id as usize;
-            if offsets.get(field_id).is_some() {
-                offsets[field_id] = usize::MAX;
-            }
-        }
-
         // propagate to disk (OffsetTableEntry.proto)
         let mut delete_doc_fields = DeleteDocFields::new();
         delete_doc_fields.primary_key = primary_key.to_vec();
@@ -510,7 +497,22 @@ impl CKVIndexSegment {
                 delete_doc_fields,
             ),
         );
-        self.persist_offset_table_update(offset_table_entry)
+        self.persist_offset_table_update(offset_table_entry)?;
+
+        // remove from in-memory offset_table
+        let maybe_offsets = self.offset_table.get_mut(primary_key);
+        if maybe_offsets.is_none() {
+            return Ok(());
+        }
+        let offsets = maybe_offsets.unwrap();
+        for field_id in field_ids.iter() {
+            let field_id = *field_id as usize;
+            if offsets.get(field_id).is_some() {
+                offsets[field_id] = usize::MAX;
+            }
+        }
+
+        Ok(())
     }
 
     /// Delete document.
@@ -519,9 +521,6 @@ impl CKVIndexSegment {
             return Ok(());
         }
 
-        // remove from in-memory offset_table
-        self.offset_table.remove(primary_key);
-
         // propagate to disk (OffsetTableEntry.proto)
         let mut delete_doc = DeleteDoc::new();
         delete_doc.primary_key = primary_key.to_vec();
@@ -529,7 +528,11 @@ impl CKVIndexSegment {
         offset_table_entry.operation = Some(
             proto::generated_proto::index::offset_table_entry::Operation::DeleteDoc(delete_doc),
         );
-        self.persist_offset_table_update(offset_table_entry)
+        self.persist_offset_table_update(offset_table_entry)?;
+
+        // remove from in-memory offset_table
+        self.offset_table.remove(primary_key);
+        Ok(())
     }
 
     fn persist_offset_table_update(&mut self, entry: OffsetTableEntry) -> io::Result<()> {
@@ -545,11 +548,11 @@ impl CKVIndexSegment {
     // See: https://stackoverflow.com/questions/28516996/how-to-create-and-write-to-memory-mapped-files
     fn expand_mmap_if_required(
         &mut self,
-        write_offset: usize,
+        write_offset: u64,
         num_bytes_to_write: usize,
     ) -> io::Result<()> {
-        let end_offset = write_offset + num_bytes_to_write; // non-inclusive
-                                                            // space [write_offset, end_offset) should be available
+        let end_offset = write_offset as usize + num_bytes_to_write; // non-inclusive
+                                                                     // space [write_offset, end_offset) should be available
 
         if self.mmap.len() >= end_offset {
             return Ok(());
