@@ -2,8 +2,7 @@ package io.inline.gateway;
 
 /** Config key strings. */
 public class IKVConstants {
-  public static final String S3_BASE_INDEX_BUCKET =
-      "ikv-base-index-test-v1"; // TODO!: add correct bucket name!
+  public static final String S3_BASE_INDEX_BUCKET = "ikv-base-index-v1";
 
   /** IKVStoreConfig keys */
   public static final String ACCOUNT_ID = "account_id";

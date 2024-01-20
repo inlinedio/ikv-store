@@ -128,7 +128,7 @@ async fn orchestrate_index_upload(
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
 
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("eu-north-1")
+        .region("us-west-2")
         .load()
         .await;
     let client = S3Client::new(&aws_config);
@@ -191,7 +191,7 @@ async fn orchestrate_index_upload(
 /// If present, returns the full S3-key and base-index epoch.
 async fn find_latest_base_index(config: &IKVStoreConfig) -> anyhow::Result<Option<(String, u128)>> {
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("eu-north-1")
+        .region("us-west-2")
         .load()
         .await;
     let client = S3Client::new(&aws_config);
@@ -284,7 +284,7 @@ async fn orchestrate_index_download(
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_ListObjects_section.html
 
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("eu-north-1")
+        .region("us-west-2")
         .load()
         .await;
     let client = S3Client::new(&aws_config);

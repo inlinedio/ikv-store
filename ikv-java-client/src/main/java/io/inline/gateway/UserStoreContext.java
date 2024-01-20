@@ -12,7 +12,7 @@ import java.util.*;
 public class UserStoreContext {
   // TODO: consider storing this per store in dynamodb
   private static final String PUBLIC_SASL_SCRAM_KAFKA_BOOTSTRAP_SERVER =
-      "b-2-public.mskcluster1.yz62h3.c5.kafka.us-west-2.amazonaws.com:9196";
+      "b-1-public.mskcluster1.yz62h3.c5.kafka.us-west-2.amazonaws.com:9196,b-2-public.mskcluster1.yz62h3.c5.kafka.us-west-2.amazonaws.com:9196";
   private final IKVStoreContext _ikvStoreContext;
 
   private UserStoreContext(IKVStoreContext ikvStoreContext) {

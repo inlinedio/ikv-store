@@ -10,7 +10,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 public class KafkaProducerFactory {
   // TODO: consider storing this per store in dynamodb
   public static final String KAFKA_BOOTSTRAP_SERVER =
-      "b-2.mskcluster1.yz62h3.c5.kafka.us-west-2.amazonaws.com:9098";
+      "b-1.mskcluster1.yz62h3.c5.kafka.us-west-2.amazonaws.com:9098,b-2.mskcluster1.yz62h3.c5.kafka.us-west-2.amazonaws.com:9098";
 
   public static <R> Producer<Common.FieldValue, R> createInstance() {
     Properties props = new Properties();
