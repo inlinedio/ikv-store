@@ -23,7 +23,8 @@ public class NearlineIntegrationTests {
   public void upsertAndRead() throws InterruptedException {
     IKVClientFactory factory = new IKVClientFactory(_clientOptions);
 
-    /*InlineKVWriter writer = factory.createNewWriterInstance();
+    /*
+    InlineKVWriter writer = factory.createNewWriterInstance();
 
     writer.startupWriter();
 
