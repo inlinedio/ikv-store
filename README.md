@@ -1,4 +1,4 @@
-# IKV | Inlined Key Value Store
+# IKV-Store | Inlined Key Value Store
 Inline I/O is an **embedded database platform**, which enabled data reads in a few microseconds over large datasets.
 The platform does not require any network calls (aka RPCs) and store the entire dataset in memory (with option to spill to disk).
 
