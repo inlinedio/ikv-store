@@ -3,10 +3,10 @@ package io.inline.clients.internal;
 import javax.annotation.Nullable;
 
 public final class IKVClientJNI {
-  // System.load("/home/ubuntu/inlineio/ikv/target/release/libikv.so");
-  // System.load("/Users/pushkar/projects/inlineio/ikv/target/release/libikv.dylib");
+  // System.load("/home/ubuntu/ikv-store/ikv/target/release/libikv.so");
+  // System.load("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
   static {
-    System.load("/Users/pushkar/projects/inlineio/ikv/target/release/libikv.dylib");
+    System.load("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
   }
 
   private IKVClientJNI() {}
