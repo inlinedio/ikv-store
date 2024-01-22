@@ -1,17 +1,27 @@
-# IKV-Store | Inlined Key Value Store
-IKV-Store is an **embedded key-value store**, which enabled data reads in a few microseconds over large datasets.
-The platform does not require any network calls (aka RPCs) and store the entire dataset in memory (with option to spill to disk).
+# IKV-Store | Inlined.io Key Value Store
+IKV-Store is a **fully-managed embedded key-value store** optimized for low-latency online feature serving (ML inference).
+It is perfect for building recommendation engines and AI applications which need fast access to large feature data-sets in microseconds.
 
-While providing an embedded database, the following functionality is provided (critical for enterprise use) - 
-1. Horizontal scalability (replicas and sharding) to scale for traffic and data size.
-2. Data persistence, backup and geo-replication (write once, read everywhere semantics)
-3. Bulk loading of data and bootstrap of new instances
- 
-Inline I/O provides the foundation of data intensive applications like recommendation engines, which retrieve and rank large data sets and have strict latency requirements.
+Key Features-
+1. Data is fully persistent.
+2. P99 read latency in 1-100 microseconds from client's point-of-view (depending on size of key/value and single or batch reads).
+3. Scales w.r.t data size (partitions) and read-traffic (replicas).
+4. Provides eventual read-after-write consistency.
+5. Environment agnostic. Run on-prem or in any public cloud. "Database as a library" semantics.
+6. Multi-language support with clients in Java (available), Python (coming in 2024) and Go (coming in 2024).
+7. No need to provision/monitor/operate external database servers or incur encryption performance penalties.
 
-## InlineKV
-InlineKV is a NoSQL key-value store, with embedded read access.
-Written in Rust, client libraries are available in Java and Python.
+What is an embedded database?
+
+A database which is stored on the same physical machine as the user application/container. Due to this, there are no remote network calls to a "server" - providing orders of magnitude better read latency and throughput. 
+This architecture is different from a traditional database solution (ex. DynamoDB or Firestore) - which involves calling single/multiple database servers over the network to retrieve data.
+
+### Get Started with Java client
+(Python and Go support incoming)
+
+
+
+
 
 ### Benchmarks
 We measure read **latency** from a Java client's point of view, while accessing InlineKV.
