@@ -9,6 +9,7 @@ Key Features-
 4. Provides eventual read-after-write consistency.
 5. Environment agnostic. Run on-prem or in any public cloud. "Database as a library" semantics.
 6. Multi-language support with clients in Java (available), Python (coming in 2024) and Go (coming in 2024).
+7. No need to provision/monitor/operate external database servers or incur encryption performance penalties.
 
 What is an embedded database?
 
