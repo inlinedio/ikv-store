@@ -1,9 +1,9 @@
-package io.inline.gateway;
+package io.inline;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Services;
-import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
-import io.inline.gateway.ddb.beans.IKVStoreContext;
+import io.inline.ddb.IKVStoreContextObjectsAccessor;
+import io.inline.ddb.beans.IKVStoreContext;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;

@@ -1,13 +1,12 @@
-package io.inline.gateway.indexbuilder;
+package io.inline.indexbuilder;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
-import io.inline.clients.internal.IKVClientJNI;
-import io.inline.gateway.IKVConstants;
-import io.inline.gateway.UserStoreContext;
-import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
-import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
-import io.inline.gateway.ddb.beans.IKVStoreContext;
+import io.inline.IKVConstants;
+import io.inline.UserStoreContext;
+import io.inline.ddb.IKVStoreContextObjectsAccessor;
+import io.inline.ddb.IKVStoreContextObjectsAccessorFactory;
+import io.inline.ddb.beans.IKVStoreContext;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;

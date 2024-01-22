@@ -1,9 +1,9 @@
-package io.inline.gateway.ddb.scripts;
+package io.inline.ddb.scripts;
 
 import com.google.common.base.Preconditions;
-import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
-import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
-import io.inline.gateway.ddb.beans.IKVStoreContext;
+import io.inline.ddb.IKVStoreContextObjectsAccessor;
+import io.inline.ddb.IKVStoreContextObjectsAccessorFactory;
+import io.inline.ddb.beans.IKVStoreContext;
 import java.util.Objects;
 import java.util.Optional;
 import org.apache.logging.log4j.LogManager;

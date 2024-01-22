@@ -1,4 +1,4 @@
-package io.inline.gateway.ddb;
+package io.inline.ddb;
 
 import javax.annotation.Nullable;
 

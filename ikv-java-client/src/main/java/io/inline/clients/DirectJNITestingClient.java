@@ -2,11 +2,10 @@ package io.inline.clients;
 
 import com.inlineio.schemas.Common;
 import com.inlineio.schemas.Streaming;
-import io.inline.clients.internal.IKVClientJNI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
   private final DefaultInlineKVReader _defaultInlineKVReader;
