@@ -1,5 +1,8 @@
 package io.inline.clients;
 
+import static io.inline.clients.DefaultInlineKVWriter.IKV_GATEWAY_GRPC_PORT;
+import static io.inline.clients.DefaultInlineKVWriter.IKV_GATEWAY_GRPC_URL;
+
 import com.google.common.base.MoreObjects;
 import com.inlineio.schemas.Common;
 import com.inlineio.schemas.InlineKVWriteServiceGrpc;
@@ -16,8 +19,7 @@ public class ServerSuppliedConfigFetcher {
   public ServerSuppliedConfigFetcher(ClientOptions clientOptions) {
     // TODO: stub creation- use dns
     ManagedChannelBuilder<?> channelBuilder =
-        ManagedChannelBuilder.forAddress(
-                "gateway-writer-alb-1-1639339774.us-west-2.elb.amazonaws.com", 443)
+        ManagedChannelBuilder.forAddress(IKV_GATEWAY_GRPC_URL, IKV_GATEWAY_GRPC_PORT)
             .overrideAuthority("www.inlined.io");
     ManagedChannel channel = channelBuilder.build();
     _stub = InlineKVWriteServiceGrpc.newBlockingStub(channel);
