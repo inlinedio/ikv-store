@@ -3,14 +3,15 @@ IKV-Store is a **fully-managed embedded key-value store** optimized for low-late
 It is perfect for building recommendation engines and AI applications which need fast access to large feature data-sets in microseconds.
 
 Key Features-
-1. p99 read latency in 1-100 microseconds (depending on size of key/value and single or batch reads).
-2. Scales for both data size (partitions) and read-traffic (replica).
-3. Provides eventual read-after-write consistency.
-4. Environment agnostic - run on-prem or in any public cloud. "Database as a library" semantics.
-5. Data is fully persistent.
+1. Data is fully persistent.
+2. P99 read latency in 1-100 microseconds from client's point-of-view (depending on size of key/value and single or batch reads).
+3. Scales w.r.t data size (partitions) and read-traffic (replicas).
+4. Provides eventual read-after-write consistency.
+5. Environment agnostic. Run on-prem or in any public cloud. "Database as a library" semantics.
 6. Multi-language support with clients in Java (available), Python (coming in 2024) and Go (coming in 2024).
 
 What is an embedded database?
+
 A database which is stored on the same physical machine as the user application/container. Due to this, there are no remote network calls to a "server" - providing orders of magnitude better read latency and throughput. 
 This architecture is different from a traditional database solution (ex. DynamoDB or Firestore) - which involves calling single/multiple database servers over the network to retrieve data.
 
