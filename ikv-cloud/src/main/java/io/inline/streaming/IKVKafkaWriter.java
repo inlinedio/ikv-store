@@ -1,10 +1,12 @@
-package io.inline.gateway.streaming;
+package io.inline.streaming;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.Streaming.*;
-import io.inline.gateway.UserStoreContext;
-import java.util.*;
+import io.inline.UserStoreContext;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;

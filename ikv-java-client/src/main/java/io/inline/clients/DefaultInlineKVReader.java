@@ -3,7 +3,6 @@ package io.inline.clients;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common;
-import io.inline.clients.internal.IKVClientJNI;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;

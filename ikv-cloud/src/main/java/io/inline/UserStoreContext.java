@@ -1,9 +1,9 @@
-package io.inline.gateway;
+package io.inline;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
-import io.inline.gateway.ddb.beans.IKVStoreContext;
-import java.util.*;
+import io.inline.ddb.beans.IKVStoreContext;
+import java.util.Objects;
 
 /**
  * In-memory data model of a cached {@link IKVStoreContext} dynamodb bean. It represents all

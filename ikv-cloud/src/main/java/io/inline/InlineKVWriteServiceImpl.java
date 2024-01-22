@@ -1,4 +1,4 @@
-package io.inline.gateway;
+package io.inline;
 
 import com.google.common.base.Preconditions;
 import com.google.rpc.Code;
@@ -7,7 +7,7 @@ import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
-import io.inline.gateway.streaming.IKVKafkaWriter;
+import io.inline.streaming.IKVKafkaWriter;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;

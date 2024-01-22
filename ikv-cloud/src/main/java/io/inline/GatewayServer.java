@@ -1,11 +1,11 @@
-package io.inline.gateway;
+package io.inline;
 
 import com.google.common.base.Preconditions;
 import io.grpc.ServerBuilder;
-import io.inline.gateway.ddb.IKVStoreContextObjectsAccessor;
-import io.inline.gateway.ddb.IKVStoreContextObjectsAccessorFactory;
-import io.inline.gateway.streaming.IKVKafkaWriter;
-import io.inline.gateway.streaming.KafkaProducerFactory;
+import io.inline.ddb.IKVStoreContextObjectsAccessor;
+import io.inline.ddb.IKVStoreContextObjectsAccessorFactory;
+import io.inline.streaming.IKVKafkaWriter;
+import io.inline.streaming.KafkaProducerFactory;
 import java.io.IOException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

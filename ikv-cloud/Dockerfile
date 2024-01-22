@@ -1,6 +1,6 @@
 FROM eclipse-temurin:17-jdk-jammy
 RUN mkdir -p /inline-gateway
-COPY ./ /inline-gateway
+COPY src /inline-gateway
 WORKDIR /inline-gateway
 RUN apt-get -y update && \
     apt-get install -y --no-install-recommends wget unzip

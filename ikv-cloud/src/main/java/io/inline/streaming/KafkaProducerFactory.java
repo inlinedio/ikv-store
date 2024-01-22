@@ -1,4 +1,4 @@
-package io.inline.gateway.streaming;
+package io.inline.streaming;
 
 import com.inlineio.schemas.Common;
 import java.util.Properties;

@@ -1,6 +1,6 @@
-package io.inline.gateway.ddb;
+package io.inline.ddb;
 
-import io.inline.gateway.ddb.beans.IKVStoreContext;
+import io.inline.ddb.beans.IKVStoreContext;
 import java.util.Objects;
 import java.util.Optional;
 import software.amazon.awssdk.enhanced.dynamodb.*;
