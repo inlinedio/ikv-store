@@ -1,7 +1,7 @@
-package io.inline;
+package io.inlined;
 
 import com.google.common.collect.ImmutableList;
-import io.inline.clients.*;
+import io.inlined.clients.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;

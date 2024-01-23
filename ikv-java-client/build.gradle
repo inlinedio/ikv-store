@@ -1,13 +1,14 @@
 plugins {
-    id 'java'
+    id 'java-library'
     // See: https://github.com/melix/jmh-gradle-plugin
     id "me.champeau.jmh" version "0.7.2"
     id 'com.google.protobuf' version '0.9.1'
     id "com.diffplug.spotless" version "6.23.3"
+    id 'maven-publish'
 }
 
-group = 'io.inline'
-version project.hasProperty('version') ? version : '0.0.1'
+version = '0.0.1'
+group = 'io.inlined'
 
 repositories {
     maven { // The google mirror is less flaky than mavenCentral()
@@ -17,6 +18,23 @@ repositories {
     maven { url "https://packages.confluent.io/maven/" }
 
     mavenCentral()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "https://s01.oss.sonatype.org/content/groups/public/"
+            credentials {
+                username = ''
+                password = ''
+            }
+        }
+    }
 }
 
 def grpcVersion = '1.56.0' // CURRENT_GRPC_VERSION

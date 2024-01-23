@@ -1,4 +1,4 @@
-package io.inline.benchmarks;
+package io.inlined.benchmarks;
 
 public interface LatencyBenchmarkWorkflow {
   void connect();

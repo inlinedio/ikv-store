@@ -1,4 +1,4 @@
-package io.inline.clients;
+package io.inlined.clients;
 
 import java.util.List;
 import javax.annotation.Nullable;
