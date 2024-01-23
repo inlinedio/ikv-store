@@ -1,6 +1,5 @@
 package io.inlined.clients;
 
-import io.inlined.NativeBinaryManager;
 import java.io.IOException;
 import java.util.Optional;
 import javax.annotation.Nullable;

@@ -81,7 +81,7 @@ jar {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
     manifest {
         attributes(
-                'Main-Class': 'io.inline.gateway.GatewayServer'
+                'Main-Class': 'io.inline.GatewayServer'
         )
     }
     from {

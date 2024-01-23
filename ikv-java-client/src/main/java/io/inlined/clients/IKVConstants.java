@@ -1,4 +1,4 @@
-package io.inlined.gateway;
+package io.inlined.clients;
 
 /** Config key strings. */
 public class IKVConstants {

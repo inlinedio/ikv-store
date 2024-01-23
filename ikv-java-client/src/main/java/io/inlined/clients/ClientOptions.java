@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableSet;
 import com.inlineio.schemas.Common.FieldType;
 import com.inlineio.schemas.Common.IKVStoreConfig;
 import com.inlineio.schemas.Services;
-import io.inlined.gateway.IKVConstants;
 import java.util.Objects;
 import java.util.Set;
 
