@@ -1,4 +1,4 @@
-package io.inline.clients;
+package io.inlined.clients;
 
 import com.inlineio.schemas.Common.FieldValue;
 import java.util.Map;

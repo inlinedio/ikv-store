@@ -1,6 +1,6 @@
-package io.inline;
+package io.inlined;
 
-import io.inline.benchmarks.*;
+import io.inlined.benchmarks.*;
 import java.util.List;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;

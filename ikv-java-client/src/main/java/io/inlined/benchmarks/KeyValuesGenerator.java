@@ -1,4 +1,4 @@
-package io.inline.benchmarks;
+package io.inlined.benchmarks;
 
 import com.google.common.base.Preconditions;
 import java.nio.charset.StandardCharsets;

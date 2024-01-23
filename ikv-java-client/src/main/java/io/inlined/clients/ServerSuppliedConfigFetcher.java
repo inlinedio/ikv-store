@@ -1,7 +1,7 @@
-package io.inline.clients;
+package io.inlined.clients;
 
-import static io.inline.clients.DefaultInlineKVWriter.IKV_GATEWAY_GRPC_PORT;
-import static io.inline.clients.DefaultInlineKVWriter.IKV_GATEWAY_GRPC_URL;
+import static io.inlined.clients.DefaultInlineKVWriter.IKV_GATEWAY_GRPC_PORT;
+import static io.inlined.clients.DefaultInlineKVWriter.IKV_GATEWAY_GRPC_URL;
 
 import com.google.common.base.MoreObjects;
 import com.inlineio.schemas.Common;

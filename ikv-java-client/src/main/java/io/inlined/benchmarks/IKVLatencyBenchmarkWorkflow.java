@@ -1,7 +1,7 @@
-package io.inline.benchmarks;
+package io.inlined.benchmarks;
 
 import com.google.common.base.Preconditions;
-import io.inline.clients.*;
+import io.inlined.clients.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
