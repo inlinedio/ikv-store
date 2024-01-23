@@ -6,7 +6,8 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 public final class IKVClientJNI {
-  public IKVClientJNI(String pathToNativeBinary) {
+  // can throw UnsatisfiedLinkError for a wrong path or incompatible binary
+  private IKVClientJNI(String pathToNativeBinary) {
     System.load(pathToNativeBinary);
   }
 
@@ -26,10 +27,9 @@ public final class IKVClientJNI {
   }
 
   public static void main(String[] args) {
-    // System.load("/home/ubuntu/ikv-store/ikv/target/release/libikv.so");
-    // System.load("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
-    IKVClientJNI ikvClientJNI =
-        new IKVClientJNI("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
+    // /home/ubuntu/ikv-store/ikv/target/release/libikv.so
+    // /Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib
+    IKVClientJNI ikvClientJNI = new IKVClientJNI(args[0]);
     System.out.println(ikvClientJNI.provideHelloWorld());
   }
 
