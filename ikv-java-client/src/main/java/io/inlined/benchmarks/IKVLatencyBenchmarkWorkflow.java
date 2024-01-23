@@ -54,7 +54,6 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
         new ClientOptions.Builder()
             .withMountDirectory("/tmp/Benchmarks")
             .withStoreName("Benchmarks")
-            .withStorePartition(0)
             .withAccountId("testing-account-v1")
             .withAccountPassKey("testing-account-passkey")
             .build();

@@ -10,7 +10,6 @@ public class NearlineIntegrationTests {
       new ClientOptions.Builder()
           .withMountDirectory("/tmp/NearlineIntegrationTests")
           .withStoreName("testing-store")
-          .withStorePartition(0)
           .withAccountId("testing-account-v1")
           .withAccountPassKey("testing-account-passkey")
           .useStringPrimaryKey()

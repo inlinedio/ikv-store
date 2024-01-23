@@ -1,45 +1,61 @@
 package io.inlined.clients;
 
+import io.inlined.NativeBinaryManager;
+import java.io.IOException;
+import java.util.Optional;
 import javax.annotation.Nullable;
 
 public final class IKVClientJNI {
-  // System.load("/home/ubuntu/ikv-store/ikv/target/release/libikv.so");
-  // System.load("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
-  static {
-    System.load("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
+  public IKVClientJNI(String pathToNativeBinary) {
+    System.load(pathToNativeBinary);
   }
 
-  private IKVClientJNI() {}
+  public static IKVClientJNI createNew(String mountDirectory) throws IOException {
+    NativeBinaryManager nativeBinaryManager = new NativeBinaryManager(mountDirectory);
+    try {
+      Optional<String> maybePath = nativeBinaryManager.getPathToNativeBinary();
+      if (maybePath.isEmpty()) {
+        throw new IOException(
+            "Could not find a native binary for reader instance, for this os/platform");
+      }
+
+      return new IKVClientJNI(maybePath.get());
+    } finally {
+      nativeBinaryManager.close();
+    }
+  }
 
   public static void main(String[] args) {
-    // for testing any linkage errors
-    String output = IKVClientJNI.provideHelloWorld();
-    System.out.println(output);
+    // System.load("/home/ubuntu/ikv-store/ikv/target/release/libikv.so");
+    // System.load("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
+    IKVClientJNI ikvClientJNI =
+        new IKVClientJNI("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib");
+    System.out.println(ikvClientJNI.provideHelloWorld());
   }
 
   /** For linkage testing. */
-  public static native String provideHelloWorld();
+  public native String provideHelloWorld();
 
   // Open or create.
   // config: Serialized IKVStoreConfig.proto
   // RuntimeException: opening errors.
-  public static native long open(byte[] config) throws RuntimeException;
+  public native long open(byte[] config) throws RuntimeException;
 
-  public static native void close(long indexHandle) throws RuntimeException;
+  public native void close(long indexHandle) throws RuntimeException;
 
   @Nullable
-  public static native byte[] readField(long indexHandle, byte[] primaryKey, String fieldName);
+  public native byte[] readField(long indexHandle, byte[] primaryKey, String fieldName);
 
-  public static native byte[] batchReadField(
+  public native byte[] batchReadField(
       long indexHandle, byte[] sizePrefixedPrimaryKeys, String fieldNames);
 
   /** Write method - only for testing. */
-  public static native void processIKVDataEvent(long indexHandle, byte[] ikvDataEvent)
+  public native void processIKVDataEvent(long indexHandle, byte[] ikvDataEvent)
       throws RuntimeException;
 
   /**
    * Hook to build index by consuming nearline event stream. Index is built in-place of existing
    * base index present in the mount directory.
    */
-  public static native void buildIndex(byte[] config) throws RuntimeException;
+  public native void buildIndex(byte[] config) throws RuntimeException;
 }

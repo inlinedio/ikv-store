@@ -49,7 +49,7 @@ public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
             .build();
 
     // jni call
-    IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
+    // IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
   }
 
   @Override
@@ -68,7 +68,7 @@ public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
             .build();
 
     // jni call
-    IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
+    // IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
   }
 
   @Override
@@ -84,7 +84,7 @@ public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
             .build();
 
     // jni call
-    IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
+    // IKVClientJNI.processIKVDataEvent(_defaultInlineKVReader.handle(), event.toByteArray());
   }
 
   @Nullable

@@ -29,6 +29,10 @@ public final class ClientOptions {
     return _primaryKeyType;
   }
 
+  public String mountDirectory() {
+    return _config.getStringConfigsOrThrow(IKVConstants.MOUNT_DIRECTORY);
+  }
+
   public Services.UserStoreContextInitializer createUserStoreContextInitializer() {
     return Services.UserStoreContextInitializer.newBuilder()
         .setStoreName(_config.getStringConfigsOrThrow(IKVConstants.STORE_NAME))
@@ -51,6 +55,7 @@ public final class ClientOptions {
       _configBuilder = IKVStoreConfig.newBuilder();
 
       // defaults
+      _configBuilder.putIntConfigs(IKVConstants.PARTITION, 0);
       _configBuilder.putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, "info");
       _configBuilder.putBooleanConfigs(IKVConstants.RUST_CLIENT_LOG_TO_CONSOLE, true);
     }
@@ -90,12 +95,9 @@ public final class ClientOptions {
       return this;
     }
 
-    public Builder withStorePartition(int partition) {
-      // TODO: this should not be user specified - we need
-      // partition co-ordination.
-      Preconditions.checkArgument(partition >= 0);
-      _configBuilder.putIntConfigs(IKVConstants.PARTITION, partition);
-      return this;
+    // TODO: allow partition to be injected
+    private Builder withStorePartition(int partition) {
+      throw new UnsupportedOperationException();
     }
 
     public Builder withAccountId(String accountId) {
