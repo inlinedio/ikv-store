@@ -16,11 +16,9 @@ public class KafkaProducerFactory {
     Properties props = new Properties();
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_BOOTSTRAP_SERVER);
     props.put(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-        "io.inline.gateway.streaming.SimpleProtoSerializer");
+        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "io.inline.streaming.SimpleProtoSerializer");
     props.put(
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-        "io.inline.gateway.streaming.SimpleProtoSerializer");
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "io.inline.streaming.SimpleProtoSerializer");
     props.put(ProducerConfig.BATCH_SIZE_CONFIG, 0); // TODO - remove
 
     // iam authentication
