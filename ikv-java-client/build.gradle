@@ -7,12 +7,12 @@ plugins {
     id 'maven-publish'
 }
 
-version = '0.0.1-SNAPSHOT'
+version = '0.0.2'
 group = 'io.inlined'
 
 repositories {
-    maven { // The google mirror is less flaky than mavenCentral()
-        url "https://maven-central.storage-download.googleapis.com/maven2/" }
+    // The google mirror is less flaky than mavenCentral()
+    maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
 
     // for kafka proto ser-deserializer
     maven { url "https://packages.confluent.io/maven/" }
@@ -20,7 +20,7 @@ repositories {
     mavenCentral()
 }
 
-def grpcVersion = '1.56.0' // CURRENT_GRPC_VERSION
+def grpcVersion = '1.56.0'
 def protobufVersion = '3.22.3'
 def protocVersion = protobufVersion
 
@@ -98,7 +98,7 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")
             credentials {
-                username = System.getenv("USERNAME_GITHUB")
+                username = "inlineio"
                 password = System.getenv("TOKEN_GITHUB")
             }
         }

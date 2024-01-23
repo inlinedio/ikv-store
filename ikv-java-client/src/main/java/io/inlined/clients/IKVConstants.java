@@ -2,6 +2,10 @@ package io.inlined.clients;
 
 /** Config key strings. */
 public class IKVConstants {
+  public static final String IKV_GATEWAY_GRPC_URL =
+      "gateway-writer-alb-1-1639339774.us-west-2.elb.amazonaws.com";
+  public static final int IKV_GATEWAY_GRPC_PORT = 443;
+
   public static final String S3_BASE_INDEX_BUCKET = "ikv-base-index-v1";
 
   /** IKVStoreConfig keys */

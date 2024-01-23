@@ -15,11 +15,6 @@ import java.util.Objects;
 
 /** RPC based writer instance. */
 public class DefaultInlineKVWriter implements InlineKVWriter {
-  // Target information for application load balancer.
-  public static final String IKV_GATEWAY_GRPC_URL =
-      "gateway-writer-alb-1-1639339774.us-west-2.elb.amazonaws.com";
-  public static final int IKV_GATEWAY_GRPC_PORT = 443;
-
   private volatile InlineKVWriteServiceGrpc.InlineKVWriteServiceBlockingStub _stub;
   private final UserStoreContextInitializer _userStoreCtxInitializer;
 
@@ -32,7 +27,8 @@ public class DefaultInlineKVWriter implements InlineKVWriter {
   public void startupWriter() {
     // TODO: stub creation- use dns
     ManagedChannelBuilder<?> channelBuilder =
-        ManagedChannelBuilder.forAddress(IKV_GATEWAY_GRPC_URL, IKV_GATEWAY_GRPC_PORT)
+        ManagedChannelBuilder.forAddress(
+                IKVConstants.IKV_GATEWAY_GRPC_URL, IKVConstants.IKV_GATEWAY_GRPC_PORT)
             .overrideAuthority("www.inlined.io");
     ManagedChannel channel = channelBuilder.build();
     _stub = InlineKVWriteServiceGrpc.newBlockingStub(channel);
