@@ -3,6 +3,7 @@ package io.inlined.clients;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -14,28 +15,37 @@ public class DefaultInlineKVReader implements InlineKVReader {
   private final ClientOptions _clientOptions;
   private final Common.IKVStoreConfig _clientServerMergedConfig;
   private volatile long _handle;
+  private volatile IKVClientJNI _ikvClientJni;
 
   public DefaultInlineKVReader(
       ClientOptions options, Common.IKVStoreConfig clientServerMergedConfig) {
     _handle = UNINITIALIZED_HANDLE;
+    _ikvClientJni = null;
     _clientOptions = Objects.requireNonNull(options);
     _clientServerMergedConfig = clientServerMergedConfig;
   }
 
   @Override
   public void startupReader() throws RuntimeException {
-    if (_handle != UNINITIALIZED_HANDLE) {
+    if (_handle != UNINITIALIZED_HANDLE || _ikvClientJni != null) {
       return;
     }
 
-    // can throw
-    _handle = IKVClientJNI.open(_clientServerMergedConfig.toByteArray());
+    try {
+      _ikvClientJni = IKVClientJNI.createNew(_clientOptions.mountDirectory());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    // can throw (reader startup sequence)
+    _handle = _ikvClientJni.open(_clientServerMergedConfig.toByteArray());
   }
 
   @Override
   public void shutdownReader() throws RuntimeException {
     // can throw
-    IKVClientJNI.close(_handle);
+    _ikvClientJni.close(_handle);
+    _ikvClientJni = null;
     _handle = UNINITIALIZED_HANDLE;
   }
 
@@ -48,7 +58,7 @@ public class DefaultInlineKVReader implements InlineKVReader {
   @Override
   public byte[] getBytesValue(Object primaryKey, String fieldName) {
     Preconditions.checkState(_handle != UNINITIALIZED_HANDLE);
-    return IKVClientJNI.readField(
+    return _ikvClientJni.readField(
         _handle, serializePrimaryKey(primaryKey, _clientOptions.primaryKeyType()), fieldName);
   }
 
@@ -59,7 +69,7 @@ public class DefaultInlineKVReader implements InlineKVReader {
 
     @Nullable
     byte[] result =
-        IKVClientJNI.readField(
+        _ikvClientJni.readField(
             _handle, serializePrimaryKey(primaryKey, _clientOptions.primaryKeyType()), fieldName);
     return result == null ? null : new String(result, StandardCharsets.UTF_8);
   }
@@ -104,7 +114,7 @@ public class DefaultInlineKVReader implements InlineKVReader {
     // always not null
     byte[] sizePrefixedPrimaryKeys =
         sizePrefixedSerializedPrimaryKeys(primaryKeys, _clientOptions.primaryKeyType());
-    byte[] result = IKVClientJNI.batchReadField(_handle, sizePrefixedPrimaryKeys, fieldName);
+    byte[] result = _ikvClientJni.batchReadField(_handle, sizePrefixedPrimaryKeys, fieldName);
     return new RawByteValuesIterator(result);
   }
 

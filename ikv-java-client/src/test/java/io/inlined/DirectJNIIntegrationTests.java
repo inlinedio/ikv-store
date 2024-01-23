@@ -15,7 +15,6 @@ public class DirectJNIIntegrationTests {
       new ClientOptions.Builder()
           .withMountDirectory("/tmp/JavaIntegrationTests")
           .withStoreName("JavaIntegrationTests")
-          .withStorePartition(0)
           .withAccountId("testing-account-v1")
           .withAccountPassKey("testing-account-passkey")
           .build();

@@ -11,7 +11,7 @@ use crate::proto::generated_proto::common::IKVStoreConfig;
 use crate::proto::generated_proto::streaming::IKVDataEvent;
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_provideHelloWorld<'local>(
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_provideHelloWorld<'local>(
     env: JNIEnv<'local>,
     _class: JClass<'local>,
 ) -> jstring {
@@ -24,7 +24,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_provideHello
 
 // NOTE: callers must cleanup their working directories
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'local>(
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_buildIndex<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     config: JByteArray<'local>,
@@ -67,7 +67,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_buildIndex<'
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_open<'local>(
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_open<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     config: JByteArray<'local>,
@@ -100,7 +100,7 @@ fn open<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_close<'local>(
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_close<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
@@ -114,7 +114,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_close<'local
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_readField<'local>(
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_readField<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
@@ -137,7 +137,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_readField<'l
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_batchReadField<'local>(
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_batchReadField<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
@@ -157,7 +157,7 @@ pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_batchReadFie
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inline_clients_internal_IKVClientJNI_processIKVDataEvent<'local>(
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_processIKVDataEvent<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
