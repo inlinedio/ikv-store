@@ -96,7 +96,7 @@ jar {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
     manifest {
         attributes(
-                'Main-Class': ' io.inline.clients.IKVClientJNI'
+                'Main-Class': ' io.inlined.clients.IKVClientJNI'
         )
     }
     from {

@@ -153,6 +153,7 @@ public class NativeBinaryManager {
     Files.createDirectories(Paths.get(dirPath));
 
     try {
+      // TODO: it is possible that the key is already stale in S3.
       String key = s3Object.get().key(); // ex. release/mac-aarch64/0.0.1-libikv.dylib
       GetObjectRequest getObjectRequest =
           GetObjectRequest.builder().bucket("ikv-binaries").key(key).build();
@@ -192,13 +193,14 @@ public class NativeBinaryManager {
     String osArch = Objects.requireNonNull(System.getProperty("os.arch")).toLowerCase();
     if (osArch.contains("aarch64")) {
       osArchitecture = "aarch64";
-    } else if (osArch.contains("x86_64")) {
+    } else if (osArch.contains("x86_64") || osArch.contains("amd64")) {
       osArchitecture = "x86_64";
     } else {
       LOGGER.error("Unsupported Architecture: {}", osArch);
       return Optional.empty();
     }
 
+    LOGGER.info("Local os-type: {} architecture: {}", osType, osArchitecture);
     return Optional.of(String.format("release/%s-%s", osType, osArchitecture));
   }
 
