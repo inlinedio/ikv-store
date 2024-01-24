@@ -1,20 +1,61 @@
-# IKV-Store | Inlined.io Key Value Store
-IKV-Store is a **fully-managed embedded key-value store** optimized for low-latency online feature serving (ML inference).
-It is perfect for building recommendation engines and AI applications which need fast access to large feature data-sets in microseconds.
+# IKV | Inlined.io Key Value Store
 
-Key Features-
-1. Data is fully persistent.
-2. P99 read latency in 1-100 microseconds from client's point-of-view (depending on size of key/value and single or batch reads).
-3. Scales w.r.t data size (partitions) and read-traffic (replicas).
-4. Provides eventual read-after-write consistency.
-5. Environment agnostic. Run on-prem or in any public cloud. "Database as a library" semantics.
-6. Multi-language support with clients in Java (available), Python (coming in 2024) and Go (coming in 2024).
-7. No need to provision/monitor/operate external database servers or incur encryption performance penalties.
+IKV is a **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embedded_database)**, optimized for online feature serving for ML inference. It is ideal for building large scale distributed systems (ex. recommendation engines or information retrieval tasks) - which need low latency access to key-value data. IKV-Store is -
 
-What is an embedded database?
+ 1. **Blazing Fast**: With no network overhead, IKV offers P99 read latency of **1-100 microseconds** from client’s point-of-view (depending on key/value size and single/batch operations). This is orders of magnitude better (10x) than existing solutions like Redis.
+ 2. **Built for the Enterprise**: Extremely low operational overhead; pay-as-you-go with no provisioned hardware costs; Environment agnostic - use in the public cloud or on-prem.
+ 3. **Horizontally Scalable**: Handles large datasets (with partitions) and high read/write traffic (with replication). Built for streaming and batch ingestion of data.
+ 4. **Fully Persistent with Backup Data-Lake**: Write once and read forever. Read more about IKV's unique architecture which makes this possible for an embedded database.
 
-A database which is stored on the same physical machine as the user application/container. Due to this, there are no remote network calls to a "server" - providing orders of magnitude better read latency and throughput. 
-This architecture is different from a traditional database solution (ex. DynamoDB or Firestore) - which involves calling single/multiple database servers over the network to retrieve data.
+## Quick Links
+ - Getting Started
+	 - Java
+	 - Python (upcoming - July 2024)
+	 - Go (upcoming - July 2024)
+ - Benchmarks
+ - APIs
+ - Architecture
+ - FAQ
+ - Contact inlined.io
+
+## Getting Started with Java
+In this section we go over some code samples about how to use IKV's client library in your Java project.
+
+#### Installation
+`ikv-java-client` is hosted with Github Packages, add dependency to your Gradle/Maven project.
+Make sure to use the latest version from [package list](https://github.com/inlinedio?tab=packages&repo_name=ikv-store).
+
+```
+repositories {
+  maven {
+    name = "GitHubPackages"  
+    url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")  
+    credentials {
+      // You can use the following public github tokens, or inject your own personal tokens.
+      username = "inlinedio"  
+      password = "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"  
+    }
+  }
+
+ // ... other project repositories (ex. mavenCentral()) ..
+}
+
+dependencies {
+  implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.3'
+
+  // .. other project dependencies ..
+}
+``` 
+```
+<dependency>
+  <groupId>io.inlined</groupId>
+  <artifactId>ikv-java-client</artifactId>
+  <version>0.0.3</version>  
+</dependency>
+```
+
+
+
 
 ### Get Started with Java client
 (Python and Go support incoming)
