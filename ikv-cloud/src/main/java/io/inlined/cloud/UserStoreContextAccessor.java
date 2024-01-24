@@ -1,9 +1,9 @@
-package io.inline;
+package io.inlined.cloud;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Services;
-import io.inline.ddb.IKVStoreContextObjectsAccessor;
-import io.inline.ddb.beans.IKVStoreContext;
+import io.inlined.cloud.ddb.IKVStoreContextObjectsAccessor;
+import io.inlined.cloud.ddb.beans.IKVStoreContext;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;

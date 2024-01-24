@@ -1,4 +1,4 @@
-package io.inline.ddb.beans;
+package io.inlined.cloud.ddb.beans;
 
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;

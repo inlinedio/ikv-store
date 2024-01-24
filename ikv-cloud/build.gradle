@@ -4,7 +4,7 @@ plugins {
     id "com.diffplug.spotless" version "6.23.3"
 }
 
-group = 'io.inline'
+group = 'io.inlined.cloud'
 version project.hasProperty('version') ? version : '0.0.1'
 
 repositories {
@@ -95,7 +95,7 @@ jar {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
     manifest {
         attributes(
-                'Main-Class': 'io.inline.GatewayServer'
+                'Main-Class': 'io.inlined.cloud.GatewayServer'
         )
     }
     from {

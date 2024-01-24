@@ -1,4 +1,4 @@
-package io.inline.streaming;
+package io.inlined.cloud.streaming;
 
 import com.google.protobuf.Message;
 import org.apache.kafka.common.header.Headers;

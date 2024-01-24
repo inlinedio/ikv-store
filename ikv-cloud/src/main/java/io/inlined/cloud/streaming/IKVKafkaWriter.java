@@ -1,9 +1,9 @@
-package io.inline.streaming;
+package io.inlined.cloud.streaming;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.Streaming.*;
-import io.inline.UserStoreContext;
+import io.inlined.cloud.UserStoreContext;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;

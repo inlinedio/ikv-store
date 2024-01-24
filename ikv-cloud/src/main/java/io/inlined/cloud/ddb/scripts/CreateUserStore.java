@@ -1,9 +1,9 @@
-package io.inline.ddb.scripts;
+package io.inlined.cloud.ddb.scripts;
 
 import com.google.common.base.Preconditions;
-import io.inline.ddb.IKVStoreContextObjectsAccessor;
-import io.inline.ddb.IKVStoreContextObjectsAccessorFactory;
-import io.inline.ddb.beans.IKVStoreContext;
+import io.inlined.cloud.ddb.IKVStoreContextObjectsAccessor;
+import io.inlined.cloud.ddb.IKVStoreContextObjectsAccessorFactory;
+import io.inlined.cloud.ddb.beans.IKVStoreContext;
 import java.util.Objects;
 import java.util.Optional;
 import org.apache.logging.log4j.LogManager;

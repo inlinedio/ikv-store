@@ -1,4 +1,4 @@
-package io.inline.ddb;
+package io.inlined.cloud.ddb;
 
 import javax.annotation.Nullable;
 
