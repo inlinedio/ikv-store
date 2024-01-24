@@ -18,10 +18,8 @@ IKV is a **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embed
  - [FAQs](#faq)
  - [Support](#support)
 ## Provisioning
-IKV is a managed database solution, hence before creating a new store you need to request provisioning. This section is useful for anyone who does not have an account or wants to create a new store within an account.
-
-To provision (~E2E time to provision is less than 12 hrs), reach out to to - ***onboarding[@]inlined.io***, with the following - 
- - Existing **account-id** (if exists).
+IKV is a managed database solution, hence before creating a new store you need to request provisioning. This section is useful for anyone who does not have an account or wants to create a new store within an account. To provision (provisioning time is usually less than 12 hrs), reach out to to - ***onboarding[@]inlined.io***, with the following - 
+ - Existing **account-id** (if exists, else mention you want a new account-id and account-passkey).
  - For store provisioning: name, primary key, partitioning key (optional), and estimated write volume (ex. avg key & value size in bytes and volume/QPS). 
  - Once you have an account-id, account-passkey and have provisioned a new store, you're all set to start using IKV.
 
@@ -66,7 +64,75 @@ dependencies {
 
 
 ## APIs
-// todo
+In this section we go over the key interfaces and abstractions that IKV provides as a key-value database. 
+
+These concepts are language independent. IKV stores documents (the "value") associated with primary-keys (the "key"), in an eventually consistent (read-after-write manner). Given a primary-key, a user can do CRUD operations i.e. create/read/update/delete for a single document (batch operations are also supported).
+
+##### Document
+A document is a collection of fields/attributes. Each inner field/attribute contained within a document is optional (i.e. it's value can be missing), and can be used to store a particular property associated with a unit of data. This is analogous to a "single row" of data in many SQL databases or something like DynamoDB, with each "column" being an inner field/attribute. 
+
+A field can be uniquely identified by a **name** and a **type** - which is the same across all documents stored in a particular IKV store. Fields (except primary and partitioning keys) are not required to be declared while provisioning or in a "schema/configuration" file, instead IKV updates field information dynamically as and when they are encountered at runtime.
+
+##### Field Types
+Supported types include - 
+ - **Numeric**: int32, int64, float32, float64 - Can be used to store signed integer and floating point numbers of size 4 and 8 bytes.
+ - **String**: A sequence of UTF8 characters. Language specific IKV clients generate functions/methods that use language specific types to represent strings (ex. `java.lang.String` in Java).
+ - **Bytes**: A sequence of 8-bit values or raw bytes. This type is quite useful to model complex types. ex. 
+	 - Storing a list of float64: which can be done by creating a custom encode/decoder which stores the number of float64's in the list followed by the actual floats as a fixed-width 8 byte entity.
+	 - Storing complex/nested data: which can be done by leveraging serialization frameworks like Protobuf, Json, etc. - creating application specific objects and then converting them into raw bytes.
+
+##### Primary Key
+Primary Key is a unique identifier for a document and is itself a required field/attribute of the document. It can be of type string or bytes, and should be used for all CRUD operations on documents.
+
+##### Partitioning Key
+Since IKV is an embedded database, after a certain size all documents cannot fit in a single machine/host - hence partitioning keys are used to distribute documents across multiple hosts (i.e. partitions/shards). A user can declare an optional partitioning key (defaults to the primary key if missing), which itself is a required field/attribute of the document. It can be of type string or bytes. It is only relevant for write (create/update/delete) operations.
+
+##### Operations
+IKV supports the following operations on documents (for single/batch of documents) - 
+ 1. **Upsert**: Insert or Update-if-exists a document, given the document's fields (primary, partitioning keys and other fields). Upserts need not contain all field values as part of the same operation - fields get unionized to the same document, as and when they are published.
+ 2. **Delete**: Delete a document or specific fields from a document, given the document's primary and partitioning (if applicable) key.
+ 3. **Read**: Read a particular field(s) for a document, given its primary key. NOTE - Read operations are [eventually-consistent](https://en.wikipedia.org/wiki/Eventual_consistency) w.r.t upsert and delete operations, i.e. there will be small delay (usually in order of milliseconds) before changes to a document's fields are reflected in read operations.
+ 
+##### Illustration
+Let's consider an example where we want to store user profile's in an IKV store called - *users*. A user profile contains their (1) first-name (2) age (3) city.
+
+To represent this data-model, we first think of how our IKV document would look like. Each document can represent  a particular profile, which is uniquely identified by their *firstname*. We will need the following types - 
+
+ - Field-Name: firstname, Field-Type: String
+ - Field-Name: age, Field-Type: int32
+ - Field-Name: city, Field-Type: String
+
+Document Construction:
+```
+Upsert#Alice
+{
+  "firstname": "Alice",
+  "age": 22
+}
+
+Upsert#Alice
+{
+  "firstname": "Alice",
+  "city": "San Francisco"
+}
+
+Upsert#Bob
+{
+  "firstname": "Bob",
+  "age": 25
+}
+```
+
+Reads:
+```
+"Alice#firstname" -> "Alice"
+"Alice#age" -> 22
+"Alice#city" -> "San Francisco"
+
+"Bob#firstname" -> "Bob"
+"Bob#age" -> 25
+"Bob#city" -> // empty
+```
 
 ## Architecture
 // todo
