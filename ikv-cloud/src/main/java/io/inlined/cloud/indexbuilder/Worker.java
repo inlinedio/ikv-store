@@ -1,11 +1,13 @@
-package io.inline.indexbuilder;
+package io.inlined.cloud.indexbuilder;
 
+import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
-import io.inline.UserStoreContext;
-import io.inline.ddb.IKVStoreContextObjectsAccessor;
-import io.inline.ddb.IKVStoreContextObjectsAccessorFactory;
-import io.inline.ddb.beans.IKVStoreContext;
+import io.inlined.clients.IKVClientJNI;
 import io.inlined.clients.IKVConstants;
+import io.inlined.cloud.UserStoreContext;
+import io.inlined.cloud.ddb.IKVStoreContextObjectsAccessor;
+import io.inlined.cloud.ddb.IKVStoreContextObjectsAccessorFactory;
+import io.inlined.cloud.ddb.beans.IKVStoreContext;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -34,6 +36,9 @@ public class Worker {
 
   // Build for all stores.
   public void build(String accountId, String storeName) throws IOException {
+    IKVClientJNI ikvClientJNI = IKVClientJNI.createNew(WORKING_DIR);
+    Preconditions.checkNotNull(ikvClientJNI.provideHelloWorld(), "Linkage error");
+
     Optional<IKVStoreContext> maybeContext = _controller.getItem(accountId, storeName);
     if (maybeContext.isEmpty()) {
       // Invalid args
@@ -67,7 +72,7 @@ public class Worker {
 
     Instant start = Instant.now();
     try {
-      // IKVClientJNI.buildIndex(config.toByteArray());
+      ikvClientJNI.buildIndex(config.toByteArray());
       LOGGER.info(
           "Successfully finished offline build for accountid: {} storename: {} time: {}s",
           accountId,

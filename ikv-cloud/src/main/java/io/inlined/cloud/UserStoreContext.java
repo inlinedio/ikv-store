@@ -1,9 +1,9 @@
-package io.inline;
+package io.inlined.cloud;
 
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
-import io.inline.ddb.beans.IKVStoreContext;
 import io.inlined.clients.IKVConstants;
+import io.inlined.cloud.ddb.beans.IKVStoreContext;
 import java.util.Objects;
 
 /**
