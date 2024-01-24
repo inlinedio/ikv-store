@@ -3,6 +3,7 @@ package io.inline;
 import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
 import io.inline.ddb.beans.IKVStoreContext;
+import io.inlined.clients.IKVConstants;
 import java.util.Objects;
 
 /**

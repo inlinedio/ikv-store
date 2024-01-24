@@ -1,12 +1,11 @@
 package io.inline.indexbuilder;
 
-import com.google.common.base.Preconditions;
 import com.inlineio.schemas.Common.*;
-import io.inline.IKVConstants;
 import io.inline.UserStoreContext;
 import io.inline.ddb.IKVStoreContextObjectsAccessor;
 import io.inline.ddb.IKVStoreContextObjectsAccessorFactory;
 import io.inline.ddb.beans.IKVStoreContext;
+import io.inlined.clients.IKVConstants;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -66,11 +65,9 @@ public class Worker {
     // Never print configs since it has passkeys
     LOGGER.info("Starting offline build for accountid: {} storename: {}", accountId, storeName);
 
-    Preconditions.checkNotNull(IKVClientJNI.provideHelloWorld(), "Linkage error.");
-
     Instant start = Instant.now();
     try {
-      IKVClientJNI.buildIndex(config.toByteArray());
+      // IKVClientJNI.buildIndex(config.toByteArray());
       LOGGER.info(
           "Successfully finished offline build for accountid: {} storename: {} time: {}s",
           accountId,

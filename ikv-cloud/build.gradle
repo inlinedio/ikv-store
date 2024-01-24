@@ -8,16 +8,27 @@ group = 'io.inline'
 version project.hasProperty('version') ? version : '0.0.1'
 
 repositories {
-    maven { // The google mirror is less flaky than mavenCentral()
-        url "https://maven-central.storage-download.googleapis.com/maven2/" }
+
+
+    // The google mirror is less flaky than mavenCentral()
+    maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
 
     // for kafka proto ser-deserializer
     maven { url "https://packages.confluent.io/maven/" }
 
     mavenCentral()
+
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")
+        credentials {
+            username = "inlinedio"
+            password = "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"
+        }
+    }
 }
 
-def grpcVersion = '1.56.0' // CURRENT_GRPC_VERSION
+def grpcVersion = '1.56.0'
 def protobufVersion = '3.22.3'
 def protocVersion = protobufVersion
 
@@ -49,6 +60,9 @@ dependencies {
     implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.20.0'
     implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.20.0'
     implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.20.0'
+
+    // IKV-Java-Client
+    implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.3'
 
     runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
 
