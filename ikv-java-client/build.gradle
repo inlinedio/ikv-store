@@ -7,7 +7,7 @@ plugins {
     id 'maven-publish'
 }
 
-version = '0.0.2'
+version = '0.0.3'
 group = 'io.inlined'
 
 repositories {
@@ -98,7 +98,7 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")
             credentials {
-                username = "inlineio"
+                username = "inlinedio"
                 password = System.getenv("TOKEN_GITHUB")
             }
         }
