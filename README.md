@@ -1,5 +1,4 @@
 # IKV | Inlined.io Key Value Store
-
 IKV is a **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embedded_database)**, optimized for online feature serving for ML inference. It is ideal for building large scale distributed systems (ex. recommendation engines or information retrieval tasks) - which need low latency access to key-value data. IKV-Store is -
 
  1. **Blazing Fast**: With no network overhead, IKV offers P99 read latency of **1-100 microseconds** from client’s point-of-view (depending on key/value size and single/batch operations). This is orders of magnitude better (10x) than existing solutions like Redis.
@@ -9,22 +8,29 @@ IKV is a **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embed
 
 ## Quick Links
  - Getting Started
-	 - Java
+	 - [Provisioning](#provisioning)
+	 - [Java](#getting-started-with-java)
 	 - Python (upcoming - July 2024)
 	 - Go (upcoming - July 2024)
- - Benchmarks
- - APIs
- - Architecture
- - FAQ
- - Contact inlined.io
+ - [APIs](#apis)
+ - [Architecture](#architecture)
+ - [Benchmarks](#benchmarks)
+ - [FAQs](#faq)
+ - [Support](#support)
+## Provisioning
+IKV is a managed database solution, hence before creating a new store you need to request provisioning. This section is useful for anyone who does not have an account or wants to create a new store within an account.
+
+To provision (~E2E time to provision is less than 12 hrs), reach out to to - ***onboarding[@]inlined.io***, with the following - 
+ - Existing **account-id** (if exists).
+ - For store provisioning: name, primary key, partitioning key (optional), and estimated write volume (ex. avg key & value size in bytes and volume/QPS). 
+ - Once you have an account-id, account-passkey and have provisioned a new store, you're all set to start using IKV.
+
+Reach out to ***onboarding[@]inlined.io*** for any provisioning related questions or support.
 
 ## Getting Started with Java
 In this section we go over some code samples about how to use IKV's client library in your Java project.
-
 #### Installation
-`ikv-java-client` is hosted with Github Packages, add dependency to your Gradle/Maven project.
-Make sure to use the latest version from [package list](https://github.com/inlinedio?tab=packages&repo_name=ikv-store).
-
+`ikv-java-client` is hosted with Github Packages, add dependency to your Gradle/Maven Java project. Make sure to use the latest version from [package list](https://github.com/inlinedio?tab=packages&repo_name=ikv-store).
 ```
 repositories {
   maven {
@@ -53,18 +59,19 @@ dependencies {
   <version>0.0.3</version>  
 </dependency>
 ```
+#### Java Usage
+// todo
+// refer to APIs section to understand interfaces
+// 
 
 
+## APIs
+// todo
 
+## Architecture
+// todo
 
-### Get Started with Java client
-(Python and Go support incoming)
-
-
-
-
-
-### Benchmarks
+## Benchmarks
 We measure read **latency** from a Java client's point of view, while accessing InlineKV.
 Latency measurements - we track latency at various percentiles to measure delay in execution time that client's can expect to see.
 
@@ -89,7 +96,9 @@ Key: 10 bytes, Value: 50 bytes
 |        | num_samples:10,000, batch_size:100 | avg: 32.37, p50: 31.00, p90: 39.00, p99: 51.00     |
 |        | num_samples:10,000, batch_size:500 | avg: 242.69, p50: 228.00, p90: 278.00, p99: 347.00 |
 
+## FAQ
+// todo
 
-
-
+## Support
+// todo
 
