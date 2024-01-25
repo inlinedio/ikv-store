@@ -202,7 +202,16 @@ Reads:
 ```
 
 ## Architecture
-// todo
+This section has a bird's eye view of IKV's architecture.
+
+![IKV Architecture Schematic](readme-img/architecture.png)
+
+IKV has a hybrid architecture wherein, the database reads are served from an embedded database but writes are persisted and propagated using a standalone service (i.e. IKV Cloud).
+
+ 1. **Reader/Writer Clients**: Distributed as language specific libraries, this is how users perform all CRUD operations. The writer client publishes the events to IKV Cloud, while the reader client queries the embedded database which is up-to-date with latest data (in near real-time).
+ 2. **IKV Cloud**: Gateway for write operations. It distributes incoming writes to readers using Kafka streams. It also serves other essential tasks like building index images periodically (for bootstrapping new readers), serving configuration, etc.
+ 3. **Embedded database**: Written in Rust, this component is the core database engine used by readers. Clients interface with this using foreign function interface (ex. JNI for Java). The key data structures include: (1) sharded memory-mapped files which store serialized field values (2) hash-table which indexes primary-keys versus "offsets" into the mmaps. This design enables highly concurrent key-value lookup. For most scenarios, all of the data will reside in RAM, providing high performance.
+
 
 ## Benchmarks
 We measure read **latency** from a Java client's point of view, while accessing InlineKV.
