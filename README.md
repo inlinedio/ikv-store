@@ -26,7 +26,8 @@ IKV is a managed database solution, hence before creating a new store you need t
 Reach out to ***onboarding[@]inlined.io*** for any provisioning related questions or support.
 
 ## Getting Started with Java
-In this section we go over some code samples about how to use IKV's client library in your Java project.
+In this section we go over some code samples about how to use IKV's client library in your Java project. Please reach out to *onboarding[@]inlined.io* for any support/questions related to usage.
+
 #### Installation
 `ikv-java-client` is hosted with Github Packages, add dependency to your Gradle/Maven Java project. Make sure to use the latest version from [package list](https://github.com/inlinedio?tab=packages&repo_name=ikv-store).
 ```
@@ -58,9 +59,75 @@ dependencies {
 </dependency>
 ```
 #### Java Usage
-// todo
-// refer to APIs section to understand interfaces
-// 
+Prerequisites - (1) [Provisioned](#provisioning) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
+
+```
+// Instantiate reader and writer clients using IKVClientFactory.
+// In this example we will upsert and read "user" profile data - the same example
+// which was discussed in IKV APIs section linked above.
+
+import io.inlined.clients.ClientOptions;  
+import io.inlined.clients.IKVClientFactory;  
+import io.inlined.clients.IKVDocument;  
+import io.inlined.clients.InlineKVReader;  
+import io.inlined.clients.InlineKVWriter;
+
+// Create client options (a.k.a configuration)
+ClientOptions clientOptions = new ClientOptions.Builder()
+   // directory to use for mounting files for IKV's embedded database
+   // no-op if you only plan to instantiate a writer.
+  .withMountDirectory("/tmp/UserProfiles)  
+  .withStoreName("user-profile")  
+  .withAccountId("--account-id--")  
+  .withAccountPassKey("--account-passkey--")  
+  .useStringPrimaryKey()  
+  .build();
+  
+IKVClientFactory factory = new IKVClientFactory(clientOptions);
+
+// Create Writer instance
+InlineKVWriter writer = factory.createNewWriterInstance();
+writer.startupWriter();
+
+// Create Reader instance
+InlineKVReader reader = factory.createNewReaderInstance();  
+reader.startupReader();
+
+// create documents
+IKVDocument doc1 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Alice")
+  .putIntField("age", 22)
+  .build();  
+writer.upsertFieldValues(doc1);
+
+IKVDocument doc2 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Alice")
+  .putStringField("city", "San Francisco")
+  .build();  
+writer.upsertFieldValues(doc2);
+
+IKVDocument doc3 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Bob")
+  .putIntField("age", 25)
+  .build();  
+writer.upsertFieldValues(doc3);
+
+// read documents
+// Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
+// before reading your writes.
+Thread.sleep(1000);
+
+Assertions.assertEquals(reader.getStringValue("Alice", "firstname"), "Alice");
+Assertions.assertEquals(reader.getIntValue("Alice", "age"), 22);
+Assertions.assertEquals(reader.getStringValue("Alice", "city"), "San Francisco");
+
+Assertions.assertEquals(reader.getStringValue("Bob", "firstname"), "Bob");
+Assertions.assertEquals(reader.getIntValue("Bob", "age"), 25);
+Assertions.assertNull(reader.getStringValue("Bob", "city"));
+
+writer.shutdownWriter();
+reader.shutdownReader();
+```
 
 
 ## APIs
