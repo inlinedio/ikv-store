@@ -54,7 +54,7 @@ dependencies {
 
     // IKV-Java-Client
     //implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.5'
-    implementation 'io.inlined:ikv-store:0.0.1'
+    implementation 'io.inlined:ikv-java-client:v0.0.2'
 
     runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
 
