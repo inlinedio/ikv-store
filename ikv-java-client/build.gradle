@@ -1,5 +1,5 @@
 plugins {
-    id 'java'
+    id 'java-library'
     // See: https://github.com/melix/jmh-gradle-plugin
     id "me.champeau.jmh" version "0.7.2"
     id 'com.google.protobuf' version '0.9.1'
@@ -7,7 +7,7 @@ plugins {
     id 'maven-publish'
 }
 
-version = '0.0.6'
+version = '0.0.6-SNAPSHOT'
 group = 'io.inlined'
 
 repositories {
@@ -69,19 +69,33 @@ protobuf {
 sourceSets {
     main {
         java {
-            srcDirs 'build/generated/source/proto/main/grpc'
-            srcDirs 'build/generated/source/proto/main/java'
+            srcDir 'src/main/java'
+            srcDir 'build/generated/source/proto/main/grpc'
+            srcDir 'build/generated/source/proto/main/java'
         }
     }
 }
 
+java {
+    withJavadocJar()
+}
+
+task sourcesJar(type: Jar) {
+    archiveClassifier.set('sources') // Set the classifier for the JAR file
+    from sourceSets.main.allSource // Include all source files
+
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+
+    // Optionally, you can exclude specific files or directories
+    //Ex. //exclude 'io/inlined/clients/InlineKVWriter.java'
+}
+
+artifacts {
+    archives sourcesJar
+}
+
 jar {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
-    manifest {
-        attributes(
-                'Main-Class': ' io.inlined.clients.IKVClientJNI'
-        )
-    }
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
