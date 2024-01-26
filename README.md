@@ -239,9 +239,7 @@ Key: 10 bytes, Value: 50 bytes
 |        | num_samples:10,000, batch_size:100 | avg: 32.37, p50: 31.00, p90: 39.00, p99: 51.00     |
 |        | num_samples:10,000, batch_size:500 | avg: 242.69, p50: 228.00, p90: 278.00, p99: 347.00 |
 
-## FAQ
-// todo
 
 ## Support
-// todo
+onboarding[@]inlined.io
 
