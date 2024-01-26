@@ -16,14 +16,7 @@ repositories {
 
     mavenCentral()
 
-    maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")
-        credentials {
-            username = "inlinedio"
-            password = "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"
-        }
-    }
+    maven { url 'https://jitpack.io' }
 }
 
 def grpcVersion = '1.56.0'
@@ -60,7 +53,8 @@ dependencies {
     implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.20.0'
 
     // IKV-Java-Client
-    implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.5'
+    //implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.5'
+    implementation 'io.inlined:ikv-store:0.0.1'
 
     runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
 

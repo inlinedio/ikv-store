@@ -7,8 +7,9 @@ plugins {
     id 'maven-publish'
 }
 
-version = '0.0.6-SNAPSHOT'
-group = 'io.inlined'
+version = '0.0.6'
+//group = 'io.inlined'
+group = 'com.github.inlinedio'
 
 repositories {
     // The google mirror is less flaky than mavenCentral()
@@ -103,18 +104,11 @@ jar {
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        maven(MavenPublication) {
+            groupId "io.inlined"
+            artifactId "ikv-java-client"
+            version "0.0.6"
             from components.java
-        }
-    }
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")
-            credentials {
-                username = "inlinedio"
-                password = System.getenv("TOKEN_GITHUB")
-            }
         }
     }
 }
