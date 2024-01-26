@@ -6,7 +6,9 @@ import com.inlineio.schemas.Common.FieldType;
 import com.inlineio.schemas.Common.IKVStoreConfig;
 import com.inlineio.schemas.Services;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 public final class ClientOptions {
   private final IKVStoreConfig _config;
@@ -28,8 +30,10 @@ public final class ClientOptions {
     return _primaryKeyType;
   }
 
-  public String mountDirectory() {
-    return _config.getStringConfigsOrThrow(IKVConstants.MOUNT_DIRECTORY);
+  public Optional<String> mountDirectory() {
+    @Nullable
+    String mountDirectory = _config.getStringConfigsOrDefault(IKVConstants.MOUNT_DIRECTORY, null);
+    return Optional.ofNullable(mountDirectory);
   }
 
   public Services.UserStoreContextInitializer createUserStoreContextInitializer() {
@@ -54,6 +58,7 @@ public final class ClientOptions {
       _configBuilder = IKVStoreConfig.newBuilder();
 
       // defaults
+      // TODO: remove after partitioning support
       _configBuilder.putIntConfigs(IKVConstants.PARTITION, 0);
       _configBuilder.putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, "info");
       _configBuilder.putBooleanConfigs(IKVConstants.RUST_CLIENT_LOG_TO_CONSOLE, true);
@@ -64,8 +69,6 @@ public final class ClientOptions {
       _configBuilder.getStringConfigsOrThrow(IKVConstants.ACCOUNT_ID);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.ACCOUNT_PASSKEY);
       _configBuilder.getStringConfigsOrThrow(IKVConstants.STORE_NAME);
-      _configBuilder.getStringConfigsOrThrow(IKVConstants.MOUNT_DIRECTORY);
-      _configBuilder.getIntConfigsOrThrow(IKVConstants.PARTITION);
 
       return new ClientOptions(_configBuilder.build(), _primaryKeyType);
     }

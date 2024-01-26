@@ -1,3 +1,4 @@
+![IKV Logo](readme-img/inlined-logo.png)
 # IKV | Inlined.io Key Value Store
 IKV is a **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embedded_database)**, optimized for online feature serving for ML inference. It is ideal for building large scale distributed systems (ex. recommendation engines or information retrieval tasks) - which need low latency access to key-value data. IKV-Store is -
 
@@ -38,7 +39,7 @@ repositories {
     credentials {
       // You can use the following public github tokens, or inject your own personal tokens.
       username = "inlinedio"  
-      password = "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"  
+      password = "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"
     }
   }
 
@@ -46,7 +47,7 @@ repositories {
 }
 
 dependencies {
-  implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.3'
+  implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.6'
 
   // .. other project dependencies ..
 }

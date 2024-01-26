@@ -86,10 +86,10 @@ public class DirectJNIIntegrationTests {
     // BATCH READ
     List<Object> keys = ImmutableList.of((Object) key1, (Object) key2, (Object) key3);
 
-    List<String> names = client.multiGetStringValue(keys, NAME_FIELD_ACCESSOR);
+    List<String> names = client.multiGetStringValues(keys, NAME_FIELD_ACCESSOR);
     Assertions.assertArrayEquals(names.toArray(new String[0]), new String[] {name1, name2, name3});
 
-    List<byte[]> profiles = client.multiGetBytesValue(keys, PROFILE_FIELD_ACCESSOR);
+    List<byte[]> profiles = client.multiGetBytesValues(keys, PROFILE_FIELD_ACCESSOR);
     Assertions.assertArrayEquals(
         profiles.toArray(new byte[0][]), new byte[][] {profile1, profile2, null});
 

@@ -31,8 +31,13 @@ public class DefaultInlineKVReader implements InlineKVReader {
       return;
     }
 
+    String mountDirectory =
+        Preconditions.checkNotNull(
+            _clientOptions.mountDirectory().orElse(null),
+            "mountDirectory is a required client option");
+
     try {
-      _ikvClientJni = IKVClientJNI.createNew(_clientOptions.mountDirectory());
+      _ikvClientJni = IKVClientJNI.createNew(mountDirectory);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -74,24 +79,60 @@ public class DefaultInlineKVReader implements InlineKVReader {
     return result == null ? null : new String(result, StandardCharsets.UTF_8);
   }
 
+  @Nullable
   @Override
-  public List<byte[]> multiGetBytesValue(List<Object> primaryKeys, String fieldName) {
-    Iterator<byte[]> result = multiGetRawByteValues(primaryKeys, fieldName);
-    if (!result.hasNext()) {
-      return Collections.emptyList();
-    }
+  public Integer getIntValue(Object primaryKey, String fieldName) {
+    Preconditions.checkState(_handle != UNINITIALIZED_HANDLE);
 
-    // drain into list, avoid Stream in hot path
-    List<byte[]> results = new ArrayList<>(primaryKeys.size());
-    while (result.hasNext()) {
-      @Nullable byte[] next = result.next();
-      results.add(next);
-    }
-    return results;
+    @Nullable
+    byte[] result =
+        _ikvClientJni.readField(
+            _handle, serializePrimaryKey(primaryKey, _clientOptions.primaryKeyType()), fieldName);
+    return result == null ? null : ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).getInt();
+  }
+
+  @Nullable
+  @Override
+  public Float getFloatValue(Object primaryKey, String fieldName) {
+    Preconditions.checkState(_handle != UNINITIALIZED_HANDLE);
+
+    @Nullable
+    byte[] result =
+        _ikvClientJni.readField(
+            _handle, serializePrimaryKey(primaryKey, _clientOptions.primaryKeyType()), fieldName);
+    return result == null
+        ? null
+        : ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+  }
+
+  @Nullable
+  @Override
+  public Long getLongValue(Object primaryKey, String fieldName) {
+    Preconditions.checkState(_handle != UNINITIALIZED_HANDLE);
+
+    @Nullable
+    byte[] result =
+        _ikvClientJni.readField(
+            _handle, serializePrimaryKey(primaryKey, _clientOptions.primaryKeyType()), fieldName);
+    return result == null ? null : ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).getLong();
+  }
+
+  @Nullable
+  @Override
+  public Double getDoubleValue(Object primaryKey, String fieldName) {
+    Preconditions.checkState(_handle != UNINITIALIZED_HANDLE);
+
+    @Nullable
+    byte[] result =
+        _ikvClientJni.readField(
+            _handle, serializePrimaryKey(primaryKey, _clientOptions.primaryKeyType()), fieldName);
+    return result == null
+        ? null
+        : ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).getDouble();
   }
 
   @Override
-  public List<String> multiGetStringValue(List<Object> primaryKeys, String fieldName) {
+  public List<String> multiGetStringValues(List<Object> primaryKeys, String fieldName) {
     Iterator<byte[]> result = multiGetRawByteValues(primaryKeys, fieldName);
     if (!result.hasNext()) {
       return Collections.emptyList();
@@ -102,6 +143,22 @@ public class DefaultInlineKVReader implements InlineKVReader {
     while (result.hasNext()) {
       @Nullable byte[] next = result.next();
       results.add(next == null ? null : new String(next, StandardCharsets.UTF_8));
+    }
+    return results;
+  }
+
+  @Override
+  public List<byte[]> multiGetBytesValues(List<Object> primaryKeys, String fieldName) {
+    Iterator<byte[]> result = multiGetRawByteValues(primaryKeys, fieldName);
+    if (!result.hasNext()) {
+      return Collections.emptyList();
+    }
+
+    // drain into list, avoid Stream in hot path
+    List<byte[]> results = new ArrayList<>(primaryKeys.size());
+    while (result.hasNext()) {
+      @Nullable byte[] next = result.next();
+      results.add(next);
     }
     return results;
   }

@@ -4,6 +4,8 @@ import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.inlineio.schemas.Common;
 import com.inlineio.schemas.Common.FieldValue;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,6 +61,67 @@ public interface IKVDocument {
           FieldValue.newBuilder()
               .setFieldType(Common.FieldType.BYTES)
               .setValue(ByteString.copyFrom(value))
+              .build();
+      _fields.put(fieldName, fieldValue);
+      return this;
+    }
+
+    public Builder putIntField(String fieldName, int value) {
+      Preconditions.checkArgument(!fieldName.isEmpty());
+
+      // TODO: see if its possible to avoid allocating a new buffer
+      ByteBuffer bb = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN);
+      bb.putInt(value);
+
+      FieldValue fieldValue =
+          FieldValue.newBuilder()
+              .setFieldType(Common.FieldType.INT32)
+              .setValue(ByteString.copyFrom(bb))
+              .build();
+      _fields.put(fieldName, fieldValue);
+      return this;
+    }
+
+    public Builder putLongField(String fieldName, long value) {
+      Preconditions.checkArgument(!fieldName.isEmpty());
+
+      ByteBuffer bb = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+      bb.putLong(value);
+
+      FieldValue fieldValue =
+          FieldValue.newBuilder()
+              .setFieldType(Common.FieldType.INT64)
+              .setValue(ByteString.copyFrom(bb))
+              .build();
+      _fields.put(fieldName, fieldValue);
+      return this;
+    }
+
+    public Builder putFloatField(String fieldName, float value) {
+      Preconditions.checkArgument(!fieldName.isEmpty());
+
+      ByteBuffer bb = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN);
+      bb.putFloat(value);
+
+      FieldValue fieldValue =
+          FieldValue.newBuilder()
+              .setFieldType(Common.FieldType.FLOAT32)
+              .setValue(ByteString.copyFrom(bb))
+              .build();
+      _fields.put(fieldName, fieldValue);
+      return this;
+    }
+
+    public Builder putDoubleField(String fieldName, double value) {
+      Preconditions.checkArgument(!fieldName.isEmpty());
+
+      ByteBuffer bb = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+      bb.putDouble(value);
+
+      FieldValue fieldValue =
+          FieldValue.newBuilder()
+              .setFieldType(Common.FieldType.FLOAT64)
+              .setValue(ByteString.copyFrom(bb))
               .build();
       _fields.put(fieldName, fieldValue);
       return this;

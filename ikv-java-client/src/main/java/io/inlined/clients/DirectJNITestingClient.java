@@ -94,8 +94,8 @@ public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
   }
 
   @Override
-  public List<byte[]> multiGetBytesValue(List<Object> keys, String fieldName) {
-    return _defaultInlineKVReader.multiGetBytesValue(keys, fieldName);
+  public List<byte[]> multiGetBytesValues(List<Object> keys, String fieldName) {
+    return _defaultInlineKVReader.multiGetBytesValues(keys, fieldName);
   }
 
   @Nullable
@@ -105,7 +105,31 @@ public class DirectJNITestingClient implements InlineKVReader, InlineKVWriter {
   }
 
   @Override
-  public List<String> multiGetStringValue(List<Object> keys, String fieldName) {
-    return _defaultInlineKVReader.multiGetStringValue(keys, fieldName);
+  public List<String> multiGetStringValues(List<Object> keys, String fieldName) {
+    return _defaultInlineKVReader.multiGetStringValues(keys, fieldName);
+  }
+
+  @Nullable
+  @Override
+  public Integer getIntValue(Object key, String fieldName) {
+    return _defaultInlineKVReader.getIntValue(key, fieldName);
+  }
+
+  @Nullable
+  @Override
+  public Long getLongValue(Object key, String fieldName) {
+    return _defaultInlineKVReader.getLongValue(key, fieldName);
+  }
+
+  @Nullable
+  @Override
+  public Float getFloatValue(Object key, String fieldName) {
+    return _defaultInlineKVReader.getFloatValue(key, fieldName);
+  }
+
+  @Nullable
+  @Override
+  public Double getDoubleValue(Object key, String fieldName) {
+    return _defaultInlineKVReader.getDoubleValue(key, fieldName);
   }
 }

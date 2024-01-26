@@ -4,12 +4,10 @@ plugins {
     id "com.diffplug.spotless" version "6.23.3"
 }
 
+version = '0.0.2'
 group = 'io.inlined.cloud'
-version project.hasProperty('version') ? version : '0.0.1'
 
 repositories {
-
-
     // The google mirror is less flaky than mavenCentral()
     maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
 
@@ -23,7 +21,7 @@ repositories {
         url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")
         credentials {
             username = "inlinedio"
-            password = "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"
+            password = "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"
         }
     }
 }
@@ -62,7 +60,7 @@ dependencies {
     implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.20.0'
 
     // IKV-Java-Client
-    implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.3'
+    implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.5'
 
     runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
 
