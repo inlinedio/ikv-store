@@ -144,7 +144,7 @@ public class IKVLatencyBenchmarkWorkflow implements LatencyBenchmarkWorkflow {
           bytesKeys.stream().map(pk -> (Object) pk).collect(Collectors.toList());
 
       Instant start = Instant.now();
-      List<byte[]> returnedValues = _testingClient.multiGetBytesValue(primaryKeys, "profile");
+      List<byte[]> returnedValues = _testingClient.multiGetBytesValues(primaryKeys, "profile");
       Instant end = Instant.now();
 
       if (histogram != null) {
