@@ -65,7 +65,8 @@ impl IKVKafkaConsumer {
             ))?;
 
         // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
-        let client_config = ClientConfig::new()
+        let mut client_config = ClientConfig::new();
+        client_config
             .set("group.id", "ikv-default-consumer") // we don't use offset management or automatic partition assignment
             .set("bootstrap.servers", kafka_consumer_bootstrap_server)
             .set("enable.partition.eof", "true")
@@ -76,10 +77,25 @@ impl IKVKafkaConsumer {
             .set("security.protocol", "SASL_SSL")
             .set("sasl.mechanisms", "SCRAM-SHA-512")
             .set("sasl.username", account_id)
-            .set("sasl.password", account_passkey)
-            // .set("ssl.ca.location", "/etc/ssl/certs") <- required for ubuntu.
-            // TODO: check if instantiation fails on any other OS.
-            .clone();
+            .set("sasl.password", account_passkey);
+
+        // Apply kafka overrides
+        // "kafkaprop_{}": "value_string"
+        // ex. "kafkaprop_ssl.ca.location": "/etc/ssl/certs" -> "ssl.ca.location": "/etc/ssl/certs"
+        for (cfg_key, cfg_val) in config.stringConfigs.iter() {
+            if cfg_key.starts_with("kafkaprop_") {
+                let parts: Vec<&str> = cfg_key.split("_").collect();
+                if parts.len() != 2 {
+                    bail!(
+                        "Malformed kafka override property in supplied cfg: {}",
+                        cfg_key
+                    );
+                }
+
+                // example .set("ssl.ca.location", "/etc/ssl/certs") <- required for ubuntu.
+                client_config.set(parts[1], cfg_val);
+            }
+        }
 
         // topic and parition
         let topic = config.stringConfigs.get("kafka_topic").ok_or(
@@ -109,7 +125,7 @@ impl IKVKafkaConsumer {
             tokio_runtime: runtime,
             writes_processor: processor,
             cancellation_token: CancellationToken::new(),
-            client_config,
+            client_config: client_config.clone(),
             topic: topic.to_string(),
             partition,
         })
