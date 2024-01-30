@@ -53,8 +53,7 @@ dependencies {
     implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.20.0'
 
     // IKV-Java-Client
-    //implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.5'
-    implementation 'io.inlined:ikv-java-client:v0.0.2'
+    implementation 'io.inlined:ikv-java-client:0.0.4'
 
     runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
 

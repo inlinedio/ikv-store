@@ -370,6 +370,12 @@ impl CKVIndexSegment {
             bail!("Cannot store field type in 2 bytes");
         }
 
+        // TODO: copy_from_slice() panics when src/dest slice lenghts are different.
+        // Prevalidate lengths match and handle errors accordingly.
+
+        // TODO: consider being more robust by not gettings stuck on incorrect input
+        // events - limit blast radius of bad serialization schemes in producer.
+
         // write field_type
         let field_type = (field_value.fieldType.value() as u16).to_le_bytes();
         mmap[write_offset..write_offset + 2].copy_from_slice(&field_type[..]);
