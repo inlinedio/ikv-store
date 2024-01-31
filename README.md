@@ -1,11 +1,31 @@
 ![IKV Logo](readme-img/inlined-logo.png)
-# IKV | Inlined.io Key Value Store
-IKV is a **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embedded_database)**, optimized for online feature serving for ML inference. It is ideal for building large scale distributed systems (ex. recommendation engines or information retrieval tasks) - which need low latency access to key-value data. IKV-Store is -
+# IKV | Inlined Key-Value Store
+IKV is a high performance **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embedded_database)**, for powering modern ML inference. It's unique design makes it perfect for accessing large key-value datasets with very low latency in a production setting.
 
- 1. **Blazing Fast**: With no network overhead, IKV offers P99 read latency of **1-100 microseconds** from client’s point-of-view (depending on key/value size and single/batch operations). This is orders of magnitude better (10x) than existing solutions like Redis.
- 2. **Built for the Enterprise**: Extremely low operational overhead; pay-as-you-go with no provisioned hardware costs; Environment agnostic - use in the public cloud or on-prem.
- 3. **Horizontally Scalable**: Handles large datasets (with partitions) and high read/write traffic (with replication). Built for streaming and batch ingestion of data.
- 4. **Fully Persistent with Backup Data-Lake**: Write once and read forever. Read more about IKV's unique architecture which makes this possible for an embedded database.
+An embedded database avoids performance bottlenecks of traditional database services (ex. Redis or DynamoDB), by integrating the database directly within the application code. IKV is -
+
+ 1. **Blazing Fast**: IKV provides **single-digit microsecond** P99 read latency from client’s point-of-view. This is 50-100x faster than existing solutions like Redis.
+ 2. **Persistent Storage**: Write once and read forever. IKV embedded database is built on top of a reliable data backup layer.
+ 3. **Environment Agnostic**: Run in the public-cloud or on-prem with no differences in performance or configuration.
+ 4. **Horizontally Scalable**: Handles large datasets (with partitions) and high read/write traffic (with replication). Built for streaming and batch ingestion of data.
+
+## Benchmarks | Single digit micro-second read latency.
+Embedded databases avoid overhead of sending/receiving data over a network (which include things like network round trip time and compute spent on ser-deser & encryption). Further, IKV's embedded database component is - eventually-consistent, in-memory (with option to spill to disk), optimized for point lookups. These design choices enable extremely low-latency as compared to traditional database solutions.
+
+Query: A key (10 bytes) which maps 3 inner fields/attributes of size 50 bytes each. Given a particular key and field/attribute name, we query it's value from the underlying database.
+
+
+| Database                | Latency (micro-seconds)    | Throughput (ops/s) |
+|-------------------------|----------------------------|--------------------|
+| IKV                     | avg: 1.495,   p99: 2.051   | 668,896            |
+| Redis (AWS Elasticache) | avg: 104.299, p99: 228.388 | 9,587              |
+| AWS DynamoDB            |                            |                    |
+
+These benchmarks were performed by a **single-threaded** benchmarking client which made blocking calls to the underlying database. Some other properties of the benchmarking setup - 
+
+ - Hardware (AWS VM): r5.xlarge (4 vcpu, 32GB) 
+ - Num-Samples: 100,000
+ - Warmups: 1 warmup run before instrumented run to ensure databases are able to load required datasets in local memory (RAM).
 
 ## Quick Links
  - Getting Started
@@ -15,8 +35,6 @@ IKV is a **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embed
 	 - Go (upcoming - July 2024)
  - [APIs](#apis)
  - [Architecture](#architecture)
- - [Benchmarks](#benchmarks)
- - [FAQs](#faq)
  - [Support](#support)
 ## Provisioning
 IKV is a managed database solution, hence before creating a new store you need to request provisioning. This section is useful for anyone who does not have an account or wants to create a new store within an account. To provision (provisioning time is usually less than 12 hrs), reach out to to - ***onboarding[@]inlined.io***, with the following - 
@@ -213,33 +231,6 @@ IKV has a hybrid architecture wherein, the database reads are served from an emb
  2. **IKV Cloud**: Gateway for write operations. It distributes incoming writes to readers using Kafka streams. It also serves other essential tasks like building index images periodically (for bootstrapping new readers), serving configuration, etc.
  3. **Embedded database**: Written in Rust, this component is the core database engine used by readers. Clients interface with this using foreign function interface (ex. JNI for Java). The key data structures include: (1) sharded memory-mapped files which store serialized field values (2) hash-table which indexes primary-keys versus "offsets" into the mmaps. This design enables highly concurrent key-value lookup. For most scenarios, all of the data will reside in RAM, providing high performance.
 
-
-## Benchmarks
-We measure read **latency** from a Java client's point of view, while accessing InlineKV.
-Latency measurements - we track latency at various percentiles to measure delay in execution time that client's can expect to see.
-
-#### Benchmarking environment - 
-1. Single threaded client JVM instance using InlineKV's Java client (see /ikv-java-client)
-2. Hardware - AWS r5.xlarge instance (4 vcpu, 32GB).
-
-#### Parameters - 
-1. We use byte arrays as the format for key and value. Key is ~ 10 bytes in size, Value is 350 bytes.
-2. Single: i.e. return value for a single key
-3. Batch: return values for the specified batch of keys
-   
-#### Results - 
-Instance type - r5.xlarge (4 vcpu, 32GB)
-Key: 10 bytes, Value: 50 bytes
-
-| Type   | Parameters                         | Latency (microseconds)                             |
-|--------|------------------------------------|----------------------------------------------------|
-| SINGLE | num_samples:100,000                | avg: 1.07, p50: 1.00, p90: 1.00, p99: 3.00         |
-| BATCH  | num_samples:10,000, batch_size:10  | avg: 5.40, p50: 5.00, p90: 7.00, p99: 10.00        |
-|        | num_samples:10,000, batch_size:50  | avg: 18.44, p50: 18.00, p90: 23.00, p99: 33.00     |
-|        | num_samples:10,000, batch_size:100 | avg: 32.37, p50: 31.00, p90: 39.00, p99: 51.00     |
-|        | num_samples:10,000, batch_size:500 | avg: 242.69, p50: 228.00, p90: 278.00, p99: 347.00 |
-
-
-## Support
-onboarding[@]inlined.io
+## Technical Support
+For provisioning, documentation or any technical support- onboarding[@]inlined.io
 
