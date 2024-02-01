@@ -31,11 +31,10 @@ These benchmarks were performed by a **single-threaded** benchmarking client whi
  - Getting Started
 	 - [Provisioning](#provisioning)
 	 - [Java](#getting-started-with-java)
-	 - Python (upcoming - July 2024)
-	 - Go (upcoming - July 2024)
+	 - Python & Go (upcoming - July 2024)
  - [APIs](#apis)
  - [Architecture](#architecture)
- - [Support](#support)
+ - [Technical Support](#technical-support)
 ## Provisioning
 IKV is a managed database solution, hence before creating a new store you need to request provisioning. This section is useful for anyone who does not have an account or wants to create a new store within an account. To provision (provisioning time is usually less than 12 hrs), reach out to to - ***onboarding[@]inlined.io***, with the following - 
  - Existing **account-id** (if exists, else mention you want a new account-id and account-passkey).
@@ -48,35 +47,32 @@ Reach out to ***onboarding[@]inlined.io*** for any provisioning related question
 In this section we go over some code samples about how to use IKV's client library in your Java project. Please reach out to *onboarding[@]inlined.io* for any support/questions related to usage.
 
 #### Installation
-`ikv-java-client` is hosted with Github Packages, add dependency to your Gradle/Maven Java project. Make sure to use the latest version from [package list](https://github.com/inlinedio?tab=packages&repo_name=ikv-store).
+`ikv-java-client` dependency is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client), add dependency to your Gradle/Maven Java project. Make sure to use the latest version from [release list](https://jitpack.io/#io.inlined/ikv-java-client).
 ```
 repositories {
-  maven {
-    name = "GitHubPackages"  
-    url = uri("https://maven.pkg.github.com/inlinedio/ikv-store")  
-    credentials {
-      // You can use the following public github tokens, or inject your own personal tokens.
-      username = "inlinedio"  
-      password = "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"
-    }
-  }
-
- // ... other project repositories (ex. mavenCentral()) ..
+  maven { url 'https://jitpack.io' }
 }
 
 dependencies {
-  implementation group: 'io.inlined', name: 'ikv-java-client', version: '0.0.6'
-
-  // .. other project dependencies ..
+  implementation 'io.inlined:ikv-java-client:0.0.6'
 }
-``` 
 ```
+
+```
+<repositories>
+  <repository>
+    <id>jitpack.io</id>
+    <url>https://jitpack.io</url>
+  </repository>
+</repositories>
+
 <dependency>
   <groupId>io.inlined</groupId>
   <artifactId>ikv-java-client</artifactId>
-  <version>0.0.3</version>  
+  <version>0.0.6</version>
 </dependency>
 ```
+
 #### Java Usage
 Prerequisites - (1) [Provisioned](#provisioning) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
 
@@ -91,28 +87,20 @@ import io.inlined.clients.IKVDocument;
 import io.inlined.clients.InlineKVReader;  
 import io.inlined.clients.InlineKVWriter;
 
-// Create client options (a.k.a configuration)
-ClientOptions clientOptions = new ClientOptions.Builder()
-   // directory to use for mounting files for IKV's embedded database
-   // no-op if you only plan to instantiate a writer.
-  .withMountDirectory("/tmp/UserProfiles)  
+IKVClientFactory factory = new IKVClientFactory();
+
+// Create client options - for Writer
+ClientOptions writerClientOptions = new ClientOptions.Builder()
   .withStoreName("user-profile")  
   .withAccountId("--account-id--")  
-  .withAccountPassKey("--account-passkey--")  
-  .useStringPrimaryKey()  
+  .withAccountPassKey("--account-passkey--")
   .build();
-  
-IKVClientFactory factory = new IKVClientFactory(clientOptions);
 
 // Create Writer instance
-InlineKVWriter writer = factory.createNewWriterInstance();
+InlineKVWriter writer = factory.createNewWriterInstance(writerClientOptions);
 writer.startupWriter();
 
-// Create Reader instance
-InlineKVReader reader = factory.createNewReaderInstance();  
-reader.startupReader();
-
-// create documents
+// create documents and invoke upsert() operations
 IKVDocument doc1 =  new IKVDocument.Builder()
   .putStringField("firstname", "Alice")
   .putIntField("age", 22)
@@ -130,6 +118,19 @@ IKVDocument doc3 =  new IKVDocument.Builder()
   .putIntField("age", 25)
   .build();  
 writer.upsertFieldValues(doc3);
+
+// Create client options - for Reader
+ClientOptions readerClientOptions = new ClientOptions.Builder()
+  .withMountDirectory("/tmp/UserProfiles)  
+  .withStoreName("user-profile")  
+  .withAccountId("--account-id--")  
+  .withAccountPassKey("--account-passkey--")  
+  .useStringPrimaryKey()  
+  .build();
+
+// Create Reader instance
+InlineKVReader reader = factory.createNewReaderInstance(readerClientOptions);  
+reader.startupReader();
 
 // read documents
 // Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
