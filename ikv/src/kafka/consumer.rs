@@ -380,10 +380,13 @@ async fn consume_till_cancelled(
         // when tokio runtime is shutdown or task is abort()'ed
         match consumer.recv().await {
             Err(e) => {
-                warn!(
-                    "Encountered kafka error (non fatal) - sleep then retry. Error: {}",
-                    e.to_string()
-                );
+                match e {
+                    rdkafka::error::KafkaError::PartitionEOF(_) => {}
+                    _ => warn!(
+                        "Encountered kafka error (non fatal) - sleep then retry. Error: {}",
+                        e.to_string()
+                    ),
+                }
 
                 // 100ms sleep and try again
                 std::thread::sleep(Duration::from_millis(100));

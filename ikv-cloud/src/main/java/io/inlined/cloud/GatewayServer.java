@@ -19,7 +19,7 @@ public class GatewayServer {
   private static final int DEFAULT_PORT = 8080;
   private volatile io.grpc.Server _server;
 
-  public static void main(String[] args) throws IOException, InterruptedException {
+  public static void main(String[] args) throws InterruptedException {
     LOGGER.info("Hello from log4j");
 
     GatewayServer server = new GatewayServer();
@@ -38,9 +38,8 @@ public class GatewayServer {
 
     // start grpc service
     try {
-      int port = port();
       _server =
-          ServerBuilder.forPort(port)
+          ServerBuilder.forPort(DEFAULT_PORT)
               .addService(new InlineKVWriteServiceImpl(publisher, userStoreContextAccessor))
               .build()
               .start();
@@ -55,17 +54,5 @@ public class GatewayServer {
     Preconditions.checkNotNull(_server);
     LOGGER.info("Server is listening!");
     _server.awaitTermination();
-  }
-
-  private int port() {
-    try {
-      return Integer.parseInt(System.getenv("PORT"));
-    } catch (NullPointerException e) {
-      // Not present
-    } catch (NumberFormatException e) {
-      // invalid format
-    }
-
-    return DEFAULT_PORT;
   }
 }

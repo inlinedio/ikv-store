@@ -9,7 +9,7 @@ use std::{
 
 use anyhow::bail;
 use integer_encoding::VarInt;
-use log::info;
+use log::debug;
 use memmap2::MmapMut;
 use protobuf::{Enum, Message};
 
@@ -568,7 +568,7 @@ impl CKVIndexSegment {
             (1.0 + ((end_offset - self.mmap.len()) as f64 / CHUNK_SIZE as f64)) as usize;
         assert!(num_chunks >= 1);
 
-        info!(
+        debug!(
             "Need to resize the mmap. curr_len: {} write_offset: {} end_offset: {} num_chunks: {}",
             self.mmap.len(),
             write_offset,
