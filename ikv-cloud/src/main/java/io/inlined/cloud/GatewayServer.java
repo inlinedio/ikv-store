@@ -37,22 +37,29 @@ public class GatewayServer {
         new UserStoreContextAccessor(ikvStoreContextObjectsAccessor);
 
     // start grpc service
+    AdminServiceImpl adminService;
     try {
+      adminService = new AdminServiceImpl();
+
       _server =
           ServerBuilder.forPort(DEFAULT_PORT)
               .addService(new InlineKVWriteServiceImpl(publisher, userStoreContextAccessor))
+              .addService(adminService)
               .build()
               .start();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+
+    // health check path for AWS ALB: "/ikvschemas.AdminService/healthCheck"
+    adminService.markHealthy();
+    LOGGER.info("Server is running!");
   }
 
   public void shutdown() {}
 
   public void blockUntilShutdown() throws InterruptedException {
     Preconditions.checkNotNull(_server);
-    LOGGER.info("Server is listening!");
     _server.awaitTermination();
   }
 }
