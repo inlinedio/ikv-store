@@ -5,6 +5,7 @@ option java_package = "com.inlineio.schemas";
 package ikvschemas;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 import "common.proto";
 
 service InlineKVWriteService {
@@ -24,6 +25,10 @@ service InlineKVWriteService {
   rpc getUserStoreConfig(GetUserStoreConfigRequest) returns (GetUserStoreConfigResponse) {}
 }
 
+service AdminService {
+  rpc healthCheck(google.protobuf.Empty) returns (HealthCheckResponse) {}
+}
+
 message HelloWorldRequest {
   string echo = 1;
 }
@@ -32,6 +37,12 @@ message HelloWorldResponse {
   string echo = 1;
 }
 
+message HealthCheckResponse {
+  // health status <-> code value mapping
+  // is defined in AWS ALB health check
+  // settings.
+  int32 code = 1;
+}
 
 message UpsertFieldValuesRequest {
   UserStoreContextInitializer userStoreContextInitializer = 1;
