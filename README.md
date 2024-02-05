@@ -1,31 +1,32 @@
 ![IKV Logo](readme-img/inlined-logo.png)
 # IKV | Inlined Key-Value Store
-IKV is a high performance **fully-managed [embedded database](https://en.wikipedia.org/wiki/Embedded_database)**, for powering modern ML inference. It's unique design makes it perfect for accessing large key-value datasets with very low latency in a production setting.
+IKV is a high performance **fully-managed embedded database**, for powering modern ML inference. It's unique design makes it perfect for accessing large key-value datasets with very low latency in a production setting.
 
-An embedded database avoids performance bottlenecks of traditional database services (ex. Redis or DynamoDB), by integrating the database directly within the application code. IKV is -
+An [embedded database](https://en.wikipedia.org/wiki/Embedded_database) provides much better performance (response-time and throughput) as compared to standalone services (ex. Redis or DynamoDB), by integrating directly into the user application and avoiding any remote network calls. IKV is -
 
- 1. **Blazing Fast**: IKV provides **single-digit microsecond** P99 read latency from client’s point-of-view. This is 50-100x faster than existing solutions like Redis.
- 2. **Persistent Storage**: Write once and read forever. IKV embedded database is built on top of a reliable data backup layer.
- 3. **Environment Agnostic**: Run in the public-cloud or on-prem with no differences in performance or configuration.
+ 1. **Blazing Fast**: IKV provides **single-digit microsecond** P99 read latency from client’s point-of-view. This is 100x faster than existing solutions like Redis.
+ 2. **Persistent Storage**: Write once and read forever. IKV embedded database is built on top of a reliable data layer (i.e. IKV cloud).
+ 3. **Environment Agnostic**: Run in the public-cloud (AWS/Azure/GCP, etc) or on-prem with no differences in read-performance or configuration.
  4. **Horizontally Scalable**: Handles large datasets (with partitions) and high read/write traffic (with replication). Built for streaming and batch ingestion of data.
 
-## Benchmarks | Single digit micro-second read latency.
-Embedded databases avoid overhead of sending/receiving data over a network (which include things like network round trip time and compute spent on ser-deser & encryption). Further, IKV's embedded database component is - eventually-consistent, in-memory (with option to spill to disk), optimized for point lookups. These design choices enable extremely low-latency as compared to traditional database solutions.
+## Benchmarks | 100x faster than Redis
+IKV is eventually-consistent, in-memory (with option to spill to disk) and trades-off write performance for reads. These design choices enable extremely low-latency read access to key value data. IKV provides **single-digit microsecond response-time at P99** and is **100x faster than Redis**.
 
-Query: A key (10 bytes) which maps 3 inner fields/attributes of size 50 bytes each. Given a particular key and field/attribute name, we query it's value from the underlying database.
+Read our full benchmarking setup and report [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
 
+```markdown
+| Read-Only Load (QPS) | IKV (Inlined Key Value Store)   | Redis Cluster (AWS ElastiCache) |
+|----------------------|---------------------------------|---------------------------------|
+|                      | Response Time (micro-seconds)   | Response Time (micro-seconds)   |
+|                      |                                 |                                 |
+| 25K                  | avg: 2.77, p50: 2.58, p99: 5.34 | avg: 317, p50: 306, p99: 5279   |
+| 50K                  | avg: 3.05, p50: 2.91, p99: 5.97 | avg: 321, p50: 308, p99: 533    |
+| 100K                 | avg: 3.13, p50: 2.89, p99: 5.65 | avg: 319, p50: 305, p99: 514    |
+| 1M                   | avg: 2.93, p50: 2.56, p99: 4.92 | Not Achievable                  |
+| 3M                   | avg: 4.09, p50: 2.43, p99: 3.83 | Not Achievable                  |
+```
 
-| Database                | Latency (micro-seconds)    | Throughput (ops/s) |
-|-------------------------|----------------------------|--------------------|
-| IKV                     | avg: 1.495,   p99: 2.051   | 668,896            |
-| Redis (AWS Elasticache) | avg: 104.299, p99: 228.388 | 9,587              |
-| AWS DynamoDB            |                            |                    |
-
-These benchmarks were performed by a **single-threaded** benchmarking client which made blocking calls to the underlying database. Some other properties of the benchmarking setup - 
-
- - Hardware (AWS VM): r5.xlarge (4 vcpu, 32GB) 
- - Num-Samples: 100,000
- - Warmups: 1 warmup run before instrumented run to ensure databases are able to load required datasets in local memory (RAM).
+These benchmarks were performed by a multi-threaded client machine which made blocking calls to the underlying database. For a constant load (queries-per-second), we note down the response-time of both databases (avg/P99/etc). We tested "get" performance i.e. given a primary-key and a field/attribute name - fetch the field's value. IKV is inherently built for multithreaded use, for Redis we used a 16 shard, single-node Redis Cluster to ensure fairness. The report linked above has details about hardware and testing methodology.
 
 ## Quick Links
  - Getting Started
@@ -36,15 +37,13 @@ These benchmarks were performed by a **single-threaded** benchmarking client whi
  - [Architecture](#architecture)
  - [Technical Support](#technical-support)
 ## Provisioning
-IKV is a managed database solution, hence before creating a new store you need to request provisioning. This section is useful for anyone who does not have an account or wants to create a new store within an account. To provision (provisioning time is usually less than 12 hrs), reach out to to - ***onboarding[@]inlined.io***, with the following - 
+You need an IKV account and a provisioned key-value store to start using IKV in production. Why? IKV is an embedded database which is built on top of a persistent stand-alone data layer (which needs resource allocation). To provision (provisioning time is usually less than 12 hrs), reach out to to - **onboarding@inlined.io**, with the following - 
  - Existing **account-id** (if exists, else mention you want a new account-id and account-passkey).
- - For store provisioning: name, primary key, partitioning key (optional), and estimated write volume (ex. avg key & value size in bytes and volume/QPS). 
+ - For store provisioning: **store-name, primary-key, partitioning key (optional)**. See [APIs](#apis) to familiarize yourself with some of these terms.
  - Once you have an account-id, account-passkey and have provisioned a new store, you're all set to start using IKV.
 
-Reach out to ***onboarding[@]inlined.io*** for any provisioning related questions or support.
-
 ## Getting Started with Java
-In this section we go over some code samples about how to use IKV's client library in your Java project. Please reach out to *onboarding[@]inlined.io* for any support/questions related to usage.
+In this section we go over some code samples about how to use IKV's client library in your Java project. Please reach out to *onboarding@inlined.io* for any support/questions related to usage.
 
 #### Installation
 `ikv-java-client` dependency is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client), add dependency to your Gradle/Maven Java project. Make sure to use the latest version from [release list](https://jitpack.io/#io.inlined/ikv-java-client).
@@ -54,7 +53,7 @@ repositories {
 }
 
 dependencies {
-  implementation 'io.inlined:ikv-java-client:0.0.6'
+  implementation 'io.inlined:ikv-java-client:0.0.7'
 }
 ```
 
@@ -69,7 +68,7 @@ dependencies {
 <dependency>
   <groupId>io.inlined</groupId>
   <artifactId>ikv-java-client</artifactId>
-  <version>0.0.6</version>
+  <version>0.0.7</version>
 </dependency>
 ```
 
@@ -151,12 +150,12 @@ reader.shutdownReader();
 
 
 ## APIs
-In this section we go over the key interfaces and abstractions that IKV provides as a key-value database. 
+In this section we go over some important interfaces and abstractions that IKV provides as a key-value database. 
 
-These concepts are language independent. IKV stores documents (the "value") associated with primary-keys (the "key"), in an eventually consistent (read-after-write manner). Given a primary-key, a user can do CRUD operations i.e. create/read/update/delete for a single document (batch operations are also supported).
+These concepts are language independent. IKV stores documents (the "value") associated with primary-keys (the "key"), in an [eventually consistent](https://en.wikipedia.org/wiki/Eventual_consistency) (read-after-write) manner. Given a primary-key, a user can do CRUD operations i.e. create/read/update/delete for a single document (batch operations are also supported).
 
 ##### Document
-A document is a collection of fields/attributes. Each inner field/attribute contained within a document is optional (i.e. it's value can be missing), and can be used to store a particular property associated with a unit of data. This is analogous to a "single row" of data in many SQL databases or something like DynamoDB, with each "column" being an inner field/attribute. 
+A document is a collection of fields/attributes. Each inner field/attribute contained within a document is optional (i.e. it's value can be missing), and can be used to store a particular property of the document. This is analogous to a "single row" of data in many SQL databases or something like DynamoDB, with each "column" being an inner field/attribute. 
 
 A field can be uniquely identified by a **name** and a **type** - which is the same across all documents stored in a particular IKV store. Fields (except primary and partitioning keys) are not required to be declared while provisioning or in a "schema/configuration" file, instead IKV updates field information dynamically as and when they are encountered at runtime.
 
