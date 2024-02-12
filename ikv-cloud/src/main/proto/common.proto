@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 option java_package = "com.inlineio.schemas";
+option go_package = "schemas/";
 
 package ikvschemas;
 

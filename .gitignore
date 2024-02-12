@@ -7,6 +7,9 @@ build/
 ### Rust
 ikv/target/*
 
+### Go
+ikv-go-client/schemas/*
+
 ### Core dumps
 ikv-java-client/*.log
 
