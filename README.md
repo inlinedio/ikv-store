@@ -19,7 +19,7 @@ Read our full benchmarking setup and report [here](https://docs.google.com/docum
 |----------------------|---------------------------------|---------------------------------|
 |                      | Response Time (micro-seconds)   | Response Time (micro-seconds)   |
 |                      |                                 |                                 |
-| 25K                  | avg: 2.77, p50: 2.58, p99: 5.34 | avg: 317, p50: 306, p99: 5279   |
+| 25K                  | avg: 2.77, p50: 2.58, p99: 5.34 | avg: 317, p50: 306, p99: 527    |
 | 50K                  | avg: 3.05, p50: 2.91, p99: 5.97 | avg: 321, p50: 308, p99: 533    |
 | 100K                 | avg: 3.13, p50: 2.89, p99: 5.65 | avg: 319, p50: 305, p99: 514    |
 | 1M                   | avg: 2.93, p50: 2.56, p99: 4.92 | Not Achievable                  |
