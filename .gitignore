@@ -9,6 +9,7 @@ ikv/target/*
 
 ### Go
 ikv-go-client/schemas/*
+ikv-go-client/pkg/schemas/*
 
 ### Core dumps
 ikv-java-client/*.log
