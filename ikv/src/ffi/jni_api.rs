@@ -6,7 +6,7 @@ use protobuf::Message;
 use crate::controller::external_handle;
 use crate::controller::index_builder::IndexBuilder;
 use crate::controller::main::Controller;
-use crate::jni::utils;
+use crate::ffi::utils;
 use crate::proto::generated_proto::common::IKVStoreConfig;
 use crate::proto::generated_proto::streaming::IKVDataEvent;
 
