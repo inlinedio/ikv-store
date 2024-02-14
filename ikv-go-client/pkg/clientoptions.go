@@ -26,7 +26,15 @@ type ClientOptionsBuilder struct {
 
 // Create a new options builder.
 func NewClientOptionsBuilder() *ClientOptionsBuilder {
-	var builder = ClientOptionsBuilder{}
+	var builder = ClientOptionsBuilder{
+		config: schemas.IKVStoreConfig{
+			StringConfigs:  make(map[string]string),
+			IntConfigs:     make(map[string]int64),
+			FloatConfigs:   make(map[string]float32),
+			BytesConfigs:   make(map[string][]byte),
+			BooleanConfigs: make(map[string]bool),
+		},
+	}
 
 	// set console logging with level = info by default
 	builder.withConsoleLogging("info")

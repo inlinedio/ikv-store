@@ -6,12 +6,19 @@ import (
 	schemas "inlined.io/ikv-go-client/schemas"
 )
 
+// Represents an indexable document for IKV (collection of fields associated with a primary key).
+// See IKVDocumentBuilder to build documents.
 type IKVDocument struct {
-	fields map[string]schemas.FieldValue
+	fields map[string]*schemas.FieldValue
 }
 
 type IKVDocumentBuilder struct {
-	fields map[string]schemas.FieldValue
+	fields map[string]*schemas.FieldValue
+}
+
+// Constructor for a new document builder.
+func NewIKVDocumentBuilder() *IKVDocumentBuilder {
+	return &IKVDocumentBuilder{fields: make(map[string]*schemas.FieldValue)}
 }
 
 // Insert a string field.
@@ -20,7 +27,7 @@ func (builder *IKVDocumentBuilder) putStringField(fieldname string, value string
 		return nil, errors.New("Missing field name or field value")
 	}
 
-	builder.fields[fieldname] = schemas.FieldValue{FieldType: schemas.FieldType_STRING, Value: []byte(value)}
+	builder.fields[fieldname] = &schemas.FieldValue{FieldType: schemas.FieldType_STRING, Value: []byte(value)}
 	return builder, nil
 }
 
@@ -30,7 +37,7 @@ func (builder *IKVDocumentBuilder) putBytesField(fieldname string, value []byte)
 		return nil, errors.New("Missing field name or field value")
 	}
 
-	builder.fields[fieldname] = schemas.FieldValue{FieldType: schemas.FieldType_BYTES, Value: value}
+	builder.fields[fieldname] = &schemas.FieldValue{FieldType: schemas.FieldType_BYTES, Value: value}
 	return builder, nil
 }
 
