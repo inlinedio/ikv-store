@@ -1,12 +1,14 @@
-struct BytesBuffer {
+/*struct BytesBuffer {
   uint8_t *data;
   uintptr_t len;
-};
+};*/
 
-void hello_world(const char *name);
+extern "C" {
+void hello_world(const char *input);
 
-// int64_t open(struct BytesBuffer config);
+long open(const unsigned char *config);
 
-void close(int64_t handle);
+void close(long handle);
+}
 
-struct BytesBuffer read_field(int64_t handle, struct BytesBuffer primary_key, const char *field_name);
+// struct BytesBuffer read_field(int64_t handle, struct BytesBuffer primary_key, const char *field_name);

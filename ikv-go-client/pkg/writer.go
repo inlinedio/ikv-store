@@ -76,7 +76,7 @@ func (writer *DefaultIKVWriter) startup() error {
 	return nil
 }
 
-// Startup. Teardown connection.
+// Shutdown. Teardown connection.
 func (writer *DefaultIKVWriter) shutdown() error {
 	writer.connection.Close()
 	return nil
@@ -97,11 +97,29 @@ func (writer *DefaultIKVWriter) upsertFields(document IKVDocument) error {
 	}
 
 	// make request
+	// retries are made automatically for select errors (see policy above)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	// retries are made automatically for select errors (see policy above)
 	_, err := writer.client.UpsertFieldValues(ctx, &request)
 
 	return err
+}
+
+// Helper to fetch server supplied configs.
+// TODO: move this out of the writer struct for
+// better separation.
+func (writer *DefaultIKVWriter) serverSuppliedConfig() (*schemas.IKVStoreConfig, error) {
+
+	// create request
+	request := schemas.GetUserStoreConfigRequest{
+		UserStoreContextInitializer: writer.userStoreCtxInitializer,
+	}
+
+	// make request
+	// retries are made automatically for select errors (see policy above)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	response, err := writer.client.GetUserStoreConfig(ctx, &request)
+
+	return response.GlobalConfig, err
 }
