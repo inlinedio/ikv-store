@@ -1,6 +1,6 @@
 mod controller;
-mod index;
 pub mod ffi;
+mod index;
 mod kafka;
 mod proto;
 mod schema;

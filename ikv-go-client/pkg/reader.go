@@ -18,7 +18,7 @@ type DefaultIKVReader struct {
 
 // Startup. Reader fetches and combines server/client configs
 // and opens embedded index via cgo.
-func (reader *DefaultIKVReader) startup() error {
+func (reader *DefaultIKVReader) Startup() error {
 	if reader.handle != bad_handle {
 		return nil
 	}
@@ -45,7 +45,7 @@ func (reader *DefaultIKVReader) startup() error {
 
 // Shutdown. Reader invokes shutdown sequence on the embedded index
 // via cgo.
-func (reader *DefaultIKVReader) shutdown() error {
+func (reader *DefaultIKVReader) Shutdown() error {
 	if reader.handle == bad_handle {
 		return nil
 	}
@@ -58,9 +58,7 @@ func (reader *DefaultIKVReader) shutdown() error {
 	return nil
 }
 
-func (reader *DefaultIKVReader) getBytesValue(key interface{}, fieldname string) ([]byte, error) {
-	// TODO: handle more types
-	// key can only be of type string or bytes for now.
+func (reader *DefaultIKVReader) GetBytesValue(key interface{}, fieldname string) ([]byte, error) {
 	switch primaryKey := key.(type) {
 	case string:
 		return reader.nativeReader.getFieldValue(
@@ -77,12 +75,22 @@ func (reader *DefaultIKVReader) getBytesValue(key interface{}, fieldname string)
 	}
 }
 
-func (reader *DefaultIKVReader) getStringValue(key interface{}, fieldname string) (string, error) {
-	return "", nil
+func (reader *DefaultIKVReader) GetStringValue(key interface{}, fieldname string) (string, error) {
+	bv, err := reader.GetBytesValue(key, fieldname)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bv), nil
 }
 
 func (reader *DefaultIKVReader) createIKVConfig() (*schemas.IKVStoreConfig, error) {
 	client, err := NewDefaultIKVWriter(reader.clientoptions)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
+	}
+
+	err = client.Startup()
 	if err != nil {
 		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
 	}
@@ -92,17 +100,41 @@ func (reader *DefaultIKVReader) createIKVConfig() (*schemas.IKVStoreConfig, erro
 		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
 	}
 
+	err = client.Shutdown()
+	if err != nil {
+		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
+	}
+
+	if config.StringConfigs == nil {
+		config.StringConfigs = make(map[string]string)
+	}
 	for k, v := range reader.clientoptions.config.StringConfigs {
 		config.StringConfigs[k] = v
+	}
+
+	if config.IntConfigs == nil {
+		config.IntConfigs = make(map[string]int64)
 	}
 	for k, v := range reader.clientoptions.config.IntConfigs {
 		config.IntConfigs[k] = v
 	}
+
+	if config.FloatConfigs == nil {
+		config.FloatConfigs = make(map[string]float32)
+	}
 	for k, v := range reader.clientoptions.config.FloatConfigs {
 		config.FloatConfigs[k] = v
 	}
+
+	if config.BytesConfigs == nil {
+		config.BytesConfigs = make(map[string][]byte)
+	}
 	for k, v := range reader.clientoptions.config.BytesConfigs {
 		config.BytesConfigs[k] = v
+	}
+
+	if config.BooleanConfigs == nil {
+		config.BooleanConfigs = make(map[string]bool)
 	}
 	for k, v := range reader.clientoptions.config.BooleanConfigs {
 		config.BooleanConfigs[k] = v

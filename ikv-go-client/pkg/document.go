@@ -14,6 +14,7 @@ type IKVDocument struct {
 
 type IKVDocumentBuilder struct {
 	fields map[string]*schemas.FieldValue
+	err    error
 }
 
 // Constructor for a new document builder.
@@ -22,26 +23,28 @@ func NewIKVDocumentBuilder() *IKVDocumentBuilder {
 }
 
 // Insert a string field.
-func (builder *IKVDocumentBuilder) putStringField(fieldname string, value string) (*IKVDocumentBuilder, error) {
+func (builder *IKVDocumentBuilder) PutStringField(fieldname string, value string) *IKVDocumentBuilder {
 	if fieldname == "" || value == "" {
-		return nil, errors.New("Missing field name or field value")
+		builder.err = errors.New("Missing field name or field value")
+		return nil
 	}
 
 	builder.fields[fieldname] = &schemas.FieldValue{FieldType: schemas.FieldType_STRING, Value: []byte(value)}
-	return builder, nil
+	return builder
 }
 
 // Insert a bytes field.
-func (builder *IKVDocumentBuilder) putBytesField(fieldname string, value []byte) (*IKVDocumentBuilder, error) {
+func (builder *IKVDocumentBuilder) PutBytesField(fieldname string, value []byte) *IKVDocumentBuilder {
 	if fieldname == "" || len(value) == 0 {
-		return nil, errors.New("Missing field name or field value")
+		builder.err = errors.New("Missing field name or field value")
+		return nil
 	}
 
 	builder.fields[fieldname] = &schemas.FieldValue{FieldType: schemas.FieldType_BYTES, Value: value}
-	return builder, nil
+	return builder
 }
 
 // Build this document.
-func (builder *IKVDocumentBuilder) build() (IKVDocument, error) {
-	return IKVDocument{fields: builder.fields}, nil
+func (builder *IKVDocumentBuilder) Build() (IKVDocument, error) {
+	return IKVDocument{fields: builder.fields}, builder.err
 }

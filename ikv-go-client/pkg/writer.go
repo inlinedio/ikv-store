@@ -2,11 +2,13 @@ package ikvclient
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"log"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	schemas "inlined.io/ikv-go-client/schemas"
 )
@@ -64,8 +66,11 @@ func NewDefaultIKVWriter(clientOptions *ClientOptions) (*DefaultIKVWriter, error
 }
 
 // Startup. Connection initialization.
-func (writer *DefaultIKVWriter) startup() error {
-	connection, err := grpc.Dial("gateway.inlined.io:443", grpc.WithDefaultServiceConfig(retryPolicy))
+func (writer *DefaultIKVWriter) Startup() error {
+	// grpc.WithDefaultServiceConfig(retryPolicy),
+	// grpc.WithTransportCredentials(insecure.NewCredentials())
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: false})
+	connection, err := grpc.Dial("gateway.inlined.io:443", grpc.WithTransportCredentials(creds))
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
@@ -77,13 +82,13 @@ func (writer *DefaultIKVWriter) startup() error {
 }
 
 // Shutdown. Teardown connection.
-func (writer *DefaultIKVWriter) shutdown() error {
+func (writer *DefaultIKVWriter) Shutdown() error {
 	writer.connection.Close()
 	return nil
 }
 
 // Upsert. Publish a document.
-func (writer *DefaultIKVWriter) upsertFields(document IKVDocument) error {
+func (writer *DefaultIKVWriter) UpsertFields(document *IKVDocument) error {
 	if len(document.fields) < 1 {
 		return errors.New("empty document cannot be upserted")
 	}
@@ -119,7 +124,21 @@ func (writer *DefaultIKVWriter) serverSuppliedConfig() (*schemas.IKVStoreConfig,
 	// retries are made automatically for select errors (see policy above)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	response, err := writer.client.GetUserStoreConfig(ctx, &request)
 
-	return response.GlobalConfig, err
+	response, err := writer.client.GetUserStoreConfig(ctx, &request)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.GlobalConfig, nil
+}
+
+func (writer *DefaultIKVWriter) Helloworld() (*schemas.HelloWorldResponse, error) {
+
+	request := schemas.HelloWorldRequest{Echo: "foo"}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return writer.client.HelloWorld(ctx, &request)
 }
