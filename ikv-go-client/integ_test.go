@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -48,13 +47,23 @@ func TestHelloName(t *testing.T) {
 	assert.Equal(t, writer.Startup(), nil)
 
 	// Create and upsert a document
-	document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
-	assert.Equal(t, err, nil)
-	err = writer.UpsertFields(&document)
-	assert.Equal(t, err, nil)
+	/*
+		document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
+		assert.Equal(t, err, nil)
+		err = writer.UpsertFields(&document)
+		assert.Equal(t, err, nil)
+		time.Sleep(10 * time.Second)
+	*/
 
-	// Wait
-	time.Sleep(10 * time.Second)
+	// read field
+	{
+		value, _ := reader.GetStringValue("id_1", "userid")
+		assert.Equal(t, value, "id_1")
+	}
+	{
+		value, _ := reader.GetStringValue("id_1", "firstname")
+		assert.Equal(t, value, "Alice")
+	}
 
 	// shutdown
 	assert.Equal(t, reader.Shutdown(), nil)

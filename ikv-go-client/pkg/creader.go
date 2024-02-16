@@ -2,18 +2,18 @@ package ikvclient
 
 /*
 #cgo LDFLAGS: -L/Users/pushkar/projects/ikv-store/ikv/target/release -likv
-#include <stdlib.h>
-#include "/Users/pushkar/projects/ikv-store/ikv/src/ffi/c_api.h"
+#include "/Users/pushkar/projects/ikv-store/ikv/src/ffi/ikv.h"
 */
 import "C"
 import "unsafe"
 
 func PrintHelloWorld() {
 	cstr := C.CString("foobar")
+
+	// #include <stdlib.h> for free() is in ikv.h
 	defer C.free(unsafe.Pointer(cstr))
-	C.hello_world_a(cstr)
-	//C.close_index(C.int64_t(100))
-	//C.hello_world_c(C.CString("foobar"))
+
+	C.hello_world(cstr)
 }
 
 type NativeReader struct {
@@ -32,6 +32,28 @@ func (nr *NativeReader) close(handle int64) error {
 }
 
 func (nr *NativeReader) getFieldValue(handle int64, primaryKey []byte, fieldName string) []byte {
-	// TODO!
-	return nil
+	primaryKey_cbytes := C.CBytes(primaryKey)
+	defer C.free(unsafe.Pointer(primaryKey_cbytes))
+
+	fieldName_cstr := C.CString(fieldName)
+	defer C.free(unsafe.Pointer(fieldName_cstr))
+
+	var bb C.BytesBuffer
+	bb = C.get_field_value(
+		C.int64_t(handle),
+		(*C.char)(unsafe.Pointer(primaryKey_cbytes)),
+		C.int32_t(len(primaryKey)),
+		fieldName_cstr,
+	)
+	defer C.free_bytes_buffer(bb)
+
+	length := int32(bb.length)
+	if length == 0 || bb.start == nil {
+		return nil
+	}
+
+	src := unsafe.Slice((*byte)(bb.start), length)
+	result := make([]byte, length)
+	copy(result, src)
+	return result
 }
