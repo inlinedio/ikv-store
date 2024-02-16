@@ -22,6 +22,7 @@ type ClientOptions struct {
 
 type ClientOptionsBuilder struct {
 	config schemas.IKVStoreConfig
+	err    error
 }
 
 // Create a new options builder.
@@ -37,97 +38,109 @@ func NewClientOptionsBuilder() *ClientOptionsBuilder {
 	}
 
 	// set console logging with level = info by default
-	builder.withConsoleLogging("info")
+	builder.WithConsoleLogging("info")
+
+	// TODO: remove explicit parititon
+	builder.config.IntConfigs["partition"] = 0
 
 	return &builder
 }
 
-func (builder *ClientOptionsBuilder) withMountDirectory(dir string) (*ClientOptionsBuilder, error) {
+func (builder *ClientOptionsBuilder) WithMountDirectory(dir string) *ClientOptionsBuilder {
 	if dir == "" {
-		return nil, errors.New("mount directory cannot be empty")
+		builder.err = errors.New("mount directory cannot be empty")
+		return nil
 	}
 
 	builder.config.StringConfigs["mount_directory"] = dir
-	return builder, nil
+	return builder
 }
 
-func (builder *ClientOptionsBuilder) withStoreName(name string) (*ClientOptionsBuilder, error) {
+func (builder *ClientOptionsBuilder) WithStoreName(name string) *ClientOptionsBuilder {
 	if name == "" {
-		return nil, errors.New("store name cannot be empty")
+		builder.err = errors.New("store name cannot be empty")
+		return nil
 	}
 
 	builder.config.StringConfigs["store_name"] = name
-	return builder, nil
+	return builder
 }
 
 // TODO: allow store partition to be injected
 
-func (builder *ClientOptionsBuilder) withAccountId(accountId string) (*ClientOptionsBuilder, error) {
+func (builder *ClientOptionsBuilder) WithAccountId(accountId string) *ClientOptionsBuilder {
 	if accountId == "" {
-		return nil, errors.New("account-id cannot be empty")
+		builder.err = errors.New("account-id cannot be empty")
+		return nil
 	}
 
 	builder.config.StringConfigs["account_id"] = accountId
-	return builder, nil
+	return builder
 }
 
-func (builder *ClientOptionsBuilder) withAccountPasskey(accountPasskey string) (*ClientOptionsBuilder, error) {
+func (builder *ClientOptionsBuilder) WithAccountPasskey(accountPasskey string) *ClientOptionsBuilder {
 	if accountPasskey == "" {
-		return nil, errors.New("account-passkey cannot be empty")
+		builder.err = errors.New("account-passkey cannot be empty")
+		return nil
 	}
 
 	builder.config.StringConfigs["account_passkey"] = accountPasskey
-	return builder, nil
+	return builder
 }
 
 // Ex. withKafkaPropertyOverride("ssl.ca.location", "/etc/ssl/certs")
 // is required on Ubuntu hosts to declare CA certificates.
-func (builder *ClientOptionsBuilder) withKafkaPropertyOverride(key string, value string) (*ClientOptionsBuilder, error) {
+func (builder *ClientOptionsBuilder) WithKafkaPropertyOverride(key string, value string) *ClientOptionsBuilder {
 	if key == "" || value == "" {
-		return nil, errors.New("kafka overrides cannot be empty")
+		builder.err = errors.New("kafka overrides cannot be empty")
+		return nil
 	}
 
 	builder.config.StringConfigs["kafkaprop_"+key] = value
-	return builder, nil
+	return builder
 }
 
-func (builder *ClientOptionsBuilder) withConsoleLogging(level string) (*ClientOptionsBuilder, error) {
+func (builder *ClientOptionsBuilder) WithConsoleLogging(level string) *ClientOptionsBuilder {
 	if level == "" {
-		return nil, errors.New("log level cannot be empty")
+		builder.err = errors.New("log level cannot be empty")
+		return nil
 	}
 
 	level = strings.ToLower(level)
 	if _, exists := loglevels[level]; !exists {
-		return nil, fmt.Errorf("Invalid log level- %s", level)
+		builder.err = fmt.Errorf("Invalid log level- %s", level)
+		return nil
 	}
 
 	builder.config.StringConfigs["rust_client_log_level"] = level
 	builder.config.BooleanConfigs["rust_client_log_to_console"] = true
-	return builder, nil
+	return builder
 }
 
-func (builder *ClientOptionsBuilder) withFileLogging(filepath string, level string) (*ClientOptionsBuilder, error) {
+func (builder *ClientOptionsBuilder) WithFileLogging(filepath string, level string) *ClientOptionsBuilder {
 	if filepath == "" || level == "" {
-		return nil, errors.New("filepath or log level cannot be empty")
+		builder.err = errors.New("filepath or log level cannot be empty")
+		return nil
 	}
 
 	level = strings.ToLower(level)
 	if _, exists := loglevels[level]; !exists {
-		return nil, fmt.Errorf("Invalid log level- %s", level)
+		builder.err = fmt.Errorf("Invalid log level- %s", level)
+		return nil
 	}
 
 	builder.config.StringConfigs["rust_client_log_level"] = level
 	builder.config.BooleanConfigs["rust_client_log_to_console"] = false
 	builder.config.StringConfigs["rust_client_log_file"] = filepath
-	return builder, nil
+	return builder
 }
 
-func (builder *ClientOptionsBuilder) build() ClientOptions {
+func (builder *ClientOptionsBuilder) Build() (ClientOptions, error) {
 	return ClientOptions{config: schemas.IKVStoreConfig{
 		StringConfigs:  builder.config.StringConfigs,
 		IntConfigs:     builder.config.IntConfigs,
 		FloatConfigs:   builder.config.FloatConfigs,
 		BytesConfigs:   builder.config.BytesConfigs,
 		BooleanConfigs: builder.config.BooleanConfigs,
-	}}
+	}}, builder.err
 }
