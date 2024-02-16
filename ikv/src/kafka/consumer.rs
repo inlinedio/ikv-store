@@ -79,6 +79,8 @@ impl IKVKafkaConsumer {
             .set("sasl.username", account_id)
             .set("sasl.password", account_passkey);
 
+        // try setting ssl.endpoint.identification.algorithm to empty to skip ubuntu error?
+
         // Apply kafka overrides
         // "kafkaprop_{}": "value_string"
         // ex. "kafkaprop_ssl.ca.location": "/etc/ssl/certs" -> "ssl.ca.location": "/etc/ssl/certs"

@@ -241,6 +241,20 @@ impl CKVIndexSegment {
         None
     }
 
+    /*
+    // Equivalent to `read_field` but prefixes a 4 byte LE integer representing size of the
+    // field value. Empty values have 0 prefixed and no value.
+    pub fn read_field_size_prefixed(&self, primary_key: &[u8], field_id: FieldId) -> Option<Vec<u8>> {
+        let offsets = self.offset_table.get(primary_key)?;
+        let maybe_offset = offsets.get(field_id as usize).copied();
+        if let Some(offset) = maybe_offset {
+            let result = self.read_from_mmap(offset)?;
+            return Some(result.to_vec());
+        }
+
+        None
+    }*/
+
     /// Read all fields for a given primary-key and push the values at the end of `dest` vector.
     /// Values are size/length prefixed with i32 values. Size=0 for missing values.
     ///
