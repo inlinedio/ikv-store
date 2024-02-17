@@ -3,7 +3,7 @@ package ikvclient
 import (
 	"errors"
 
-	schemas "inlined.io/ikv-go-client/schemas"
+	schemas "github.com/pushkarmoi/ikv-store/schemas"
 )
 
 // Represents an indexable document for IKV (collection of fields associated with a primary key).

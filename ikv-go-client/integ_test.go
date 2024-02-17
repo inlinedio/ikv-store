@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	ikvclient "inlined.io/ikv-go-client/pkg"
+	ikvclient "github.com/pushkarmoi/ikv-store/ikvclient"
 )
 
 func TestGrpcHelloWorldCall(t *testing.T) {

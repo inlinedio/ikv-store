@@ -7,10 +7,10 @@ import (
 	"log"
 	"time"
 
+	schemas "github.com/pushkarmoi/ikv-store/schemas"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	schemas "inlined.io/ikv-go-client/schemas"
 )
 
 var (

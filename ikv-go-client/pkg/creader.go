@@ -1,8 +1,8 @@
 package ikvclient
 
 /*
-#cgo LDFLAGS: -L/Users/pushkar/projects/ikv-store/ikv/target/release -likv
-#include "/Users/pushkar/projects/ikv-store/ikv/src/ffi/ikv.h"
+#cgo LDFLAGS: -L../bin -likv
+#include "../bin/ikv.h"
 */
 import "C"
 import "unsafe"
