@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	schemas "inlined.io/ikv-go-client/schemas"
+	schemas "github.com/pushkarmoi/ikv-store/schemas"
 )
 
 var loglevels = map[string]int{

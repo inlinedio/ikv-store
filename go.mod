@@ -1,4 +1,4 @@
-module inlined.io/ikv-go-client
+module github.com/pushkarmoi/ikv-store
 
 go 1.21.6
 

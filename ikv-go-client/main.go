@@ -1,7 +1,7 @@
 package main
 
 import (
-	ikvclient "inlined.io/ikv-go-client/pkg"
+	ikvclient "github.com/pushkarmoi/ikv-store/ikvclient"
 )
 
 func main() {

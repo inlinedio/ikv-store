@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	schemas "github.com/pushkarmoi/ikv-store/schemas"
 	"google.golang.org/protobuf/proto"
-	"inlined.io/ikv-go-client/schemas"
 )
 
 const bad_handle = -1
