@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	schemas "github.com/pushkarmoi/ikv-store/schemas"
+	schemas "github.com/pushkarmoi/ikv-store/ikv-go-client/schemas"
 	"google.golang.org/protobuf/proto"
 )
 

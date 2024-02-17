@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	schemas "github.com/pushkarmoi/ikv-store/schemas"
+	schemas "github.com/pushkarmoi/ikv-store/ikv-go-client/schemas"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/timestamppb"
