@@ -1,4 +1,7 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // std::env::set_var("PROTOC", protobuf_src::protoc);
+    std::env::set_var("PROTOC", protoc_bin_vendored::protoc_bin_path().unwrap());
+
     protobuf_codegen::Codegen::new()
         // Use `protoc` parser, optional.
         .protoc()

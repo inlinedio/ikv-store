@@ -25,7 +25,7 @@ func NewIKVDocumentBuilder() *IKVDocumentBuilder {
 // Insert a string field.
 func (builder *IKVDocumentBuilder) PutStringField(fieldname string, value string) *IKVDocumentBuilder {
 	if fieldname == "" || value == "" {
-		builder.err = errors.New("Missing field name or field value")
+		builder.err = errors.New("missing field name or field value")
 		return nil
 	}
 
@@ -36,7 +36,7 @@ func (builder *IKVDocumentBuilder) PutStringField(fieldname string, value string
 // Insert a bytes field.
 func (builder *IKVDocumentBuilder) PutBytesField(fieldname string, value []byte) *IKVDocumentBuilder {
 	if fieldname == "" || len(value) == 0 {
-		builder.err = errors.New("Missing field name or field value")
+		builder.err = errors.New("missing field name or field value")
 		return nil
 	}
 
