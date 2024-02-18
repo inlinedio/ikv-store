@@ -1,7 +1,7 @@
 package main
 
 import (
-	objects "github.com/pushkarmoi/ikv-store/ikv-go-client/objects"
+	objects "github.com/inlinedio/ikv-store/ikv-go-client/objects"
 )
 
 func main() {

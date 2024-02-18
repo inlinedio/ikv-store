@@ -1,4 +1,4 @@
-module github.com/pushkarmoi/ikv-store
+module github.com/inlinedio/ikv-store
 
 go 1.21.6
 
@@ -19,4 +19,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/pushkarmoi/ikv-store/ikv-go-client => ./ikv-go-client
+replace github.com/inlinedio/ikv-store/ikv-go-client => ./ikv-go-client
