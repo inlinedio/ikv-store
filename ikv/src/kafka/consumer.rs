@@ -64,7 +64,9 @@ impl IKVKafkaConsumer {
                 "kafka_bootstrap_server is a required gateway-specified config".to_string(),
             ))?;
 
-        // Ref: https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
+        // Ref:
+        // https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
+        // https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md
         let mut client_config = ClientConfig::new();
         client_config
             .set("group.id", "ikv-default-consumer") // we don't use offset management or automatic partition assignment
