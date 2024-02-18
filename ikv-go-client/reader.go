@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	objects "github.com/pushkarmoi/ikv-store/ikv-go-client/objects"
-	schemas "github.com/pushkarmoi/ikv-store/ikv-go-client/schemas"
+	objects "github.com/inlinedio/ikv-store/ikv-go-client/objects"
+	schemas "github.com/inlinedio/ikv-store/ikv-go-client/schemas"
 	"google.golang.org/protobuf/proto"
 )
 

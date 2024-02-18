@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	ikvclient "github.com/pushkarmoi/ikv-store/ikv-go-client"
+	ikvclient "github.com/inlinedio/ikv-store/ikv-go-client"
 )
 
 // Tests a GRPC hello-world call.
