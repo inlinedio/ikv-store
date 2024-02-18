@@ -77,7 +77,8 @@ impl IKVKafkaConsumer {
             .set("security.protocol", "SASL_SSL")
             .set("sasl.mechanisms", "SCRAM-SHA-512")
             .set("sasl.username", account_id)
-            .set("sasl.password", account_passkey);
+            .set("sasl.password", account_passkey)
+            .set("ssl.endpoint.identification.algorithm", "");
 
         // try setting ssl.endpoint.identification.algorithm to empty to skip ubuntu error?
 
