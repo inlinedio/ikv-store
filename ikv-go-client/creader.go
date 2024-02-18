@@ -1,8 +1,8 @@
 package ikvclient
 
 /*
-#cgo LDFLAGS: -L./bin -likv
-#include "./bin/ikv.h"
+#cgo LDFLAGS: -L./objects -likv
+#include "./objects/ikv.h"
 */
 import "C"
 import "unsafe"
