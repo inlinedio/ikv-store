@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,12 @@ import (
 )
 
 func TestGrpcHelloWorldCall(t *testing.T) {
-	clientOptions, _ := ikvclient.NewClientOptionsBuilder().WithAccountId("testing-account-v1").WithAccountPasskey("testing-account-passkey").WithMountDirectory("/tmp/NearlineIntegrationTests").WithStoreName("testing-store").Build()
+	t.Skip("ignore-test")
+
+	accountid := os.Getenv("account-id")
+	accountpasskey := os.Getenv("account-passkey")
+
+	clientOptions, _ := ikvclient.NewClientOptionsBuilder().WithAccountId(accountid).WithAccountPasskey(accountpasskey).WithMountDirectory("/tmp/NearlineIntegrationTests").WithStoreName("testing-store").Build()
 	writer, _ := ikvclient.NewDefaultIKVWriter(&clientOptions)
 
 	writer.Startup()
@@ -24,10 +30,15 @@ func TestGrpcHelloWorldCall(t *testing.T) {
 }
 
 func TestHelloName(t *testing.T) {
+	t.Skip("ignore-test")
+
+	accountid := os.Getenv("account-id")
+	accountpasskey := os.Getenv("account-passkey")
+
 	factory := ikvclient.IKVClientFactory{}
 
 	// create client options
-	clientOptions, err := ikvclient.NewClientOptionsBuilder().WithAccountId("testing-account-v1").WithAccountPasskey("testing-account-passkey").WithMountDirectory("/tmp/NearlineIntegrationTests").WithStoreName("testing-store").Build()
+	clientOptions, err := ikvclient.NewClientOptionsBuilder().WithAccountId(accountid).WithAccountPasskey(accountpasskey).WithMountDirectory("/tmp/NearlineIntegrationTests").WithStoreName("testing-store").Build()
 	assert.Equal(t, err, nil)
 
 	// create reader

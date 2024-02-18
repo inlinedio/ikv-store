@@ -1,14 +1,16 @@
-package ikvclient
+//go:build darwin && arm64
+
+package objects
 
 /*
-#cgo LDFLAGS: -L./objects -likv
-#include "./objects/ikv.h"
+#cgo LDFLAGS: -L./darwin_arm64 -likv
+#include "./ikv.h"
 */
 import "C"
 import "unsafe"
 
-func PrintHelloWorld() {
-	cstr := C.CString("foobar")
+func PrintHelloWorld(input string) {
+	cstr := C.CString(input)
 
 	// #include <stdlib.h> for free() is in ikv.h
 	defer C.free(unsafe.Pointer(cstr))
@@ -16,30 +18,26 @@ func PrintHelloWorld() {
 	C.hello_world(cstr)
 }
 
-type NativeReader struct {
-}
-
-func (nr *NativeReader) open(config []byte) (int64, error) {
+func Open(config []byte) (int64, error) {
 	cbytes := C.CBytes(config)
 	defer C.free(unsafe.Pointer(cbytes))
 	handle := C.open_index((*C.char)(unsafe.Pointer(cbytes)), C.int32_t(len(config)))
 	return int64(handle), nil
 }
 
-func (nr *NativeReader) close(handle int64) error {
+func Close(handle int64) error {
 	C.close_index(C.int64_t(handle))
 	return nil
 }
 
-func (nr *NativeReader) getFieldValue(handle int64, primaryKey []byte, fieldName string) []byte {
+func GetFieldValue(handle int64, primaryKey []byte, fieldName string) []byte {
 	primaryKey_cbytes := C.CBytes(primaryKey)
 	defer C.free(unsafe.Pointer(primaryKey_cbytes))
 
 	fieldName_cstr := C.CString(fieldName)
 	defer C.free(unsafe.Pointer(fieldName_cstr))
 
-	var bb C.BytesBuffer
-	bb = C.get_field_value(
+	var bb C.BytesBuffer = C.get_field_value(
 		C.int64_t(handle),
 		(*C.char)(unsafe.Pointer(primaryKey_cbytes)),
 		C.int32_t(len(primaryKey)),
