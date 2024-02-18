@@ -29,8 +29,6 @@ rdkafka = { version = "0.36.0", features = ["ssl-vendored"]}
 tar = "0.4.40"
 tokio = { version = "1.34.0", features = ["full"]}
 tokio-util = "0.7.10"
-tonic = { version = "0.10.2", features = ["tls"]}
-yaml-rust = "0.4.5"
 
 [build-dependencies]
 protobuf-codegen = "3.3.0"

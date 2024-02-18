@@ -67,10 +67,8 @@ func NewDefaultIKVWriter(clientOptions *ClientOptions) (*DefaultIKVWriter, error
 
 // Startup. Connection initialization.
 func (writer *DefaultIKVWriter) Startup() error {
-	// grpc.WithDefaultServiceConfig(retryPolicy),
-	// grpc.WithTransportCredentials(insecure.NewCredentials())
 	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: false})
-	connection, err := grpc.Dial("gateway.inlined.io:443", grpc.WithTransportCredentials(creds))
+	connection, err := grpc.Dial("gateway.inlined.io:443", grpc.WithTransportCredentials(creds), grpc.WithDefaultServiceConfig(retryPolicy))
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
@@ -133,9 +131,9 @@ func (writer *DefaultIKVWriter) serverSuppliedConfig() (*schemas.IKVStoreConfig,
 	return response.GlobalConfig, nil
 }
 
-func (writer *DefaultIKVWriter) Helloworld() (*schemas.HelloWorldResponse, error) {
+func (writer *DefaultIKVWriter) Helloworld(input string) (*schemas.HelloWorldResponse, error) {
 
-	request := schemas.HelloWorldRequest{Echo: "foo"}
+	request := schemas.HelloWorldRequest{Echo: input}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,17 +9,13 @@ import (
 	ikvclient "github.com/pushkarmoi/ikv-store/ikv-go-client"
 )
 
+// Tests a GRPC hello-world call.
 func TestGrpcHelloWorldCall(t *testing.T) {
-	t.Skip("ignore-test")
-
-	accountid := os.Getenv("account-id")
-	accountpasskey := os.Getenv("account-passkey")
-
-	clientOptions, _ := ikvclient.NewClientOptionsBuilder().WithAccountId(accountid).WithAccountPasskey(accountpasskey).WithMountDirectory("/tmp/NearlineIntegrationTests").WithStoreName("testing-store").Build()
+	clientOptions, _ := ikvclient.NewClientOptionsBuilder().WithAccountId("foo").WithAccountPasskey("bar").WithStoreName("baz").Build()
 	writer, _ := ikvclient.NewDefaultIKVWriter(&clientOptions)
 
 	writer.Startup()
-	response, err := writer.Helloworld()
+	response, err := writer.Helloworld("foo")
 	if err != nil {
 		errstring := err.Error()
 		fmt.Println(errstring)
@@ -29,16 +24,16 @@ func TestGrpcHelloWorldCall(t *testing.T) {
 	assert.Equal(t, response.Echo, "foo")
 }
 
-func TestHelloName(t *testing.T) {
+func TestSingleSetGet(t *testing.T) {
 	t.Skip("ignore-test")
 
-	accountid := os.Getenv("account-id")
-	accountpasskey := os.Getenv("account-passkey")
+	accountid := "foo"
+	accountpasskey := "bar"
 
 	factory := ikvclient.IKVClientFactory{}
 
 	// create client options
-	clientOptions, err := ikvclient.NewClientOptionsBuilder().WithAccountId(accountid).WithAccountPasskey(accountpasskey).WithMountDirectory("/tmp/NearlineIntegrationTests").WithStoreName("testing-store").Build()
+	clientOptions, err := ikvclient.NewClientOptionsBuilder().WithAccountId(accountid).WithAccountPasskey(accountpasskey).WithMountDirectory("/tmp/GoIntegTestStore").WithStoreName("testing-store").Build()
 	assert.Equal(t, err, nil)
 
 	// create reader
@@ -58,22 +53,23 @@ func TestHelloName(t *testing.T) {
 	assert.Equal(t, writer.Startup(), nil)
 
 	// Create and upsert a document
-	/*
-		document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
-		assert.Equal(t, err, nil)
-		err = writer.UpsertFields(&document)
-		assert.Equal(t, err, nil)
-		time.Sleep(10 * time.Second)
-	*/
+	document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
+	assert.Equal(t, err, nil)
+	err = writer.UpsertFields(&document)
+	assert.Equal(t, err, nil)
 
-	// read field
-	{
-		value, _ := reader.GetStringValue("id_1", "userid")
-		assert.Equal(t, value, "id_1")
-	}
-	{
-		value, _ := reader.GetStringValue("id_1", "firstname")
-		assert.Equal(t, value, "Alice")
+	// time.Sleep(10 * time.Second)
+
+	// read fields 10M times
+	for i := 0; i < 10000000; i++ {
+		{
+			value, _ := reader.GetStringValue("id_1", "userid")
+			assert.Equal(t, value, "id_1")
+		}
+		{
+			value, _ := reader.GetStringValue("id_1", "firstname")
+			assert.Equal(t, value, "Alice")
+		}
 	}
 
 	// shutdown
