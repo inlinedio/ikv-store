@@ -22,7 +22,6 @@ type IKVClientFactory struct {
 func (f *IKVClientFactory) CreateNewReader(clientOptions *ClientOptions) (IKVReader, error) {
 	return &DefaultIKVReader{
 		clientoptions: clientOptions,
-		nativeReader:  &NativeReader{},
 		handle:        bad_handle,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	objects "github.com/pushkarmoi/ikv-store/ikv-go-client/objects"
 	schemas "github.com/pushkarmoi/ikv-store/ikv-go-client/schemas"
 	"google.golang.org/protobuf/proto"
 )
@@ -12,7 +13,6 @@ const bad_handle = -1
 
 type DefaultIKVReader struct {
 	clientoptions *ClientOptions
-	nativeReader  *NativeReader
 	handle        int64
 }
 
@@ -34,9 +34,9 @@ func (reader *DefaultIKVReader) Startup() error {
 	}
 
 	// open embedded index reader
-	handle, err := reader.nativeReader.open(config_bytes)
+	handle, err := objects.Open(config_bytes)
 	if err != nil {
-		return fmt.Errorf("Cannot initialize reader: %w", err)
+		return fmt.Errorf("cannot initialize reader: %w", err)
 	}
 	reader.handle = handle
 
@@ -50,7 +50,7 @@ func (reader *DefaultIKVReader) Shutdown() error {
 		return nil
 	}
 
-	if err := reader.nativeReader.close(reader.handle); err != nil {
+	if err := objects.Close(reader.handle); err != nil {
 		return err
 	}
 
@@ -61,17 +61,17 @@ func (reader *DefaultIKVReader) Shutdown() error {
 func (reader *DefaultIKVReader) GetBytesValue(key interface{}, fieldname string) ([]byte, error) {
 	switch primaryKey := key.(type) {
 	case string:
-		return reader.nativeReader.getFieldValue(
+		return objects.GetFieldValue(
 			reader.handle,
 			[]byte(primaryKey),
 			fieldname), nil
 	case []byte:
-		return reader.nativeReader.getFieldValue(
+		return objects.GetFieldValue(
 			reader.handle,
 			primaryKey,
 			fieldname), nil
 	default:
-		return nil, errors.New("Key can only be a string or []byte")
+		return nil, errors.New("key can only be a string or []byte")
 	}
 }
 
@@ -87,22 +87,22 @@ func (reader *DefaultIKVReader) GetStringValue(key interface{}, fieldname string
 func (reader *DefaultIKVReader) createIKVConfig() (*schemas.IKVStoreConfig, error) {
 	client, err := NewDefaultIKVWriter(reader.clientoptions)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
+		return nil, fmt.Errorf("cannot fetch server supplied options: %w", err)
 	}
 
 	err = client.Startup()
 	if err != nil {
-		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
+		return nil, fmt.Errorf("cannot fetch server supplied options: %w", err)
 	}
 
 	config, err := client.serverSuppliedConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
+		return nil, fmt.Errorf("cannot fetch server supplied options: %w", err)
 	}
 
 	err = client.Shutdown()
 	if err != nil {
-		return nil, fmt.Errorf("Cannot fetch server supplied options: %w", err)
+		return nil, fmt.Errorf("cannot fetch server supplied options: %w", err)
 	}
 
 	if config.StringConfigs == nil {

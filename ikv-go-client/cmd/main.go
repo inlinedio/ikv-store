@@ -1,9 +1,9 @@
 package main
 
 import (
-	ikvclient "github.com/pushkarmoi/ikv-store/ikv-go-client"
+	objects "github.com/pushkarmoi/ikv-store/ikv-go-client/objects"
 )
 
 func main() {
-	ikvclient.PrintHelloWorld()
+	objects.PrintHelloWorld("foo")
 }
