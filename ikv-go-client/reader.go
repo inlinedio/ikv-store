@@ -16,6 +16,19 @@ type DefaultIKVReader struct {
 	handle        int64
 }
 
+func NewDefaultIKVReader(clientOptions *ClientOptions) (IKVReader, error) {
+	if clientOptions == nil {
+		return nil, errors.New("clientOptions are required")
+	}
+
+	// no assertion on required options
+	// will be done by native call
+	return &DefaultIKVReader{
+		clientoptions: clientOptions,
+		handle:        bad_handle,
+	}, nil
+}
+
 // Startup. Reader fetches and combines server/client configs
 // and opens embedded index via cgo.
 func (reader *DefaultIKVReader) Startup() error {
@@ -56,6 +69,10 @@ func (reader *DefaultIKVReader) Shutdown() error {
 
 	reader.handle = bad_handle
 	return nil
+}
+
+func (reader *DefaultIKVReader) HealthCheck() (bool, error) {
+	return objects.HealthCheck("healthcheck")
 }
 
 func (reader *DefaultIKVReader) GetBytesValue(key interface{}, fieldname string) ([]byte, error) {

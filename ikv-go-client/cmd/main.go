@@ -1,9 +1,12 @@
 package main
 
 import (
-	objects "github.com/inlinedio/ikv-store/ikv-go-client/objects"
+	"fmt"
+
+	"github.com/inlinedio/ikv-store/ikv-go-client/objects"
 )
 
 func main() {
-	objects.PrintHelloWorld("foo")
+	status, _ := objects.HealthCheck("foo")
+	fmt.Println("Success: ", status)
 }

@@ -8,7 +8,8 @@ typedef struct BytesBuffer {
   uint8_t *start;
 } BytesBuffer;
 
-void hello_world(const char *input);
+// 0 -> success, failure for everything else
+int64_t health_check(const char *input);
 
 int64_t open_index(const char *config, int32_t config_len);
 

@@ -11,6 +11,10 @@ func PrintHelloWorld(input string) {
 	fmt.Println("Platform not supported. Supported - linux or darwin on x86 or arm64; with CGO enabled")
 }
 
+func HealthCheck(input string) (bool, error) {
+	return false, errors.New("platform not supported. Supported - linux or darwin on x86 or arm64; with CGO enabled")
+}
+
 func Open(config []byte) (int64, error) {
 	return 0, errors.New("platform not supported. Supported - linux or darwin on x86 or arm64; with CGO enabled")
 }
