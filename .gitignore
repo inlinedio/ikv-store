@@ -9,6 +9,7 @@ ikv/target/*
 
 ### Go
 ikv-go-client/ikv-go-client
+ikv-go-client/cmd/cmd
 
 ### Core dumps
 ikv-java-client/*.log

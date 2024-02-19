@@ -7,6 +7,9 @@ import (
 )
 
 func main() {
-	status, _ := objects.HealthCheck("foo")
-	fmt.Println("Success: ", status)
+	status, err := objects.HealthCheck("foo")
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+	fmt.Println("Status Code: ", status)
 }
