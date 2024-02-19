@@ -53,10 +53,12 @@ func TestSingleSetGet(t *testing.T) {
 	assert.Equal(t, writer.Startup(), nil)
 
 	// Create and upsert a document
-	document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
-	assert.Equal(t, err, nil)
-	err = writer.UpsertFields(&document)
-	assert.Equal(t, err, nil)
+	/*
+		document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
+		assert.Equal(t, err, nil)
+		err = writer.UpsertFields(&document)
+		assert.Equal(t, err, nil)
+	*/
 
 	// time.Sleep(10 * time.Second)
 

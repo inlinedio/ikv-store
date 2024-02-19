@@ -8,10 +8,12 @@ use crate::{
 };
 
 #[no_mangle]
-pub extern "C" fn hello_world(input: *const libc::c_char) {
+pub extern "C" fn health_check(input: *const libc::c_char) -> i64 {
     let name_cstr = unsafe { CStr::from_ptr(input) };
-    let name = name_cstr.to_str().unwrap();
-    println!("Hello world from Rust: {}!", name);
+    match name_cstr.to_str() {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
 }
 
 #[no_mangle]

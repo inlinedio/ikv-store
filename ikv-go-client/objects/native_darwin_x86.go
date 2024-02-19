@@ -7,15 +7,23 @@ package objects
 #include "./ikv.h"
 */
 import "C"
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
-func PrintHelloWorld(input string) {
+func HealthCheck(input string) (bool, error) {
 	cstr := C.CString(input)
 
 	// #include <stdlib.h> for free() is in ikv.h
 	defer C.free(unsafe.Pointer(cstr))
 
-	C.hello_world(cstr)
+	status := int64(C.health_check(cstr))
+	if status != 0 {
+		return false, fmt.Errorf("Failure status code. Expected: 0 Actual : %d", status)
+	}
+
+	return true, nil
 }
 
 func Open(config []byte) (int64, error) {

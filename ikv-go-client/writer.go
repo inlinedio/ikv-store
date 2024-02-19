@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -129,6 +130,28 @@ func (writer *DefaultIKVWriter) serverSuppliedConfig() (*schemas.IKVStoreConfig,
 	}
 
 	return response.GlobalConfig, nil
+}
+
+// HealthCheck implements IKVWriter.
+func (writer *DefaultIKVWriter) HealthCheck() (bool, error) {
+	// echo test on grpc writer gateway
+
+	request := schemas.HelloWorldRequest{Echo: "healthcheck"}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	response, err := writer.client.HelloWorld(ctx, &request)
+	if err != nil {
+		return false, err
+	}
+
+	response_str := response.Echo
+	if response_str != "healthcheck" {
+		return false, fmt.Errorf("Bad response from HelloWorld endpoint, expected: healthcheck actual: %s", response_str)
+	}
+
+	return true, nil
 }
 
 func (writer *DefaultIKVWriter) Helloworld(input string) (*schemas.HelloWorldResponse, error) {
