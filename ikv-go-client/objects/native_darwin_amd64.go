@@ -3,7 +3,7 @@
 package objects
 
 /*
-#cgo LDFLAGS: -L./darwin_amd64 -likv
+#cgo LDFLAGS: -L./darwin_amd64 -likv -ldl
 #include "./ikv.h"
 */
 import "C"

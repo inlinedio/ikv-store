@@ -3,7 +3,7 @@
 package objects
 
 /*
-#cgo LDFLAGS: -L./linux_arm64 -likv
+#cgo LDFLAGS: -L./linux_arm64 -likv -ldl
 #include "./ikv.h"
 */
 import "C"

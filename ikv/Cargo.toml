@@ -36,4 +36,4 @@ protoc-bin-vendored = "3.0.0"
 tonic-build = "0.10.2"
 
 [lib]
-crate_type = ["cdylib"]
+crate_type = ["cdylib", "staticlib"]
