@@ -1,4 +1,4 @@
-//go:build !cgo || !(linux || darwin) || !(x86 || arm64)
+//go:build !cgo || !(linux || darwin) || !(amd64 || arm64)
 
 package objects
 
