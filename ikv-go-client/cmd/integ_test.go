@@ -25,10 +25,10 @@ func TestGrpcHelloWorldCall(t *testing.T) {
 }
 
 func TestSingleSetGet(t *testing.T) {
-	t.Skip("ignore-test")
+	//t.Skip("ignore-test")
 
-	accountid := "foo"
-	accountpasskey := "bar"
+	accountid := "testing-account-v1"
+	accountpasskey := "testing-account-passkey"
 
 	factory := ikvclient.IKVClientFactory{}
 
@@ -53,6 +53,7 @@ func TestSingleSetGet(t *testing.T) {
 	assert.Equal(t, writer.Startup(), nil)
 
 	// Create and upsert a document
+
 	/*
 		document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
 		assert.Equal(t, err, nil)
@@ -60,7 +61,7 @@ func TestSingleSetGet(t *testing.T) {
 		assert.Equal(t, err, nil)
 	*/
 
-	// time.Sleep(10 * time.Second)
+	//time.Sleep(10 * time.Second)
 
 	// read fields 10M times
 	for i := 0; i < 10000000; i++ {
