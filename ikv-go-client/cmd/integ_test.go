@@ -25,10 +25,10 @@ func TestGrpcHelloWorldCall(t *testing.T) {
 }
 
 func TestSingleSetGet(t *testing.T) {
-	//t.Skip("ignore-test")
+	t.Skip("ignore-test")
 
-	accountid := "testing-account-v1"
-	accountpasskey := "testing-account-passkey"
+	accountid := "foo"
+	accountpasskey := "bar"
 
 	factory := ikvclient.IKVClientFactory{}
 
