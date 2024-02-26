@@ -3,13 +3,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/inlinedio/ikv-store/ikv-go-client/objects"
+	ikv "github.com/inlinedio/ikv-store/ikv-go-client"
 )
 
 func main() {
-	status, err := objects.HealthCheck("foo")
-	if err != nil {
-		fmt.Println("Error: ", err)
-	}
+	nr, _ := ikv.NewNativeReaderV2("/Users/pushkar/libikv.dylib")
+	status, err := nr.HealthCheck("hello-world")
 	fmt.Println("Status Code: ", status)
+	fmt.Println("Status Error: ", err)
 }
