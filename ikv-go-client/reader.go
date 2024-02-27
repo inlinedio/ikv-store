@@ -31,7 +31,12 @@ func NewDefaultIKVReader(clientOptions *ClientOptions) (IKVReader, error) {
 func (reader *DefaultIKVReader) Startup() error {
 	// dynamic load native IKV binaries
 	if reader.native_reader == nil {
-		bin_manager, err := NewBinaryManager("")
+		mountdir, exists := reader.clientoptions.config.StringConfigs["mount_directory"]
+		if !exists {
+			return errors.New("mount_directory is a required client specified option")
+		}
+
+		bin_manager, err := NewBinaryManager(mountdir)
 		if err != nil {
 			return err
 		}
