@@ -36,6 +36,12 @@ func NewBinaryManager(mount_dir string) (*BinaryManager, error) {
 func (manager *BinaryManager) GetPathToNativeBinary() (string, error) {
 	// S3 Usage examples: https://github.com/awsdocs/aws-doc-sdk-examples/blob/main/gov2/s3/actions/bucket_basics.go
 
+	// ensure mount directory (and parents) exist
+	err := os.MkdirAll(manager.mount_dir, os.ModePerm)
+	if err != nil {
+		return "", err
+	}
+
 	// Fetch semver of local binary, can be empty
 	maybeCurrentSemVer, maybeCurrentPath, err := manager.localSemVer()
 	if err != nil {
