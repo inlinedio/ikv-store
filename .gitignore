@@ -7,6 +7,9 @@ build/
 ### Rust
 ikv/target/*
 
+### Docs
+ikv-store/docs/node_modules
+
 ### Go
 ikv-go-client/ikv-go-client
 ikv-go-client/cmd/cmd
