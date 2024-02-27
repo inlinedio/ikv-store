@@ -18,22 +18,35 @@ func NewDefaultIKVReader(clientOptions *ClientOptions) (IKVReader, error) {
 		return nil, errors.New("clientOptions are required")
 	}
 
-	nr, err := NewNativeReaderV2("/Users/pushkar/libikv.dylib")
-	if err != nil {
-		return nil, err
-	}
-
 	// no assertion on required options
 	// will be done by native call
 	return &DefaultIKVReader{
 		clientoptions: clientOptions,
-		native_reader: nr,
+		native_reader: nil,
 	}, nil
 }
 
 // Startup. Reader fetches and combines server/client configs
 // and opens embedded index via cgo.
 func (reader *DefaultIKVReader) Startup() error {
+	// dynamic load native IKV binaries
+	if reader.native_reader == nil {
+		bin_manager, err := NewBinaryManager("")
+		if err != nil {
+			return err
+		}
+
+		dll_path, err := bin_manager.GetPathToNativeBinary()
+		if err != nil {
+			return err
+		}
+
+		reader.native_reader, err = NewNativeReaderV2(dll_path)
+		if err != nil {
+			return err
+		}
+	}
+
 	// fetch server supplied options, and override them with client options
 	config, err := reader.createIKVConfig()
 	if err != nil {
