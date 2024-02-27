@@ -194,8 +194,8 @@ func (manager *BinaryManager) pathToLocalBinary() (string, error) {
 	}
 
 	// assume there is at-most 1 file in the correct format
-	// format: ..mount-directory/bin/0.0.3-libikv.so
-	return fmt.Sprintf("path/%s", filenames[0]), nil
+	// return format: ..mount-directory/bin/0.0.3-libikv.so
+	return fmt.Sprintf("%s/%s", path, filenames[0]), nil
 }
 
 // release/{mac|linux|windows}-{aarch64|x86_64|tbd}
@@ -219,7 +219,7 @@ func createS3PrefixForPlatform() (string, error) {
 	if goOS == "darwin" {
 		// arm64 is supported
 		if goArch == "arm64" {
-			return fmt.Sprintf("release/%s-aarch64", goOS), nil
+			return "release/mac-aarch64", nil
 		}
 	}
 

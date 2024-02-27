@@ -48,7 +48,7 @@ func NewClientOptionsBuilder() *ClientOptionsBuilder {
 
 func (builder *ClientOptionsBuilder) WithMountDirectory(dir string) *ClientOptionsBuilder {
 	if dir == "" {
-		builder.err = errors.New("mount directory cannot be empty")
+		builder.err = errors.New("mount_directory cannot be empty")
 		return nil
 	}
 
