@@ -120,7 +120,7 @@ writer.upsertFieldValues(doc3);
 
 // Create client options - for Reader
 ClientOptions readerClientOptions = new ClientOptions.Builder()
-  .withMountDirectory("/tmp/UserProfiles)  
+  .withMountDirectory("/tmp/UserProfiles")  
   .withStoreName("user-profile")  
   .withAccountId("--account-id--")  
   .withAccountPassKey("--account-passkey--")  
