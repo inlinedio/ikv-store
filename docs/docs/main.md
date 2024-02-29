@@ -1,14 +1,13 @@
 ---
+slug: /
 sidebar_position: 1
 ---
 
 # IKV | Inlined Key-Value Store
 IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting. This website provides detailed documentation for using IKV in your application.
- - Provisioning
- - Data Modeling
- - Clients (Language Specific SDKs)
- - Best Practices
- - Troubleshooting
+ - [Onboarding](./onboarding.md)
+ - [Data Modeling](./data-modeling.md)
+ - [Clients (Language Specific SDKs)](./category/clients)
 
 
 ## About IKV
