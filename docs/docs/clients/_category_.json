@@ -1,0 +1,9 @@
+{
+  "label": "Clients",
+  "position": 4,
+  "link": {
+      "type": "generated-index",
+      "description": "Write/Read operations on IKV stores can be performed with language specific client libraries. IKV's embedded key-value database is written in Rust, which is used by these client libraries using foreign-function-interface (native binary linking)."
+  }
+}
+
