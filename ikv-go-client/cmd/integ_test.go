@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -78,4 +79,108 @@ func TestSingleSetGet(t *testing.T) {
 	// shutdown
 	assert.Equal(t, reader.Shutdown(), nil)
 	assert.Equal(t, writer.Shutdown(), nil)
+}
+
+func example(t *testing.T) error {
+	factory := ikvclient.IKVClientFactory{}
+
+	// create client options - for writer
+	writerClientOptions, err := ikvclient.NewClientOptionsBuilder().WithStoreName("--store-name--").WithAccountId("--account-id").WithAccountPasskey("--account-passkey").Build()
+	if err != nil {
+		return err
+	}
+
+	// create and startup writer
+	writer, err := factory.CreateNewWriter(&writerClientOptions)
+	if err != nil {
+		return err
+	}
+
+	if err = writer.Startup(); err != nil {
+		return err
+	}
+
+	// create documents and invoke upsert() operations
+	doc1, err := ikvclient.NewIKVDocumentBuilder().PutStringField("firstname", "Alice").PutStringField("age", "22").Build()
+	if err != nil {
+		return err
+	}
+	if err = writer.UpsertFields(&doc1); err != nil {
+		return err
+	}
+
+	doc2, err := ikvclient.NewIKVDocumentBuilder().PutStringField("firstname", "Alice").PutStringField("city", "San Francisco").Build()
+	if err != nil {
+		return err
+	}
+	if err = writer.UpsertFields(&doc2); err != nil {
+		return err
+	}
+
+	doc3, err := ikvclient.NewIKVDocumentBuilder().PutStringField("firstname", "Bob").PutStringField("age", "25").Build()
+	if err != nil {
+		return err
+	}
+	if err = writer.UpsertFields(&doc3); err != nil {
+		return err
+	}
+
+	// create client options - for reader
+	readerClientOptions, err := ikvclient.NewClientOptionsBuilder().WithMountDirectory("/tmp/UserProfiles").WithStoreName("--store-name--").WithAccountId("--account-id").WithAccountPasskey("--account-passkey").Build()
+	if err != nil {
+		return err
+	}
+
+	// create and startup reader
+	reader, err := factory.CreateNewReader(&readerClientOptions)
+	if err != nil {
+		return err
+	}
+	if err = reader.Startup(); err != nil {
+		return err
+	}
+
+	// read documents
+	// Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
+	// before reading your writes.
+	time.Sleep(1 * time.Second)
+
+	if value, err := reader.GetStringValue("Alice", "firstname"); err != nil {
+		assert.Equal(t, value, "Alice")
+	}
+	if value, err := reader.GetStringValue("Alice", "age"); err != nil {
+		assert.Equal(t, value, "22")
+	}
+	if value, err := reader.GetStringValue("Alice", "city"); err != nil {
+		assert.Equal(t, value, "San Francisco")
+	}
+
+	if value, err := reader.GetStringValue("Bob", "firstname"); err != nil {
+		assert.Equal(t, value, "Bob")
+	}
+	if value, err := reader.GetStringValue("Bob", "age"); err != nil {
+		assert.Equal(t, value, "25")
+	}
+	if value, err := reader.GetStringValue("Bob", "city"); err != nil {
+		// missing: zero-value
+		assert.Equal(t, value, "")
+	}
+
+	// read fields
+	for i := 0; i < 10000000; i++ {
+		{
+			value, _ := reader.GetStringValue("id_1", "userid")
+			assert.Equal(t, value, "id_1")
+		}
+		{
+			value, _ := reader.GetStringValue("id_1", "firstname")
+			assert.Equal(t, value, "Alice")
+		}
+	}
+
+	// shutdown
+	assert.Equal(t, reader.Shutdown(), nil)
+	assert.Equal(t, writer.Shutdown(), nil)
+
+	return nil
 }
