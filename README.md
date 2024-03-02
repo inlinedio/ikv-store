@@ -3,10 +3,10 @@
 </p>
 
 # IKV | Inlined Key-Value Store
-IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting.
+IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting. IKV is written in Rust, but provides SDKs to use it in **Go, Java and Python**.
 
 #### Embedded & Blazing Fast
-IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. It can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. See [benchmarks](#benchmarks-%|-100x0faster-than-redis).
+IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. It can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. (See benchmarks below)
 
 IKV is heavily optimized for read performance (latency/throughput):
  - In-memory with option to spill to local disk.
@@ -20,12 +20,10 @@ IKV is more than just a library - it handles all data management aspects for you
 In short, you get the performance benefits of embedded DB architecture, and all the ease & reliability of a cloud hosted client-server DB architecture.
 
 #### Usecases for IKV
-Typical usecases include recommendation-engines, ML inference (feature stores), information-retrieval related tasks or fast general-purpose caching (anything that does not need strong read-after-write consistency).
+Typical usecases include recommendation-engines, ML inference (feature stores), information-retrieval related tasks or fast general-purpose caching (anything with tight latency requirements, and does not need strong read-after-write consistency or transactions).
 
 ## Benchmarks | 100x faster than Redis
-IKV is eventually-consistent, in-memory (with option to spill to disk) and trades-off write performance for reads. These design choices enable extremely low-latency read access to key value data. IKV provides **single-digit microsecond response-time at P99** and is **100x faster than Redis**.
-
-Read our full benchmarking setup and report [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
+IKV provides single-digit microsecond response-time at P99 and is 100x faster than Redis. Read our full benchmarking setup and report [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
 
 ```markdown
 | Read-Only Load (QPS) | IKV (Inlined Key Value Store)   | Redis Cluster (AWS ElastiCache) |
@@ -41,19 +39,28 @@ Read our full benchmarking setup and report [here](https://docs.google.com/docum
 
 These benchmarks were performed by a multi-threaded client machine which made blocking calls to the underlying database. For a constant load (queries-per-second), we note down the response-time of both databases (avg/P99/etc). We tested "get" performance i.e. given a primary-key and a field/attribute name - fetch the field's value. IKV is inherently built for multithreaded use, for Redis we used a 16 shard, single-node Redis Cluster to ensure fairness. The report linked above has details about hardware and testing methodology.
 
-## Quick Links
- - Getting Started
-	 - [Provisioning](#provisioning)
-	 - [Java](#getting-started-with-java)
-	 - Python & Go (upcoming - July 2024)
- - [APIs](#apis)
- - [Architecture](#architecture)
- - [Technical Support](#technical-support)
+## Developer Documentation
+Detailed documentation about data-modeling, best practices and language specific SDKs and more: **[docs.inlined.io](http://docs.inlined.io)**
+
+## Technical Support
+For provisioning, documentation or any technical support- onboarding[@]inlined.io
+
 ## Provisioning
 You need an IKV account and a provisioned key-value store to start using IKV in production. Why? IKV is an embedded database which is built on top of a persistent stand-alone data layer (which needs resource allocation). To provision (provisioning time is usually less than 12 hrs), reach out to to - **onboarding@inlined.io**, with the following - 
  - Existing **account-id** (if exists, else mention you want a new account-id and account-passkey).
  - For store provisioning: **store-name, primary-key, partitioning key (optional)**. See [APIs](#apis) to familiarize yourself with some of these terms.
  - Once you have an account-id, account-passkey and have provisioned a new store, you're all set to start using IKV.
+
+## Architecture
+<p align="center">
+    <img src="readme-img/architecture.png" alt="IKV Architecture Schematic">
+</p>
+IKV has a hybrid architecture wherein, the database reads are served from an embedded database but writes are persisted and propagated using a standalone service (i.e. IKV Cloud).
+
+ 1. **Reader/Writer Clients**: Distributed as language specific libraries, this is how users perform all CRUD operations. The writer client publishes the events to IKV Cloud, while the reader client queries the embedded database which is up-to-date with latest data (in near real-time).
+ 2. **IKV Cloud**: Gateway for write operations. It distributes incoming writes to readers using Kafka streams. It also serves other essential tasks like building index images periodically (for bootstrapping new readers), serving configuration, etc.
+ 3. **Embedded database**: Written in Rust, this component is the core database engine used by readers. Clients interface with this using foreign function interface (ex. JNI for Java). The key data structures include: (1) sharded memory-mapped files which store serialized field values (2) hash-table which indexes primary-keys versus "offsets" into the mmaps. This design enables highly concurrent key-value lookup. For most scenarios, all of the data will reside in RAM, providing high performance.
+
 
 ## Getting Started with Java
 In this section we go over some code samples about how to use IKV's client library in your Java project. Please reach out to *onboarding@inlined.io* for any support/questions related to usage.
@@ -232,18 +239,4 @@ Reads:
 "Bob#age" -> 25
 "Bob#city" -> // empty
 ```
-
-## Architecture
-This section has a bird's eye view of IKV's architecture.
-
-![IKV Architecture Schematic](readme-img/architecture.png)
-
-IKV has a hybrid architecture wherein, the database reads are served from an embedded database but writes are persisted and propagated using a standalone service (i.e. IKV Cloud).
-
- 1. **Reader/Writer Clients**: Distributed as language specific libraries, this is how users perform all CRUD operations. The writer client publishes the events to IKV Cloud, while the reader client queries the embedded database which is up-to-date with latest data (in near real-time).
- 2. **IKV Cloud**: Gateway for write operations. It distributes incoming writes to readers using Kafka streams. It also serves other essential tasks like building index images periodically (for bootstrapping new readers), serving configuration, etc.
- 3. **Embedded database**: Written in Rust, this component is the core database engine used by readers. Clients interface with this using foreign function interface (ex. JNI for Java). The key data structures include: (1) sharded memory-mapped files which store serialized field values (2) hash-table which indexes primary-keys versus "offsets" into the mmaps. This design enables highly concurrent key-value lookup. For most scenarios, all of the data will reside in RAM, providing high performance.
-
-## Technical Support
-For provisioning, documentation or any technical support- onboarding[@]inlined.io
 
