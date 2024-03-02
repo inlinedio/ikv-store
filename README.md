@@ -2,6 +2,8 @@
     <img src="readme-img/inlined-logo.png" alt="IKV logo">
 </p>
 
+Read the docs at **[docs.inlined.io](http://docs.inlined.io)**
+
 # IKV | Inlined Key-Value Store
 IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting. IKV is written in Rust, but provides SDKs to use it in **Go, Java and Python**.
 
@@ -42,14 +44,12 @@ These benchmarks were performed by a multi-threaded client machine which made bl
 ## Developer Documentation
 Detailed documentation about data-modeling, best practices and language specific SDKs and more: **[docs.inlined.io](http://docs.inlined.io)**
 
-## Technical Support
-For provisioning, documentation or any technical support- onboarding[@]inlined.io
+## Onboarding
+IKV is an **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer (**IKV Cloud**). You need an IKV cloud account and a provisioned IKV store to start using it in your application. All provisioning related communication can be done by contacting **onboarding@inlined.io**. Store provisioning takes 1-3 hours.
 
-## Provisioning
-You need an IKV account and a provisioned key-value store to start using IKV in production. Why? IKV is an embedded database which is built on top of a persistent stand-alone data layer (which needs resource allocation). To provision (provisioning time is usually less than 12 hrs), reach out to to - **onboarding@inlined.io**, with the following - 
- - Existing **account-id** (if exists, else mention you want a new account-id and account-passkey).
- - For store provisioning: **store-name, primary-key, partitioning key (optional)**. See [APIs](#apis) to familiarize yourself with some of these terms.
- - Once you have an account-id, account-passkey and have provisioned a new store, you're all set to start using IKV.
+## Pricing
+Unlimited read quota, pay only for the amount of data you store ($ per GB/month). We offer a free-tier for small data volumes.
+Pricing details can be requested based on quota requirements by contacting **onboarding@inlined.io**
 
 ## Architecture
 <p align="center">
@@ -60,114 +60,6 @@ IKV has a hybrid architecture wherein, the database reads are served from an emb
  1. **Reader/Writer Clients**: Distributed as language specific libraries, this is how users perform all CRUD operations. The writer client publishes the events to IKV Cloud, while the reader client queries the embedded database which is up-to-date with latest data (in near real-time).
  2. **IKV Cloud**: Gateway for write operations. It distributes incoming writes to readers using Kafka streams. It also serves other essential tasks like building index images periodically (for bootstrapping new readers), serving configuration, etc.
  3. **Embedded database**: Written in Rust, this component is the core database engine used by readers. Clients interface with this using foreign function interface (ex. JNI for Java). The key data structures include: (1) sharded memory-mapped files which store serialized field values (2) hash-table which indexes primary-keys versus "offsets" into the mmaps. This design enables highly concurrent key-value lookup. For most scenarios, all of the data will reside in RAM, providing high performance.
-
-
-## Getting Started with Java
-In this section we go over some code samples about how to use IKV's client library in your Java project. Please reach out to *onboarding@inlined.io* for any support/questions related to usage.
-
-#### Installation
-`ikv-java-client` dependency is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client), add dependency to your Gradle/Maven Java project. Make sure to use the latest version from [release list](https://jitpack.io/#io.inlined/ikv-java-client).
-```
-repositories {
-  maven { url 'https://jitpack.io' }
-}
-
-dependencies {
-  implementation 'io.inlined:ikv-java-client:0.0.7'
-}
-```
-
-```
-<repositories>
-  <repository>
-    <id>jitpack.io</id>
-    <url>https://jitpack.io</url>
-  </repository>
-</repositories>
-
-<dependency>
-  <groupId>io.inlined</groupId>
-  <artifactId>ikv-java-client</artifactId>
-  <version>0.0.7</version>
-</dependency>
-```
-
-#### Java Usage
-Prerequisites - (1) [Provisioned](#provisioning) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
-
-```
-// Instantiate reader and writer clients using IKVClientFactory.
-// In this example we will upsert and read "user" profile data - the same example
-// which was discussed in IKV APIs section linked above.
-
-import io.inlined.clients.ClientOptions;  
-import io.inlined.clients.IKVClientFactory;  
-import io.inlined.clients.IKVDocument;  
-import io.inlined.clients.InlineKVReader;  
-import io.inlined.clients.InlineKVWriter;
-
-IKVClientFactory factory = new IKVClientFactory();
-
-// Create client options - for Writer
-ClientOptions writerClientOptions = new ClientOptions.Builder()
-  .withStoreName("user-profile")  
-  .withAccountId("--account-id--")  
-  .withAccountPassKey("--account-passkey--")
-  .build();
-
-// Create Writer instance
-InlineKVWriter writer = factory.createNewWriterInstance(writerClientOptions);
-writer.startupWriter();
-
-// create documents and invoke upsert() operations
-IKVDocument doc1 =  new IKVDocument.Builder()
-  .putStringField("firstname", "Alice")
-  .putIntField("age", 22)
-  .build();  
-writer.upsertFieldValues(doc1);
-
-IKVDocument doc2 =  new IKVDocument.Builder()
-  .putStringField("firstname", "Alice")
-  .putStringField("city", "San Francisco")
-  .build();  
-writer.upsertFieldValues(doc2);
-
-IKVDocument doc3 =  new IKVDocument.Builder()
-  .putStringField("firstname", "Bob")
-  .putIntField("age", 25)
-  .build();  
-writer.upsertFieldValues(doc3);
-
-// Create client options - for Reader
-ClientOptions readerClientOptions = new ClientOptions.Builder()
-  .withMountDirectory("/tmp/UserProfiles")  
-  .withStoreName("user-profile")  
-  .withAccountId("--account-id--")  
-  .withAccountPassKey("--account-passkey--")  
-  .useStringPrimaryKey()  
-  .build();
-
-// Create Reader instance
-InlineKVReader reader = factory.createNewReaderInstance(readerClientOptions);  
-reader.startupReader();
-
-// read documents
-// Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
-// before reading your writes.
-Thread.sleep(1000);
-
-Assertions.assertEquals(reader.getStringValue("Alice", "firstname"), "Alice");
-Assertions.assertEquals(reader.getIntValue("Alice", "age"), 22);
-Assertions.assertEquals(reader.getStringValue("Alice", "city"), "San Francisco");
-
-Assertions.assertEquals(reader.getStringValue("Bob", "firstname"), "Bob");
-Assertions.assertEquals(reader.getIntValue("Bob", "age"), 25);
-Assertions.assertNull(reader.getStringValue("Bob", "city"));
-
-writer.shutdownWriter();
-reader.shutdownReader();
-```
-
 
 ## APIs
 In this section we go over some important interfaces and abstractions that IKV provides as a key-value database. 
@@ -240,3 +132,201 @@ Reads:
 "Bob#city" -> // empty
 ```
 
+## Language specific SDKs
+IKV provides client SDKs in Java, Go and Python. Documentation: [docs.inlined.io](http://docs.inlined.io/category/clients)
+
+### Java Usage
+
+#### Installation
+`ikv-java-client` is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client). The latest version is: [![Release](https://jitpack.io/v/io.inlined/ikv-java-client.svg)](https://jitpack.io/#io.inlined/ikv-java-client)
+
+#### Java Usage
+Prerequisites - (1) [Provisioned](#onboarding) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
+
+```java
+// Instantiate reader and writer clients using IKVClientFactory.
+// In this example we will upsert and read "user" profile data - the same example
+// which was discussed in IKV APIs section.
+
+import io.inlined.clients.ClientOptions;  
+import io.inlined.clients.IKVClientFactory;  
+import io.inlined.clients.IKVDocument;  
+import io.inlined.clients.InlineKVReader;  
+import io.inlined.clients.InlineKVWriter;
+
+IKVClientFactory factory = new IKVClientFactory();
+
+// Create client options - for Writer
+ClientOptions writerClientOptions = new ClientOptions.Builder()
+  .withStoreName("user-profile")  
+  .withAccountId("--account-id--")  
+  .withAccountPassKey("--account-passkey--")
+  .build();
+
+// Create Writer instance
+InlineKVWriter writer = factory.createNewWriterInstance(writerClientOptions);
+writer.startupWriter();
+
+// create documents and invoke upsert() operations
+IKVDocument doc1 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Alice")
+  .putIntField("age", 22)
+  .build();  
+writer.upsertFieldValues(doc1);
+
+IKVDocument doc2 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Alice")
+  .putStringField("city", "San Francisco")
+  .build();  
+writer.upsertFieldValues(doc2);
+
+IKVDocument doc3 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Bob")
+  .putIntField("age", 25)
+  .build();  
+writer.upsertFieldValues(doc3);
+
+// Create client options - for Reader
+ClientOptions readerClientOptions = new ClientOptions.Builder()
+  .withMountDirectory("/tmp/UserProfiles")  
+  .withStoreName("user-profile")  
+  .withAccountId("--account-id--")  
+  .withAccountPassKey("--account-passkey--")  
+  .useStringPrimaryKey()  
+  .build();
+
+// Create Reader instance
+InlineKVReader reader = factory.createNewReaderInstance(readerClientOptions);  
+reader.startupReader();
+
+// read documents
+// Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
+// before reading your writes.
+Thread.sleep(1000);
+
+Assertions.assertEquals(reader.getStringValue("Alice", "firstname"), "Alice");
+Assertions.assertEquals(reader.getIntValue("Alice", "age"), 22);
+Assertions.assertEquals(reader.getStringValue("Alice", "city"), "San Francisco");
+
+Assertions.assertEquals(reader.getStringValue("Bob", "firstname"), "Bob");
+Assertions.assertEquals(reader.getIntValue("Bob", "age"), 25);
+Assertions.assertNull(reader.getStringValue("Bob", "city"));
+
+writer.shutdownWriter();
+reader.shutdownReader();
+```
+### Go Usage
+
+#### Installation
+Fetch the latest version using the **go** tool.
+
+```bash
+go get github.com/inlinedio/ikv-store@latest
+```
+#### Go Usage
+Prerequisites - (1) [Provisioned](#onboarding) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
+
+```go
+import (
+  "fmt"
+  "testing"
+  "time"
+
+  "github.com/stretchr/testify/assert"
+
+  ikv "github.com/inlinedio/ikv-store/ikv-go-client"
+)
+
+func example(t *testing.T) error {
+  factory := ikvclient.IKVClientFactory{}
+
+  // create client options - for writer
+  writerClientOptions, err := ikvclient.NewClientOptionsBuilder().WithStoreName("--store-name--").WithAccountId("--account-id").WithAccountPasskey("--account-passkey").Build()
+  if err != nil {
+    return err
+  }
+
+  // create and startup writer
+  writer, err := factory.CreateNewWriter(&writerClientOptions)
+  if err != nil {
+    return err
+  }
+
+  if err = writer.Startup(); err != nil {
+    return err
+  }
+  defer writer.Shutdown()
+
+  // create documents and invoke upsert() operations
+  doc1, err := ikvclient.NewIKVDocumentBuilder().PutStringField("firstname", "Alice").PutStringField("age", "22").Build()
+  if err != nil {
+    return err
+  }
+  if err = writer.UpsertFields(&doc1); err != nil {
+    return err
+  }
+
+  doc2, err := ikvclient.NewIKVDocumentBuilder().PutStringField("firstname", "Alice").PutStringField("city", "San Francisco").Build()
+  if err != nil {
+    return err
+  }
+  if err = writer.UpsertFields(&doc2); err != nil {
+    return err
+  }
+
+  doc3, err := ikvclient.NewIKVDocumentBuilder().PutStringField("firstname", "Bob").PutStringField("age", "25").Build()
+  if err != nil {
+    return err
+  }
+  if err = writer.UpsertFields(&doc3); err != nil {
+    return err
+  }
+
+  // create client options - for reader
+  readerClientOptions, err := ikvclient.NewClientOptionsBuilder().WithMountDirectory("/tmp/UserProfiles").WithStoreName("--store-name--").WithAccountId("--account-id").WithAccountPasskey("--account-passkey").Build()
+  if err != nil {
+    return err
+  }
+
+  // create and startup reader
+  reader, err := factory.CreateNewReader(&readerClientOptions)
+  if err != nil {
+    return err
+  }
+  if err = reader.Startup(); err != nil {
+    return err
+  }
+  defer reader.Shutdown()
+
+  // read documents
+  // Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
+  // before reading your writes.
+  time.Sleep(1 * time.Second)
+
+  if value, err := reader.GetStringValue("Alice", "firstname"); err != nil {
+    assert.Equal(t, value, "Alice")
+  }
+  if value, err := reader.GetStringValue("Alice", "age"); err != nil {
+    assert.Equal(t, value, "22")
+  }
+  if value, err := reader.GetStringValue("Alice", "city"); err != nil {
+    assert.Equal(t, value, "San Francisco")
+  }
+
+  if value, err := reader.GetStringValue("Bob", "firstname"); err != nil {
+    assert.Equal(t, value, "Bob")
+  }
+  if value, err := reader.GetStringValue("Bob", "age"); err != nil {
+    assert.Equal(t, value, "25")
+  }
+  if value, err := reader.GetStringValue("Bob", "city"); err != nil {
+    // missing: zero-value
+    assert.Equal(t, value, "")
+  }
+
+  return nil
+}
+```
+
+## Technical Support
+For provisioning, documentation or any technical support- onboarding[@]inlined.io
