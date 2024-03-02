@@ -2,7 +2,7 @@
     <img src="readme-img/inlined-logo.png" alt="IKV logo">
 </p>
 
-Read the docs at **[docs.inlined.io](http://docs.inlined.io)**
+Read the docs at **[docs.inlined.io](https://docs.inlined.io)**
 
 # IKV | Inlined Key-Value Store
 IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting. IKV is written in Rust, and provides SDKs (client libraries) to use it in **Go, Java and Python**.
@@ -42,7 +42,7 @@ IKV provides single-digit microsecond response-time at P99 and is 100x faster th
 These benchmarks were performed by a multi-threaded client machine which made blocking calls to the underlying database. For a constant load (queries-per-second), we note down the response-time of both databases (avg/P99/etc). We tested "get" performance i.e. given a primary-key and a field/attribute name - fetch the field's value. IKV is inherently built for multithreaded use, for Redis we used a 16 shard, single-node Redis Cluster to ensure fairness. The report linked above has details about hardware and testing methodology.
 
 ## Developer Documentation
-Detailed documentation about data-modeling, best practices and language specific SDKs and more: **[docs.inlined.io](http://docs.inlined.io)**
+Detailed documentation about data-modeling, best practices and language specific SDKs and more: **[docs.inlined.io](https://docs.inlined.io)**
 
 ## Onboarding
 IKV is an embedded database on top of a backend data layer (**IKV Cloud**). You need an IKV cloud account and a provisioned IKV store to start using it in your application. All provisioning related communication can be done by contacting **onboarding@inlined.io**. Store provisioning takes 1-3 hours.
@@ -138,7 +138,7 @@ We added a new document, no new fields were added. The following queries can be 
 ```
 
 ## Language specific SDKs
-IKV provides client SDKs in Java, Go and Python. Documentation: [docs.inlined.io](http://docs.inlined.io/category/clients)
+IKV provides client SDKs in Java, Go and Python. Documentation: [docs.inlined.io](https://docs.inlined.io/category/clients)
 
 ### Java Usage
 
