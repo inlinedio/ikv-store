@@ -8,7 +8,7 @@ Read the docs at **[docs.inlined.io](http://docs.inlined.io)**
 IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting. IKV is written in Rust, but provides SDKs to use it in **Go, Java and Python**.
 
 #### Embedded & Blazing Fast
-IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. It can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. (See [benchmarks](benchmarks--100x-faster-than-redis) below)
+IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. It can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. (See [benchmarks](#benchmarks--100x-faster-than-redis) below)
 
 IKV is heavily optimized for read performance (latency/throughput):
  - In-memory with option to spill to local disk.
