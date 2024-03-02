@@ -1,13 +1,26 @@
-![IKV Logo](readme-img/inlined-logo.png)
+<p align="center">
+    <img src="readme-img/inlined-logo.png" alt="IKV logo">
+</p>
+
 # IKV | Inlined Key-Value Store
-IKV is a high performance **fully-managed embedded database**, for powering modern ML inference. It's unique design makes it perfect for accessing large key-value datasets with very low latency in a production setting.
+IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting.
 
-An [embedded database](https://en.wikipedia.org/wiki/Embedded_database) provides much better performance (response-time and throughput) as compared to standalone services (ex. Redis or DynamoDB), by integrating directly into the user application and avoiding any remote network calls. IKV is -
+#### Embedded & Blazing Fast
+IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. IKV can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. See [benchmarks](#benchmarks-|-100x-faster-than-Redis)
 
- 1. **Blazing Fast**: IKV provides **single-digit microsecond** P99 read latency from client’s point-of-view. This is 100x faster than existing solutions like Redis.
- 2. **Persistent Storage**: Write once and read forever. IKV embedded database is built on top of a reliable data layer (i.e. IKV cloud).
- 3. **Environment Agnostic**: Run in the public-cloud (AWS/Azure/GCP, etc) or on-prem with no differences in read-performance or configuration.
- 4. **Horizontally Scalable**: Handles large datasets (with partitions) and high read/write traffic (with replication). Built for streaming and batch ingestion of data.
+IKV is heavily optimized for read performance (latency/throughput):
+ - In-memory with option to spill to local disk.
+ - Designed for point-lookups ("hashtable/dictionary API").
+ - No cold start problem or RPCs during cache misses.
+ - No Garbage Collection. IKV is written in Rust, with thin clients in languages like Java, Go & Python.
+
+#### Fully Managed
+IKV is more than just a library - it handles all data management aspects for you. It provides "write once, read forever" semantics, i.e. data is fully persistent (stored in IKV cloud). It replicates data across your fleet of application containers (globally). IKV scales horizontally for large datasets (with partitions) and high read/write traffic (with replication). This makes IKV unique as compared to other "library-only" embedded databases (ex. LevelDB, RocksDB or LMDB).
+
+In short, you get the performance benefits of embedded DB architecture, and all the ease & reliability of a cloud hosted client-server DB architecture.
+
+#### Usecases for IKV
+Typical usecases include recommendation-engines, ML inference (feature stores), information-retrieval related tasks or fast general-purpose caching (anything that does not need strong read-after-write consistency).
 
 ## Benchmarks | 100x faster than Redis
 IKV is eventually-consistent, in-memory (with option to spill to disk) and trades-off write performance for reads. These design choices enable extremely low-latency read access to key value data. IKV provides **single-digit microsecond response-time at P99** and is **100x faster than Redis**.
