@@ -6,7 +6,7 @@
 IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting.
 
 #### Embedded & Blazing Fast
-IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. IKV can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. See [benchmarks](#benchmarks-|-100x-faster-than-Redis)
+IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. It can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. See [benchmarks](#benchmarks).
 
 IKV is heavily optimized for read performance (latency/throughput):
  - In-memory with option to spill to local disk.
@@ -22,7 +22,7 @@ In short, you get the performance benefits of embedded DB architecture, and all 
 #### Usecases for IKV
 Typical usecases include recommendation-engines, ML inference (feature stores), information-retrieval related tasks or fast general-purpose caching (anything that does not need strong read-after-write consistency).
 
-## Benchmarks | 100x faster than Redis
+## Benchmarks | 100x faster than Redis {#benchmarks}
 IKV is eventually-consistent, in-memory (with option to spill to disk) and trades-off write performance for reads. These design choices enable extremely low-latency read access to key value data. IKV provides **single-digit microsecond response-time at P99** and is **100x faster than Redis**.
 
 Read our full benchmarking setup and report [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
