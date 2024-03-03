@@ -109,6 +109,54 @@ func (writer *DefaultIKVWriter) UpsertFields(document *IKVDocument) error {
 	return err
 }
 
+func (writer *DefaultIKVWriter) DeleteFields(document *IKVDocument, fieldsToDelete []string) error {
+	if len(document.fields) < 1 {
+		return errors.New("need to specify primary-key to delete fields from a document")
+	}
+	if len(fieldsToDelete) == 0 {
+		return nil
+	}
+
+	// create request
+	documentId := schemas.IKVDocumentOnWire{Document: document.fields}
+	request := schemas.DeleteFieldValueRequest{
+		UserStoreContextInitializer: writer.userStoreCtxInitializer,
+		Timestamp:                   timestamppb.Now(),
+		DocumentId:                  &documentId,
+		FieldNames:                  fieldsToDelete,
+	}
+
+	// make request
+	// retries are made automatically for select errors (see policy above)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := writer.client.DeleteFieldValues(ctx, &request)
+
+	return err
+}
+
+func (writer *DefaultIKVWriter) DeleteDocument(document *IKVDocument) error {
+	if len(document.fields) < 1 {
+		return errors.New("need to specify primary-key to delete a document")
+	}
+
+	// create request
+	documentId := schemas.IKVDocumentOnWire{Document: document.fields}
+	request := schemas.DeleteDocumentRequest{
+		UserStoreContextInitializer: writer.userStoreCtxInitializer,
+		Timestamp:                   timestamppb.Now(),
+		DocumentId:                  &documentId,
+	}
+
+	// make request
+	// retries are made automatically for select errors (see policy above)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := writer.client.DeleteDocument(ctx, &request)
+
+	return err
+}
+
 // Helper to fetch server supplied configs.
 // TODO: move this out of the writer struct for
 // better separation.
@@ -148,7 +196,7 @@ func (writer *DefaultIKVWriter) HealthCheck() (bool, error) {
 
 	response_str := response.Echo
 	if response_str != "healthcheck" {
-		return false, fmt.Errorf("Bad response from HelloWorld endpoint, expected: healthcheck actual: %s", response_str)
+		return false, fmt.Errorf("bad response from HelloWorld endpoint, expected: healthcheck actual: %s", response_str)
 	}
 
 	return true, nil

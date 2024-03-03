@@ -17,7 +17,7 @@ In this section we go over how to use IKV's Java client library.
 `ikv-java-client` is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client). The latest version is: [![Release](https://jitpack.io/v/io.inlined/ikv-java-client.svg)](https://jitpack.io/#io.inlined/ikv-java-client)
 
 #### Gradle
-```kotlin
+```groovy
 repositories {
   maven { url 'https://jitpack.io' }
 }
