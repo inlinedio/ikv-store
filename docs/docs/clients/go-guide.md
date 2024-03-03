@@ -149,7 +149,8 @@ This section provides more details about writing data to IKV. You will interact 
 -  **Startup**: Initialize the instance.
 -  **Shutdown**: Terminate the instance.
 -  **UpsertFields**: Insert or Update (if not exists) fields for a document. The document must contain the value of the primary-key and (if-specified) partitioning-key. Include values of other fields you wish to upsert. Different values for the same primary-key are aggregated by unionizing distincts and overwriting duplicates, ex. upsert of `{"name": "Alice", "age": 22}` followed by upsert of `{"name": "Alice", "age": 25, "city": "San Francisco"}` , results in `{"name": "Alice", "age": 25, "city": "San Francisco"}` being saved in IKV.
--  **Delete(s)**: Not available yet.
+-  **DeleteFields**: Delete specified fields from a document, if they exist. The document must contain the value of the primary-key and (if-specified) partitioning-key.
+-  **DeleteDocument**: Deletes specified document if it exists. The document must contain the value of the primary-key and (if-specified) partitioning-key.
 
 :::info
 **Multithreaded Usage**: All write operations on IKVWriter are thread-safe. However, you must ensure there is caller side synchronization while
