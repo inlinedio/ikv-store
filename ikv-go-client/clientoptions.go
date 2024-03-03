@@ -16,10 +16,15 @@ var loglevels = map[string]int{
 	"trace": 0,
 }
 
+// https://docs.inlined.io/clients/go-guide#configuration
+// Use `ClientOptionsBuilder` to create ClientOptions
 type ClientOptions struct {
 	config schemas.IKVStoreConfig
 }
 
+// https://docs.inlined.io/clients/go-guide#configuration
+// Initialize with NewClientOptionsBuilder(), specify options
+// with various `WithFoo()` functions, and build `ClientOptions` by calling Build().
 type ClientOptionsBuilder struct {
 	config schemas.IKVStoreConfig
 	err    error
@@ -44,6 +49,17 @@ func NewClientOptionsBuilder() *ClientOptionsBuilder {
 	builder.config.IntConfigs["partition"] = 0
 
 	return &builder
+}
+
+// Create ClientOptions.
+func (builder *ClientOptionsBuilder) Build() (ClientOptions, error) {
+	return ClientOptions{config: schemas.IKVStoreConfig{
+		StringConfigs:  builder.config.StringConfigs,
+		IntConfigs:     builder.config.IntConfigs,
+		FloatConfigs:   builder.config.FloatConfigs,
+		BytesConfigs:   builder.config.BytesConfigs,
+		BooleanConfigs: builder.config.BooleanConfigs,
+	}}, builder.err
 }
 
 func (builder *ClientOptionsBuilder) WithMountDirectory(dir string) *ClientOptionsBuilder {
@@ -108,7 +124,7 @@ func (builder *ClientOptionsBuilder) WithConsoleLogging(level string) *ClientOpt
 
 	level = strings.ToLower(level)
 	if _, exists := loglevels[level]; !exists {
-		builder.err = fmt.Errorf("Invalid log level- %s", level)
+		builder.err = fmt.Errorf("invalid log level- %s", level)
 		return nil
 	}
 
@@ -125,7 +141,7 @@ func (builder *ClientOptionsBuilder) WithFileLogging(filepath string, level stri
 
 	level = strings.ToLower(level)
 	if _, exists := loglevels[level]; !exists {
-		builder.err = fmt.Errorf("Invalid log level- %s", level)
+		builder.err = fmt.Errorf("invalid log level- %s", level)
 		return nil
 	}
 
@@ -133,14 +149,4 @@ func (builder *ClientOptionsBuilder) WithFileLogging(filepath string, level stri
 	builder.config.BooleanConfigs["rust_client_log_to_console"] = false
 	builder.config.StringConfigs["rust_client_log_file"] = filepath
 	return builder
-}
-
-func (builder *ClientOptionsBuilder) Build() (ClientOptions, error) {
-	return ClientOptions{config: schemas.IKVStoreConfig{
-		StringConfigs:  builder.config.StringConfigs,
-		IntConfigs:     builder.config.IntConfigs,
-		FloatConfigs:   builder.config.FloatConfigs,
-		BytesConfigs:   builder.config.BytesConfigs,
-		BooleanConfigs: builder.config.BooleanConfigs,
-	}}, builder.err
 }
