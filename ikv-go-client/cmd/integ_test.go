@@ -67,11 +67,11 @@ func TestSingleSetGet(t *testing.T) {
 	// read fields 10M times
 	for i := 0; i < 10000000; i++ {
 		{
-			value, _ := reader.GetStringValue("id_1", "userid")
+			_, value, _ := reader.GetStringValue("id_1", "userid")
 			assert.Equal(t, value, "id_1")
 		}
 		{
-			value, _ := reader.GetStringValue("id_1", "firstname")
+			_, value, _ := reader.GetStringValue("id_1", "firstname")
 			assert.Equal(t, value, "Alice")
 		}
 	}
@@ -107,7 +107,7 @@ func TestUpsertAndDelete(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// read firstname
-	value, _ := reader.GetStringValue("id_1", "firstname")
+	_, value, _ := reader.GetStringValue("id_1", "firstname")
 	assert.Equal(t, value, "Alice")
 
 	// delete field "firstname"
@@ -117,9 +117,10 @@ func TestUpsertAndDelete(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// read firstname, should be empty, userid is present
-	value, _ = reader.GetStringValue("id_1", "firstname")
-	assert.Equal(t, value, "")
-	value, _ = reader.GetStringValue("id_1", "userid")
+	exists, value, _ := reader.GetStringValue("id_1", "firstname")
+	assert.Equal(t, exists, false)
+	exists, value, _ = reader.GetStringValue("id_1", "userid")
+	assert.Equal(t, exists, true)
 	assert.Equal(t, value, "id_1")
 
 	docid, _ = ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").Build()
@@ -128,8 +129,8 @@ func TestUpsertAndDelete(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// deleted doc, both empty
-	value, _ = reader.GetStringValue("id_1", "firstname")
-	assert.Equal(t, value, "")
-	value, _ = reader.GetStringValue("id_1", "userid")
-	assert.Equal(t, value, "")
+	exists, value, _ = reader.GetStringValue("id_1", "firstname")
+	assert.Equal(t, exists, false)
+	exists, value, _ = reader.GetStringValue("id_1", "userid")
+	assert.Equal(t, exists, false)
 }
