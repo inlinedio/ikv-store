@@ -82,8 +82,6 @@ impl IKVKafkaConsumer {
             .set("sasl.password", account_passkey)
             .set("enable.ssl.certificate.verification", "false");
 
-        // try setting ssl.endpoint.identification.algorithm to empty to skip ubuntu error?
-
         // Apply kafka overrides
         // "kafkaprop_{}": "value_string"
         // ex. "kafkaprop_ssl.ca.location": "/etc/ssl/certs" -> "ssl.ca.location": "/etc/ssl/certs"
@@ -180,7 +178,7 @@ impl IKVKafkaConsumer {
         self.tokio_runtime.shutdown_timeout(Duration::from_secs(60));
     }
 
-    /// Consumes all pending events
+    /// Consumes all pending events (usually for index build).
     pub fn blocking_run_till_completion(&self) -> anyhow::Result<()> {
         let offset_store = OffsetStore::open_or_create(self.mount_directory.clone())?;
         let offset_store = Arc::new(offset_store);
@@ -205,6 +203,7 @@ impl IKVKafkaConsumer {
     }
 
     // TODO: we need to handle panics!
+    // TODO: add optionn to cancel
     async fn run_consume_till_high_watermark(
         offset_store: Arc<OffsetStore>,
         writes_processor: Arc<WritesProcessor>,
@@ -277,8 +276,14 @@ async fn initialize_stream_consumer(
     for entry in stored_topic_partition_list.iter() {
         if (&entry.topic == topic) && (entry.partition == partition) {
             let raw_offset = entry.offset;
-            let offset = Offset::from_raw(raw_offset);
-            seek_consumer(&consumer, topic, partition, offset)?;
+            let (low_w, _) = fetch_watermarks(&consumer, topic, partition)?;
+            if raw_offset >= low_w {
+                let offset = Offset::from_raw(raw_offset);
+                seek_consumer(&consumer, topic, partition, offset)?;
+            }
+            // else: do not seek, this invalid offset will be
+            // over written when we start consuming new events
+
             break;
         }
     }
@@ -303,6 +308,20 @@ fn seek_consumer(
     Ok(())
 }
 
+// Returns low and high offsets for the topic and partition.
+fn fetch_watermarks(
+    consumer: &StreamConsumer<DefaultConsumerContext>,
+    topic: &str,
+    partition: i32,
+) -> anyhow::Result<(i64, i64)> {
+    let (l, h) = consumer.fetch_watermarks(
+        &topic,
+        partition,
+        Timeout::After(Duration::from_secs(60 * 5)),
+    )?;
+    Ok((l, h))
+}
+
 async fn consume_till_high_watermark(
     consumer: &StreamConsumer<DefaultConsumerContext>,
     writes_processor: Arc<WritesProcessor>,
@@ -311,22 +330,8 @@ async fn consume_till_high_watermark(
     partition: i32,
 ) -> anyhow::Result<()> {
     // current point in time watermarks
-    let current_low_watermark: i64;
-    let current_high_watermark: i64;
-    match consumer.fetch_watermarks(
-        &topic,
-        partition,
-        Timeout::After(Duration::from_secs(60 * 5)),
-    ) {
-        Ok((low, high)) => {
-            current_low_watermark = low;
-            current_high_watermark = high;
-        }
-        Err(e) => {
-            bail!("Cannot fetch watermarks, error: {}", e.to_string());
-        }
-    }
-
+    let (current_low_watermark, current_high_watermark) =
+        fetch_watermarks(consumer, topic, partition)?;
     if current_low_watermark == current_high_watermark {
         // empty topic
         return Ok(());
