@@ -16,26 +16,28 @@ type IKVReader interface {
 	Shutdown() error
 
 	// Fetch an inner field of type []byte, by providing the primary-key
-	// for the document and the field-name. Returns zero-value i.e. empty bytes slice when the document
-	// or field are missing.
+	// for the document and the field-name.
+	//
+	// Return values: bool (if the field exists for the document), the value, optional error
 	//
 	// Field types are set during upsert operations on IKVWriter. Reading a field in a type different
 	// than its written type can have unintended results.
 	//
 	// Please note IKV readers are eventually-consistent in terms of "reading your writes".
 	// There can be a very small delay between writing document (with IKVWriter) and reading them.
-	GetBytesValue(primaryKey interface{}, fieldname string) ([]byte, error)
+	GetBytesValue(primaryKey interface{}, fieldname string) (bool, []byte, error)
 
 	// Fetch an inner field of type string, by providing the primary-key
-	// for the document and the field-name. Returns zero-value i.e. empty string when the document
-	// or field are missing.
+	// for the document and the field-name.
+	//
+	// Return values: bool (if the field exists for the document), the value, optional error
 	//
 	// Field types are set during upsert operations on IKVWriter. Reading a field in a type different
 	// than its written type can have unintended results.
 	//
 	// Please note IKV readers are eventually-consistent in terms of "reading your writes".
 	// There can be a very small delay between writing document (with IKVWriter) and reading them.
-	GetStringValue(primaryKey interface{}, fieldname string) (string, error)
+	GetStringValue(primaryKey interface{}, fieldname string) (bool, string, error)
 
 	HealthCheck() (bool, error)
 }

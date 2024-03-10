@@ -8,6 +8,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var EMPTY_STRING string = ""
+
 type DefaultIKVReader struct {
 	clientoptions *ClientOptions
 	native_reader *NativeReaderV2
@@ -85,28 +87,31 @@ func (reader *DefaultIKVReader) HealthCheck() (bool, error) {
 	return reader.native_reader.HealthCheck("healthcheck")
 }
 
-func (reader *DefaultIKVReader) GetBytesValue(key interface{}, fieldname string) ([]byte, error) {
+func (reader *DefaultIKVReader) GetBytesValue(key interface{}, fieldname string) (bool, []byte, error) {
+	var nullable_value []byte
 	switch primaryKey := key.(type) {
 	case string:
-		return reader.native_reader.GetFieldValue(
+		nullable_value = reader.native_reader.GetFieldValue(
 			[]byte(primaryKey),
-			fieldname), nil
+			fieldname)
 	case []byte:
-		return reader.native_reader.GetFieldValue(
+		nullable_value = reader.native_reader.GetFieldValue(
 			primaryKey,
-			fieldname), nil
+			fieldname)
 	default:
-		return nil, errors.New("key can only be a string or []byte")
+		return false, nil, errors.New("key can only be a string or []byte")
 	}
+
+	return nullable_value != nil, nullable_value, nil
 }
 
-func (reader *DefaultIKVReader) GetStringValue(key interface{}, fieldname string) (string, error) {
-	bv, err := reader.GetBytesValue(key, fieldname)
-	if err != nil {
-		return "", err
+func (reader *DefaultIKVReader) GetStringValue(key interface{}, fieldname string) (bool, string, error) {
+	exists, bytes_value, err := reader.GetBytesValue(key, fieldname)
+	if !exists || err != nil {
+		return false, EMPTY_STRING, err
 	}
 
-	return string(bv), nil
+	return true, string(bytes_value), nil
 }
 
 func (reader *DefaultIKVReader) createIKVConfig() (*schemas.IKVStoreConfig, error) {

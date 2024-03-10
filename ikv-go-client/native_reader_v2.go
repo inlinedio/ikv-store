@@ -135,6 +135,7 @@ func (nr *NativeReaderV2) Close() error {
 	return nil
 }
 
+// returns nil []byte if value does not exist ("empty")
 func (nr *NativeReaderV2) GetFieldValue(primaryKey []byte, fieldName string) []byte {
 	primaryKey_cbytes := C.CBytes(primaryKey)
 	defer C.free(unsafe.Pointer(primaryKey_cbytes))
