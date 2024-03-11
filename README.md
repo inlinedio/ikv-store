@@ -2,7 +2,7 @@
     <img src="readme-img/inlined-logo.png" alt="IKV logo">
 </p>
 
-Website: **[inlined.io](https://docs.inlined.io)**
+Website: **[inlined.io](https://inlined.io)**
 
 Read the docs at **[docs.inlined.io](https://docs.inlined.io)**
 
