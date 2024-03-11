@@ -2,6 +2,8 @@
     <img src="readme-img/inlined-logo.png" alt="IKV logo">
 </p>
 
+Website: **[inlined.io](https://docs.inlined.io)**
+
 Read the docs at **[docs.inlined.io](https://docs.inlined.io)**
 
 # IKV | Inlined Key-Value Store
