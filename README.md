@@ -53,7 +53,7 @@ Pricing details can be requested based on quota requirements by contacting **onb
 
 ## Architecture
 <p align="center">
-    <img src="readme-img/architecture.png" alt="IKV Architecture Schematic">
+    <img src="readme-img/architecturev2.png" alt="IKV Architecture Schematic">
 </p>
 IKV has a hybrid architecture, the database reads are served from an embedded database but writes are persisted and propagated using a standalone service (i.e. IKV Cloud).
 
