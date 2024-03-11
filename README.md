@@ -310,24 +310,26 @@ func example(t *testing.T) error {
   // before reading your writes.
   time.Sleep(1 * time.Second)
 
-  if value, err := reader.GetStringValue("Alice", "firstname"); err != nil {
+  if exists, value, err := reader.GetStringValue("Alice", "firstname"); err != nil {
+    assert.Equal(t, exists, true)
     assert.Equal(t, value, "Alice")
   }
-  if value, err := reader.GetStringValue("Alice", "age"); err != nil {
+  if _, value, err := reader.GetStringValue("Alice", "age"); err != nil {
     assert.Equal(t, value, "22")
   }
-  if value, err := reader.GetStringValue("Alice", "city"); err != nil {
+  if _, value, err := reader.GetStringValue("Alice", "city"); err != nil {
     assert.Equal(t, value, "San Francisco")
   }
 
-  if value, err := reader.GetStringValue("Bob", "firstname"); err != nil {
+  if _, value, err := reader.GetStringValue("Bob", "firstname"); err != nil {
     assert.Equal(t, value, "Bob")
   }
-  if value, err := reader.GetStringValue("Bob", "age"); err != nil {
+  if _, value, err := reader.GetStringValue("Bob", "age"); err != nil {
     assert.Equal(t, value, "25")
   }
-  if value, err := reader.GetStringValue("Bob", "city"); err != nil {
+  if exists, value, err := reader.GetStringValue("Bob", "city"); err != nil {
     // missing: zero-value
+    assert.Equal(t, exists, false)
     assert.Equal(t, value, "")
   }
 
