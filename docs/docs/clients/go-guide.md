@@ -107,24 +107,26 @@ func example(t *testing.T) error {
   // before reading your writes.
   time.Sleep(1 * time.Second)
 
-  if value, err := reader.GetStringValue("Alice", "firstname"); err != nil {
+  if exists, value, err := reader.GetStringValue("Alice", "firstname"); err != nil {
+    assert.Equal(t, exists, true)
     assert.Equal(t, value, "Alice")
   }
-  if value, err := reader.GetStringValue("Alice", "age"); err != nil {
+  if _, value, err := reader.GetStringValue("Alice", "age"); err != nil {
     assert.Equal(t, value, "22")
   }
-  if value, err := reader.GetStringValue("Alice", "city"); err != nil {
+  if _, value, err := reader.GetStringValue("Alice", "city"); err != nil {
     assert.Equal(t, value, "San Francisco")
   }
 
-  if value, err := reader.GetStringValue("Bob", "firstname"); err != nil {
+  if _, value, err := reader.GetStringValue("Bob", "firstname"); err != nil {
     assert.Equal(t, value, "Bob")
   }
-  if value, err := reader.GetStringValue("Bob", "age"); err != nil {
+  if _, value, err := reader.GetStringValue("Bob", "age"); err != nil {
     assert.Equal(t, value, "25")
   }
-  if value, err := reader.GetStringValue("Bob", "city"); err != nil {
+  if _, value, err := reader.GetStringValue("Bob", "city"); err != nil {
     // missing: zero-value
+    assert.Equal(t, exists, false)
     assert.Equal(t, value, "")
   }
 
@@ -166,8 +168,8 @@ This section provides more details about reading data from IKV. You will interac
 #### Read Operations via IKVReader
 -  **Startup**: Initialize the embedded key-value store. This operation can block to pull latest data to your local instance.
 -  **Shutdown**: Terminate the embedded key-value store.
--  **GetBytesValue**: Read a byte[] field-value, given a primary-key. Zero-value if the field or document is not present.
--  **GetStringValue**: Read a string field-value, given a primary-key. Zero-value if the field or document is not present.
+-  **GetBytesValue**: Read a byte[] field-value, given a primary-key.
+-  **GetStringValue**: Read a string field-value, given a primary-key.
 
 :::info
 **Multithreaded Usage**: All read operations on IKVReader are thread-safe.
