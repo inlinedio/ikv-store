@@ -70,10 +70,10 @@ pub fn test_lifecycle() {
     assert!(CKVIndex::is_valid_index(&ikv_config).is_err());
 
     // create new and close
-    let index = CKVIndex::open_or_create(&ikv_config).unwrap();
+    CKVIndex::open_or_create(&ikv_config).unwrap();
 
     // re-open and close
-    let index = CKVIndex::open_or_create(&ikv_config).unwrap();
+    CKVIndex::open_or_create(&ikv_config).unwrap();
 
     // valid and not empty
     assert_eq!(CKVIndex::index_not_present(&ikv_config).unwrap(), false);
@@ -172,6 +172,63 @@ pub fn test_full_document_operations() {
         index.get_field_value(&pkey2, DOCFIELD3).unwrap(),
         doc2.get(DOCFIELD3).unwrap().value.clone()
     );
+
+    // cleanup mount dir
+    let _ = std::fs::remove_dir_all(&mount_directory);
+}
+
+#[test]
+pub fn test_drop_fields() {
+    let mount_directory: &str = "/tmp/ckv_test_test_drop_fields";
+    let ikv_config = setup_cfg(&mount_directory);
+    let _ = std::fs::remove_dir_all(&mount_directory);
+
+    let doc0 = create_document(0);
+    let pkey0 = doc0.get(PRIMARY_KEY_FIELD_NAME).unwrap().value.clone();
+
+    let doc1 = create_document(1);
+    let pkey1 = doc1.get(PRIMARY_KEY_FIELD_NAME).unwrap().value.clone();
+
+    let doc2 = create_document(2);
+    let pkey2 = doc2.get(PRIMARY_KEY_FIELD_NAME).unwrap().value.clone();
+
+    let index = CKVIndex::open_or_create(&ikv_config).unwrap();
+
+    // upsert and flush
+    index.upsert_field_values(&doc0).unwrap();
+    index.upsert_field_values(&doc1).unwrap();
+    index.upsert_field_values(&doc2).unwrap();
+    index.flush_writes().unwrap();
+
+    // fields exist -
+    assert_eq!(
+        index.get_field_value(&pkey0, DOCFIELD1).unwrap(),
+        doc0.get(DOCFIELD1).unwrap().value.clone()
+    );
+    assert_eq!(
+        index.get_field_value(&pkey0, DOCFIELD2).unwrap(),
+        doc0.get(DOCFIELD2).unwrap().value.clone()
+    );
+
+    // drop "embedding"
+    index
+        .drop_fields(&vec![DOCFIELD2.to_string()], &vec![])
+        .unwrap();
+    assert!(index.get_field_value(&pkey0, DOCFIELD2).is_none());
+    assert!(index.get_field_value(&pkey1, DOCFIELD2).is_none());
+    assert!(index.get_field_value(&pkey2, DOCFIELD2).is_none());
+
+    // drop all
+    index.drop_all_fields().unwrap();
+    assert_eq!(
+        index
+            .get_field_value(&pkey0, PRIMARY_KEY_FIELD_NAME)
+            .unwrap(),
+        doc0.get(PRIMARY_KEY_FIELD_NAME).unwrap().value.clone()
+    );
+    assert!(index.get_field_value(&pkey0, DOCFIELD1).is_none());
+    assert!(index.get_field_value(&pkey0, DOCFIELD2).is_none());
+    assert!(index.get_field_value(&pkey0, DOCFIELD3).is_none());
 
     // cleanup mount dir
     let _ = std::fs::remove_dir_all(&mount_directory);

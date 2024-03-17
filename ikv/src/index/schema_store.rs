@@ -21,6 +21,11 @@ pub struct CKVIndexSchema {
     primary_key_field_name: String,
 
     field_name_to_id: HashMap<String, FieldId>,
+
+    // Used to assign field-ids to new fields. Primary-key always gets id=0.
+    // Current value denotes an available id, i.e. [0, current-1] are already taken.
+    // It's value always increases, and can only go down if compacted.
+    field_id_counter: u64,
 }
 
 impl CKVIndexSchema {
@@ -34,9 +39,10 @@ impl CKVIndexSchema {
             mount_directory: mount_directory.to_string(),
             primary_key_field_name: primary_key,
             field_name_to_id,
+            field_id_counter: 1,
         };
 
-        index.save(mount_directory)?;
+        index.save()?;
         Ok(index)
     }
 
@@ -60,10 +66,16 @@ impl CKVIndexSchema {
 
         let saved_schema = SavedCKVIndexSchema::parse_from_bytes(&contents)?;
 
+        let mut field_id_counter = saved_schema.field_ids.len() as u64;
+        if saved_schema.field_id_counter != 0 {
+            field_id_counter = saved_schema.field_id_counter;
+        }
+
         Ok(CKVIndexSchema {
             mount_directory: mount_directory.to_string(),
             primary_key_field_name: saved_schema.primary_key_field_name,
             field_name_to_id: saved_schema.field_ids,
+            field_id_counter,
         })
     }
 
@@ -116,7 +128,8 @@ impl CKVIndexSchema {
         let table = &mut self.field_name_to_id;
         for field_name in document.keys() {
             if !table.contains_key(field_name) {
-                let field_id = table.len();
+                let field_id = self.field_id_counter;
+                self.field_id_counter += 1;
                 table.insert(field_name.clone(), field_id as FieldId);
 
                 updated = true; /* needs disk update */
@@ -124,14 +137,68 @@ impl CKVIndexSchema {
         }
 
         if updated {
-            self.save(&self.mount_directory)?;
+            self.save()?;
+        }
+
+        Ok(())
+    }
+
+    /// Drops provided fields (exact names or prefixes). Ignores attempt to drop primary-key.
+    pub fn drop_fields(
+        &mut self,
+        field_names: &[String],
+        field_name_prefixes: &[String],
+    ) -> anyhow::Result<()> {
+        // exact field names to delete
+        let mut fields_to_delete = field_names.to_vec();
+
+        // prefix search
+        for prefix in field_name_prefixes.iter() {
+            for fieldname in self.field_name_to_id.keys() {
+                if fieldname.starts_with(prefix) {
+                    fields_to_delete.push(fieldname.clone());
+                }
+            }
+        }
+
+        if fields_to_delete.is_empty() {
+            return Ok(());
+        }
+
+        let mut updated = false;
+        for fieldname in fields_to_delete.iter() {
+            if fieldname != &self.primary_key_field_name {
+                if self.field_name_to_id.remove(fieldname).is_some() {
+                    updated = true;
+                }
+            }
+        }
+
+        if updated {
+            self.save()?;
+        }
+
+        Ok(())
+    }
+
+    /// Drops all fields except primary-key.
+    pub fn drop_all_fields(&mut self) -> anyhow::Result<()> {
+        let updated = self.field_name_to_id.len() > 1;
+
+        // modify map
+        let mut field_name_to_id = HashMap::new();
+        field_name_to_id.insert(self.primary_key_field_name.clone(), 0 as FieldId);
+        self.field_name_to_id = field_name_to_id;
+
+        if updated {
+            self.save()?;
         }
 
         Ok(())
     }
 
     /// TODO: how to handle failures (ex. persisting to disk) gracefully??
-    fn save(&self, mount_directory: &str) -> std::io::Result<()> {
+    fn save(&self) -> std::io::Result<()> {
         // serialize with proto
         let mut field_ids = HashMap::new();
         for (fieldname, fieldid) in self.field_name_to_id.iter() {
@@ -141,11 +208,12 @@ impl CKVIndexSchema {
         let mut saved_schema = SavedCKVIndexSchema::new();
         saved_schema.primary_key_field_name = self.primary_key_field_name.clone();
         saved_schema.field_ids = field_ids;
+        saved_schema.field_id_counter = self.field_id_counter;
 
         let contents = saved_schema.write_to_bytes()?;
 
         // truncate existing schema file, write new version
-        let filepath = format!("{}/schema", mount_directory);
+        let filepath = format!("{}/schema", self.mount_directory);
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)

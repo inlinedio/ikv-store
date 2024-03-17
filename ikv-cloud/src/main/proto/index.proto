@@ -16,6 +16,11 @@ message CKVIndexHeader {
 message SavedCKVIndexSchema {
     string primary_key_field_name = 1;
     map<string, uint32> field_ids = 2;
+
+    // Used to assign field-ids to new fields. Primary-key always gets id=0.
+    // Current value denotes an available id, i.e.
+    // [0, current-1] are already taken.
+    uint64 field_id_counter = 3;
 }
 
 // Single entry in offset table on-disk stream.
