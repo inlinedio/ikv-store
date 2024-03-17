@@ -25,7 +25,7 @@ mod ckv_test;
 
 const NUM_SEGMENTS: usize = 16;
 
-/// Memmap based columnar key-value index.
+/// Memmap based row-oriented key-value index.
 pub struct CKVIndex {
     // hash(key) -> PrimaryKeyIndex
     segments: Vec<RwLock<CKVIndexSegment>>,
@@ -264,7 +264,7 @@ impl CKVIndex {
                 field_ids.push(
                     schema
                         .fetch_id_by_name(field_name)
-                        .expect("upsert_field_values ensures schema is known"),
+                        .expect("upsert_schema ensures schema is known"),
                 );
                 values.push(field_value);
             }
@@ -334,6 +334,26 @@ impl CKVIndex {
         ckv_index_segment.delete_document(&primary_key)?;
 
         Ok(())
+    }
+
+    /// Drops provided fields (exact names or prefixes). Ignores attempt to drop primary-key.
+    pub fn drop_fields(
+        &self,
+        field_names: &[String],
+        field_name_prefixes: &[String],
+    ) -> anyhow::Result<()> {
+        if field_names.is_empty() && field_name_prefixes.is_empty() {
+            return Ok(());
+        }
+
+        let mut schema = self.schema.write().unwrap();
+        schema.drop_fields(field_names, field_name_prefixes)
+    }
+
+    /// Drops all fields except primary-key.
+    pub fn drop_all_fields(&self) -> anyhow::Result<()> {
+        let mut schema = self.schema.write().unwrap();
+        schema.drop_all_fields()
     }
 
     fn upsert_schema(&self, document: &HashMap<String, FieldValue>) -> anyhow::Result<()> {

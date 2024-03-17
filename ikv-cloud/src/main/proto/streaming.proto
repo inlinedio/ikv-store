@@ -20,6 +20,7 @@ message IKVDataEvent {
     UpsertDocumentFieldsEvent upsertDocumentFieldsEvent = 2;
     DeleteDocumentFieldsEvent deleteDocumentFieldsEvent = 3;
     DeleteDocumentEvent deleteDocumentEvent = 4;
+    DropFieldEvent dropFieldEvent = 5;
   }
 }
 
@@ -37,4 +38,19 @@ message DeleteDocumentFieldsEvent {
 // Delete specified document.
 message DeleteDocumentEvent {
   IKVDocumentOnWire documentId = 1;
+}
+
+// Drop (delete) field(s) from all documents. No-op if the fields don't exist.
+// Attempts to delete primary-key will be ignored.
+message DropFieldEvent {
+  // field name list (exact match required)
+  repeated string field_names = 1;
+
+  // field name prefix list (exact match required)
+  repeated string field_name_prefixes = 2;
+
+  // CAUTION! drops all except primary-key
+  // Only checked if field_names and field_name_prefixes are empty
+  // set to false when not populated by proto3
+  bool drop_all = 3;
 }

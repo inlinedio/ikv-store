@@ -130,3 +130,51 @@ pub fn write_then_read() {
     // cleanup mount dir
     let _ = std::fs::remove_dir_all(&mount_directory);
 }
+
+#[test]
+fn drop_fields() {
+    // create mount dir
+    let mount_directory = "/tmp/schema_store_test_drop_fields";
+    let _ = std::fs::remove_dir_all(&mount_directory);
+    std::fs::create_dir_all(&mount_directory).unwrap();
+
+    let document0 = create_document(0);
+    let mut index =
+        CKVIndexSchema::open_or_create(&mount_directory, PRIMARY_KEY_FIELD_NAME.to_string())
+            .unwrap();
+    assert!(index.upsert_schema(&document0).is_ok());
+
+    // fields are indexed
+    assert!(index.fetch_id_by_name(PRIMARY_KEY_FIELD_NAME).unwrap() == 0);
+    assert!(index.fetch_id_by_name("name").unwrap() > 0);
+    assert!(index.fetch_id_by_name("location").unwrap() > 0);
+    assert!(index.fetch_id_by_name("gender").unwrap() > 0);
+    let field_id_loc = index.fetch_id_by_name("location").unwrap();
+
+    // drop fields (name, gender)
+    index
+        .drop_fields(
+            &vec![
+                "name".to_string(),
+                "foo".to_string(),
+                PRIMARY_KEY_FIELD_NAME.to_string(),
+            ],
+            &vec!["gen".to_string(), "LOC".to_string()],
+        )
+        .unwrap();
+    assert!(index.fetch_id_by_name(PRIMARY_KEY_FIELD_NAME).unwrap() == 0);
+    assert!(index.fetch_id_by_name("name").is_none());
+    assert!(index.fetch_id_by_name("location").unwrap() == field_id_loc);
+    assert!(index.fetch_id_by_name("gender").is_none());
+
+    // drop all fields
+    index.drop_all_fields().unwrap();
+
+    assert!(index.fetch_id_by_name(PRIMARY_KEY_FIELD_NAME).unwrap() == 0);
+    assert!(index.fetch_id_by_name("name").is_none());
+    assert!(index.fetch_id_by_name("location").is_none());
+    assert!(index.fetch_id_by_name("gender").is_none());
+
+    // cleanup mount dir
+    let _ = std::fs::remove_dir_all(&mount_directory);
+}

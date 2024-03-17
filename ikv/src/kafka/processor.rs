@@ -5,7 +5,8 @@ use anyhow::Ok;
 use crate::index::ckv::CKVIndex;
 use crate::proto::generated_proto::streaming::ikvdata_event::Event;
 use crate::proto::generated_proto::streaming::{
-    DeleteDocumentEvent, DeleteDocumentFieldsEvent, IKVDataEvent, UpsertDocumentFieldsEvent,
+    DeleteDocumentEvent, DeleteDocumentFieldsEvent, DropFieldEvent, IKVDataEvent,
+    UpsertDocumentFieldsEvent,
 };
 
 pub struct WritesProcessor {
@@ -31,6 +32,7 @@ impl WritesProcessor {
                 Event::UpsertDocumentFieldsEvent(e) => return self.process_upsert(e),
                 Event::DeleteDocumentFieldsEvent(e) => return self.process_field_delete(e),
                 Event::DeleteDocumentEvent(e) => return self.process_document_delete(e),
+                Event::DropFieldEvent(e) => return self.process_drop_fields(e),
             };
         }
 
@@ -69,5 +71,17 @@ impl WritesProcessor {
 
         let document_on_wire = event.documentId.as_ref().unwrap();
         self.ckv_index.delete_document(&document_on_wire.document)
+    }
+
+    fn process_drop_fields(&self, event: &DropFieldEvent) -> anyhow::Result<()> {
+        if !event.field_names.is_empty() || !event.field_name_prefixes.is_empty() {
+            return self
+                .ckv_index
+                .drop_fields(&event.field_names, &event.field_name_prefixes);
+        } else if event.drop_all {
+            return self.ckv_index.drop_all_fields();
+        }
+
+        Ok(())
     }
 }
