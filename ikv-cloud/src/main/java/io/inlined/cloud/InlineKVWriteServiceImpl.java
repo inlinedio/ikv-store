@@ -82,22 +82,30 @@ public class InlineKVWriteServiceImpl
   public void dropFields(DropFieldsRequest request, StreamObserver<Status> responseObserver) {
     UserStoreContextInitializer ctxInitializer = request.getUserStoreContextInitializer();
 
-    Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
-    Preconditions.checkArgument(
-        maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
 
-    UserStoreContext ctx = maybeCtx.get();
+    try {
+      Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
+      Preconditions.checkArgument(
+              maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
 
-    Streaming.DropFieldEvent event =
-        Streaming.DropFieldEvent.newBuilder()
-            .addAllFieldNames(request.getFieldNamesList())
-            .addAllFieldNamePrefixes(request.getFieldNamePrefixesList())
-            .setDropAll(request.getDropAll())
-            .build();
+      UserStoreContext ctx = maybeCtx.get();
 
-    _ikvKafkaWriter.publishDropFieldEvent(ctx, event);
+      Streaming.DropFieldEvent event =
+              Streaming.DropFieldEvent.newBuilder()
+                      .addAllFieldNames(request.getFieldNamesList())
+                      .addAllFieldNamePrefixes(request.getFieldNamePrefixesList())
+                      .setDropAll(request.getDropAll())
+                      .build();
 
-    super.dropFields(request, responseObserver);
+      _ikvKafkaWriter.publishDropFieldEvent(ctx, event);
+    } catch (Exception e) {
+      LOGGER.debug("Error for dropFields: ", e);
+      propagateError(e, responseObserver);
+      return;
+    }
+
+    responseObserver.onNext(Status.newBuilder().build());
+    responseObserver.onCompleted();
   }
 
   /**
