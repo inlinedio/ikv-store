@@ -5,6 +5,7 @@ import com.google.rpc.Code;
 import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.InlineKVWriteServiceGrpc;
 import com.inlineio.schemas.Services.*;
+import com.inlineio.schemas.Streaming;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
 import io.inlined.cloud.streaming.IKVKafkaWriter;
@@ -69,6 +70,36 @@ public class InlineKVWriteServiceImpl
       upsertDocumentsImpl(request.getUserStoreContextInitializer(), documents);
     } catch (Exception e) {
       LOGGER.debug("Error for batchUpsertFieldValues: ", e);
+      propagateError(e, responseObserver);
+      return;
+    }
+
+    responseObserver.onNext(Status.newBuilder().build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void dropFields(DropFieldsRequest request, StreamObserver<Status> responseObserver) {
+    UserStoreContextInitializer ctxInitializer = request.getUserStoreContextInitializer();
+
+
+    try {
+      Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
+      Preconditions.checkArgument(
+              maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
+
+      UserStoreContext ctx = maybeCtx.get();
+
+      Streaming.DropFieldEvent event =
+              Streaming.DropFieldEvent.newBuilder()
+                      .addAllFieldNames(request.getFieldNamesList())
+                      .addAllFieldNamePrefixes(request.getFieldNamePrefixesList())
+                      .setDropAll(request.getDropAll())
+                      .build();
+
+      _ikvKafkaWriter.publishDropFieldEvent(ctx, event);
+    } catch (Exception e) {
+      LOGGER.debug("Error for dropFields: ", e);
       propagateError(e, responseObserver);
       return;
     }

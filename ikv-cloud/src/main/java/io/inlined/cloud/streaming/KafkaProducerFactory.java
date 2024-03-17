@@ -13,6 +13,9 @@ public class KafkaProducerFactory {
       "b-1.ikvmskv2.nc3bv3.c5.kafka.us-west-2.amazonaws.com:9098,b-2.ikvmskv2.nc3bv3.c5.kafka.us-west-2.amazonaws.com:9098";
 
   public static <R> Producer<Common.FieldValue, R> createInstance() {
+    // TODO: set a custom "partitioner.class" to ensure
+    // event partitioning and request partitioning hash is the same!
+
     Properties props = new Properties();
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_BOOTSTRAP_SERVER);
     props.put(
@@ -21,7 +24,9 @@ public class KafkaProducerFactory {
     props.put(
         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
         "io.inlined.cloud.streaming.SimpleProtoSerializer");
-    props.put(ProducerConfig.BATCH_SIZE_CONFIG, 0); // TODO - remove
+
+    // linger.ms: 0 to avoid trapping grpc request threads
+    // batch.size is default
 
     // iam authentication
     // ref: https://github.com/aws/aws-msk-iam-auth
@@ -33,10 +38,7 @@ public class KafkaProducerFactory {
         "sasl.client.callback.handler.class",
         "software.amazon.msk.auth.iam.IAMClientCallbackHandler");
 
-    // see props for option to add custom partitioner
     // props.put("schema.registry.url", "http://127.0.0.1:8081");
-
-    // topic names are not assigned to a producer
 
     return new KafkaProducer<>(props);
   }

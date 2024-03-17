@@ -5,16 +5,20 @@ import com.inlineio.schemas.Common.*;
 import com.inlineio.schemas.Streaming.*;
 import io.inlined.cloud.UserStoreContext;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class IKVKafkaWriter {
   private static final Logger LOGGER = LogManager.getLogger(IKVKafkaWriter.class);
+  private static final FieldValue BROADCAST_FIELD_VALUE = FieldValue.newBuilder().build();
+
   private final Producer<FieldValue, IKVDataEvent> _kafkaProducer;
 
   public IKVKafkaWriter(Producer<FieldValue, IKVDataEvent> kafkaProducer) {
@@ -163,6 +167,36 @@ public class IKVKafkaWriter {
       ProducerRecord<FieldValue, IKVDataEvent> producerRecord =
           new ProducerRecord<>(context.kafkaTopic(), partitioningKey, event);
 
+      publishToKafkaWithRetries(producerRecord, 3);
+    }
+  }
+
+  public void publishDropFieldEvent(UserStoreContext context, DropFieldEvent dropFieldEvent) {
+    Objects.requireNonNull(context);
+    Objects.requireNonNull(dropFieldEvent);
+
+    if (dropFieldEvent.getFieldNamesCount() == 0
+        && dropFieldEvent.getFieldNamePrefixesCount() == 0
+        && !dropFieldEvent.getDropAll()) {
+      // no op
+      return;
+    }
+
+    IKVDataEvent event =
+        IKVDataEvent.newBuilder()
+            .setEventHeader(EventHeader.newBuilder().build())
+            .setDropFieldEvent(dropFieldEvent)
+            .build();
+
+    List<PartitionInfo> partitions = _kafkaProducer.partitionsFor(context.kafkaTopic());
+
+    // Send a record to each partition
+    // Can fail partially!
+    for (PartitionInfo partition : partitions) {
+      // passing null as partitioning key should be ok
+      ProducerRecord<FieldValue, IKVDataEvent> producerRecord =
+          new ProducerRecord<>(
+              context.kafkaTopic(), partition.partition(), BROADCAST_FIELD_VALUE, event);
       publishToKafkaWithRetries(producerRecord, 3);
     }
   }

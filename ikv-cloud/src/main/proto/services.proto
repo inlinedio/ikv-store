@@ -22,6 +22,8 @@ service InlineKVWriteService {
   rpc deleteDocument(DeleteDocumentRequest) returns (Status) {}
   rpc batchDeleteDocuments(BatchDeleteDocumentsRequest) returns (Status) {}
 
+  rpc dropFields(DropFieldsRequest) returns (Status) {}
+
   // Gateway-specified configuration
   rpc getUserStoreConfig(GetUserStoreConfigRequest) returns (GetUserStoreConfigResponse) {}
 }
@@ -87,14 +89,17 @@ message BatchDeleteDocumentsRequest {
   repeated IKVDocumentOnWire documentIds = 3;
 }
 
-message UserStoreSchemaUpdateRequest {
+// Drop (delete) field(s) from all documents. No-op if the fields don't exist.
+// Attempts to delete primary-key will be ignored.
+message DropFieldsRequest {
   UserStoreContextInitializer userStoreContextInitializer = 1;
-
-  // duplicates (exact match) are ignored
-  // conflicts throw an error (ex. re-registering with different type)
-  repeated FieldSchema newFieldsToAdd = 2;
+  google.protobuf.Timestamp timestamp = 2;
+  repeated string field_names = 3;
+  repeated string field_name_prefixes = 4;
+  bool drop_all = 5;
 }
 
+// TODO: inspect
 // TO BE DEPRECATED
 message FieldSchema {
   // the case-sensitive field name
