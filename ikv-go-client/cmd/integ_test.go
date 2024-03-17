@@ -134,3 +134,46 @@ func TestUpsertAndDelete(t *testing.T) {
 	exists, value, _ = reader.GetStringValue("id_1", "userid")
 	assert.Equal(t, exists, false)
 }
+
+func TestUpsertAndDropField(t *testing.T) {
+	t.Skip("ignore-test")
+
+	accountid := "foo"
+	accountpasskey := "bar"
+
+	// initialize writer and reader
+	factory := ikvclient.IKVClientFactory{}
+	clientOptions, err := ikvclient.NewClientOptionsBuilder().WithAccountId(accountid).WithAccountPasskey(accountpasskey).WithMountDirectory("/tmp/GoIntegTestStore").WithStoreName("testing-store").Build()
+	assert.Equal(t, err, nil)
+	reader, err := factory.CreateNewReader(&clientOptions)
+	assert.Equal(t, err, nil)
+	writer, err := factory.CreateNewWriter(&clientOptions)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, reader.Startup(), nil)
+	assert.Equal(t, writer.Startup(), nil)
+
+	// upsert {"userid": "id_1", "firstname": "Alice"}
+	document, err := ikvclient.NewIKVDocumentBuilder().PutStringField("userid", "id_1").PutStringField("firstname", "Alice").Build()
+	assert.Equal(t, err, nil)
+	err = writer.UpsertFields(&document)
+	assert.Equal(t, err, nil)
+
+	time.Sleep(5 * time.Second)
+
+	// read firstname
+	_, value, _ := reader.GetStringValue("id_1", "firstname")
+	assert.Equal(t, value, "Alice")
+
+	// drop field "firstname", and no-op attempt to delete primary-key
+	err = writer.DropFieldsByName([]string{"firstname", "userid"})
+	assert.Equal(t, err, nil)
+
+	time.Sleep(5 * time.Second)
+
+	// read firstname, should be empty, userid is present
+	exists, value, _ := reader.GetStringValue("id_1", "firstname")
+	assert.Equal(t, exists, false)
+	exists, value, _ = reader.GetStringValue("id_1", "userid")
+	assert.Equal(t, exists, true)
+	assert.Equal(t, value, "id_1")
+}

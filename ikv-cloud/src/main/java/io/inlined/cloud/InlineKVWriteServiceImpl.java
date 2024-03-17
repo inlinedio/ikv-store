@@ -82,20 +82,19 @@ public class InlineKVWriteServiceImpl
   public void dropFields(DropFieldsRequest request, StreamObserver<Status> responseObserver) {
     UserStoreContextInitializer ctxInitializer = request.getUserStoreContextInitializer();
 
-
     try {
       Optional<UserStoreContext> maybeCtx = _userStoreContextAccessor.getCtx(ctxInitializer);
       Preconditions.checkArgument(
-              maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
+          maybeCtx.isPresent(), "Invalid store configuration or credentials provided");
 
       UserStoreContext ctx = maybeCtx.get();
 
       Streaming.DropFieldEvent event =
-              Streaming.DropFieldEvent.newBuilder()
-                      .addAllFieldNames(request.getFieldNamesList())
-                      .addAllFieldNamePrefixes(request.getFieldNamePrefixesList())
-                      .setDropAll(request.getDropAll())
-                      .build();
+          Streaming.DropFieldEvent.newBuilder()
+              .addAllFieldNames(request.getFieldNamesList())
+              .addAllFieldNamePrefixes(request.getFieldNamePrefixesList())
+              .setDropAll(request.getDropAll())
+              .build();
 
       _ikvKafkaWriter.publishDropFieldEvent(ctx, event);
     } catch (Exception e) {

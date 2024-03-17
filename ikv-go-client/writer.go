@@ -157,27 +157,65 @@ func (writer *DefaultIKVWriter) DeleteDocument(document *IKVDocument) error {
 	return err
 }
 
-// Helper to fetch server supplied configs.
-// TODO: move this out of the writer struct for
-// better separation.
-func (writer *DefaultIKVWriter) serverSuppliedConfig() (*schemas.IKVStoreConfig, error) {
+func (writer *DefaultIKVWriter) DropFieldsByName(fieldNames []string) error {
+	if len(fieldNames) == 0 {
+		return nil
+	}
 
 	// create request
-	request := schemas.GetUserStoreConfigRequest{
+	request := schemas.DropFieldsRequest{
 		UserStoreContextInitializer: writer.userStoreCtxInitializer,
+		Timestamp:                   timestamppb.Now(),
+		FieldNames:                  fieldNames,
+		DropAll:                     false,
 	}
 
 	// make request
 	// retries are made automatically for select errors (see policy above)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	_, err := writer.client.DropFields(ctx, &request)
 
-	response, err := writer.client.GetUserStoreConfig(ctx, &request)
-	if err != nil {
-		return nil, err
+	return err
+}
+
+func (writer *DefaultIKVWriter) DropFieldsByNamePrefix(fieldNamePrefixes []string) error {
+	if len(fieldNamePrefixes) == 0 {
+		return nil
 	}
 
-	return response.GlobalConfig, nil
+	// create request
+	request := schemas.DropFieldsRequest{
+		UserStoreContextInitializer: writer.userStoreCtxInitializer,
+		Timestamp:                   timestamppb.Now(),
+		FieldNamePrefixes:           fieldNamePrefixes,
+		DropAll:                     false,
+	}
+
+	// make request
+	// retries are made automatically for select errors (see policy above)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := writer.client.DropFields(ctx, &request)
+
+	return err
+}
+
+func (writer *DefaultIKVWriter) DropAllFields() error {
+	// create request
+	request := schemas.DropFieldsRequest{
+		UserStoreContextInitializer: writer.userStoreCtxInitializer,
+		Timestamp:                   timestamppb.Now(),
+		DropAll:                     true,
+	}
+
+	// make request
+	// retries are made automatically for select errors (see policy above)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := writer.client.DropFields(ctx, &request)
+
+	return err
 }
 
 // HealthCheck implements IKVWriter.
@@ -210,4 +248,27 @@ func (writer *DefaultIKVWriter) Helloworld(input string) (*schemas.HelloWorldRes
 	defer cancel()
 
 	return writer.client.HelloWorld(ctx, &request)
+}
+
+// Helper to fetch server supplied configs.
+// TODO: move this out of the writer struct for
+// better separation.
+func (writer *DefaultIKVWriter) serverSuppliedConfig() (*schemas.IKVStoreConfig, error) {
+
+	// create request
+	request := schemas.GetUserStoreConfigRequest{
+		UserStoreContextInitializer: writer.userStoreCtxInitializer,
+	}
+
+	// make request
+	// retries are made automatically for select errors (see policy above)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	response, err := writer.client.GetUserStoreConfig(ctx, &request)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.GlobalConfig, nil
 }
