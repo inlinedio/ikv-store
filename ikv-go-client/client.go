@@ -71,6 +71,17 @@ type IKVWriter interface {
 	// Provided `document` must contain the value of the primary-key and (if-applicable) partitioning-key.
 	DeleteDocument(document *IKVDocument) error
 
+	// Drop specified fields for all documents.
+	// Attempts to drop primary-key field are silently ignored (no error).
+	DropFieldsByName(fieldNames []string) error
+
+	// Drop specified fields for all documents, by specifying field name prefixes.
+	// Attempts to drop primary-key field are silently ignored (no error).
+	DropFieldsByNamePrefix(fieldNamePrefixes []string) error
+
+	// Drop all fields (except primary-key) for all documents.
+	DropAllFields() error
+
 	HealthCheck() (bool, error)
 }
 

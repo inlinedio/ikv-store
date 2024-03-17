@@ -27,6 +27,7 @@ const (
 	InlineKVWriteService_BatchDeleteFieldValues_FullMethodName = "/ikvschemas.InlineKVWriteService/batchDeleteFieldValues"
 	InlineKVWriteService_DeleteDocument_FullMethodName         = "/ikvschemas.InlineKVWriteService/deleteDocument"
 	InlineKVWriteService_BatchDeleteDocuments_FullMethodName   = "/ikvschemas.InlineKVWriteService/batchDeleteDocuments"
+	InlineKVWriteService_DropFields_FullMethodName             = "/ikvschemas.InlineKVWriteService/dropFields"
 	InlineKVWriteService_GetUserStoreConfig_FullMethodName     = "/ikvschemas.InlineKVWriteService/getUserStoreConfig"
 )
 
@@ -42,6 +43,7 @@ type InlineKVWriteServiceClient interface {
 	BatchDeleteFieldValues(ctx context.Context, in *BatchDeleteFieldValuesRequest, opts ...grpc.CallOption) (*Status, error)
 	DeleteDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*Status, error)
 	BatchDeleteDocuments(ctx context.Context, in *BatchDeleteDocumentsRequest, opts ...grpc.CallOption) (*Status, error)
+	DropFields(ctx context.Context, in *DropFieldsRequest, opts ...grpc.CallOption) (*Status, error)
 	// Gateway-specified configuration
 	GetUserStoreConfig(ctx context.Context, in *GetUserStoreConfigRequest, opts ...grpc.CallOption) (*GetUserStoreConfigResponse, error)
 }
@@ -117,6 +119,15 @@ func (c *inlineKVWriteServiceClient) BatchDeleteDocuments(ctx context.Context, i
 	return out, nil
 }
 
+func (c *inlineKVWriteServiceClient) DropFields(ctx context.Context, in *DropFieldsRequest, opts ...grpc.CallOption) (*Status, error) {
+	out := new(Status)
+	err := c.cc.Invoke(ctx, InlineKVWriteService_DropFields_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *inlineKVWriteServiceClient) GetUserStoreConfig(ctx context.Context, in *GetUserStoreConfigRequest, opts ...grpc.CallOption) (*GetUserStoreConfigResponse, error) {
 	out := new(GetUserStoreConfigResponse)
 	err := c.cc.Invoke(ctx, InlineKVWriteService_GetUserStoreConfig_FullMethodName, in, out, opts...)
@@ -138,6 +149,7 @@ type InlineKVWriteServiceServer interface {
 	BatchDeleteFieldValues(context.Context, *BatchDeleteFieldValuesRequest) (*Status, error)
 	DeleteDocument(context.Context, *DeleteDocumentRequest) (*Status, error)
 	BatchDeleteDocuments(context.Context, *BatchDeleteDocumentsRequest) (*Status, error)
+	DropFields(context.Context, *DropFieldsRequest) (*Status, error)
 	// Gateway-specified configuration
 	GetUserStoreConfig(context.Context, *GetUserStoreConfigRequest) (*GetUserStoreConfigResponse, error)
 	mustEmbedUnimplementedInlineKVWriteServiceServer()
@@ -167,6 +179,9 @@ func (UnimplementedInlineKVWriteServiceServer) DeleteDocument(context.Context, *
 }
 func (UnimplementedInlineKVWriteServiceServer) BatchDeleteDocuments(context.Context, *BatchDeleteDocumentsRequest) (*Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BatchDeleteDocuments not implemented")
+}
+func (UnimplementedInlineKVWriteServiceServer) DropFields(context.Context, *DropFieldsRequest) (*Status, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DropFields not implemented")
 }
 func (UnimplementedInlineKVWriteServiceServer) GetUserStoreConfig(context.Context, *GetUserStoreConfigRequest) (*GetUserStoreConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserStoreConfig not implemented")
@@ -310,6 +325,24 @@ func _InlineKVWriteService_BatchDeleteDocuments_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InlineKVWriteService_DropFields_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DropFieldsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InlineKVWriteServiceServer).DropFields(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InlineKVWriteService_DropFields_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InlineKVWriteServiceServer).DropFields(ctx, req.(*DropFieldsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _InlineKVWriteService_GetUserStoreConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetUserStoreConfigRequest)
 	if err := dec(in); err != nil {
@@ -362,6 +395,10 @@ var InlineKVWriteService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "batchDeleteDocuments",
 			Handler:    _InlineKVWriteService_BatchDeleteDocuments_Handler,
+		},
+		{
+			MethodName: "dropFields",
+			Handler:    _InlineKVWriteService_DropFields_Handler,
 		},
 		{
 			MethodName: "getUserStoreConfig",
