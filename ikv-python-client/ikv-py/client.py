@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from clientoptions import ClientOptions
 from document import IKVDocument
 from typing import List, Tuple
+from schemas.services_pb2 import HelloWorldRequest
 
 class IKVReader(ABC):
     """
