@@ -38,6 +38,7 @@ func (reader *DefaultIKVReader) Startup() error {
 			return errors.New("mount_directory is a required client specified option")
 		}
 
+		// ensures `mountdir` and all of its parents exists, creates if not.
 		bin_manager, err := NewBinaryManager(mountdir)
 		if err != nil {
 			return err
