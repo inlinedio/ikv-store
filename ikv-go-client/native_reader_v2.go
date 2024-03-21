@@ -4,6 +4,7 @@ package ikvclient
 #cgo LDFLAGS: -ldl
 #include <dlfcn.h>
 
+// Start of common C code (Go, Python)
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -19,6 +20,7 @@ int64_t open_index(const char *config, int32_t config_len);
 void close_index(int64_t handle);
 BytesBuffer get_field_value(int64_t handle, const char *pkey, int32_t pkey_len, const char *field_name);
 void free_bytes_buffer(BytesBuffer buf);
+// End of common C code (Go, Python)
 
 // function pointer type
 typedef int64_t (*go_health_check_type)(const char*);
@@ -88,6 +90,9 @@ func NewNativeReaderV2(dllPath string) (*NativeReaderV2, error) {
 	if dllhandle == nil {
 		return nil, errors.New("cannot load library")
 	}
+
+	// TODO: dll_path_cstr might not be required
+	// also invoke free() on cstrings for function names below
 
 	nr.dll_path_cstr = unsafe.Pointer(dllPath_cstr)
 

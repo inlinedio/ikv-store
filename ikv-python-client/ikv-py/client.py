@@ -18,11 +18,11 @@ class IKVReader(ABC):
         raise NotImplementedError("subclass must override")
 
     @abstractmethod
-    def get_bytes_value(self, primary_key, field_name: str) -> Tuple[bool, bytearray]:
+    def get_bytes_value(self, primary_key, field_name: str) -> bytes:
         raise NotImplementedError("subclass must override")
 
     @abstractmethod
-    def get_string_value(self, primary_key, field_name: str) -> Tuple[bool, str]:
+    def get_string_value(self, primary_key, field_name: str) -> str:
         raise NotImplementedError("subclass must override")
 
 class IKVWriter(ABC):
