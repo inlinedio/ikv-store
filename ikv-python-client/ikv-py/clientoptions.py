@@ -5,7 +5,10 @@ class ClientOptions:
     _VALID_LOG_LEVELS = {"error", "warn", "info", "debug", "trace"}
 
     def __init__(self, ikv_config: IKVStoreConfig):
-        self.ikv_config = ikv_config
+        self._ikv_config = ikv_config
+    
+    def get_ikv_config(self) -> IKVStoreConfig:
+        return self._ikv_config
 
 class ClientOptionsBuilder:
     def __init__(self):
