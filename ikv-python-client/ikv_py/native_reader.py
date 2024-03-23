@@ -1,3 +1,4 @@
+from typing import Optional
 from cffi import FFI
 from utils import is_valid_str_or_raise
 from utils import is_valid_bytes_or_raise
@@ -44,7 +45,7 @@ class NativeReader:
 
         self.dll.close_index(self.index_handle)
 
-    def get_field_value(self, primary_key: bytes, field_name: str) -> bytes:
+    def get_field_value(self, primary_key: bytes, field_name: str) -> Optional[bytes]:
         # avoid runtime arg checks in hot path
         c_primary_key = ffi.new("char[]", primary_key)
 
@@ -64,9 +65,5 @@ class NativeReader:
 
         # release rust allocated objects
         self.dll.free_bytes_buffer(bytes_buffer)
-
-        # explicit garbage release
-        ffi.release(c_primary_key)
-        ffi.release(c_field_name)
 
         return value

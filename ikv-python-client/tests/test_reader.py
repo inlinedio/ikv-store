@@ -3,16 +3,18 @@ from ikv_py.native_reader import NativeReader
 from ikv_py.clientoptions import ClientOptions, ClientOptionsBuilder
 import ikv_py.client as ikv_client
 from ikv_py.factory import create_new_reader
+from env_var import EnvReader
 
 class TestIKVReaderImpl(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         # setup client options
+        env = EnvReader()
         client_options: ClientOptions = ClientOptionsBuilder() \
-            .with_account_id("foo")\
-            .with_account_passkey("bar")\
-            .with_store_name("baz")\
-            .with_mount_directory("/tmp/python-integ-test")\
+            .with_account_id(env.get("ACCOUNT_ID"))\
+            .with_account_passkey(env.get("ACCOUNT_PASSKEY"))\
+            .with_store_name(env.get("STORE_NAME"))\
+            .with_mount_directory(env.get("MOUNT_DIR"))\
             .build()
         
         # setup reader
