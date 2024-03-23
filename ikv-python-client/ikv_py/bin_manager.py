@@ -71,8 +71,7 @@ class NativeBinaryManager:
         # release/{mac|linux|windows}-{aarch64|x86_64|tbd}
         platform_prefix = NativeBinaryManager.platform_s3_prefix()
         if platform_prefix is None:
-            raise RuntimeError("Unsupported platform os: {}, architecture: {}".format(\
-                platform.system(), platform.machine()))
+            return None, None
 
         response = self.s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=platform_prefix)
         
