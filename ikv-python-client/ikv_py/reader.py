@@ -2,6 +2,8 @@ from typing import Optional
 from client import IKVReader
 from clientoptions import ClientOptions
 from writer import IKVWriterImpl
+from bin_manager import NativeBinaryManager
+from utils import is_valid_str_or_raise
 
 import native_reader
 import schemas.common_pb2 as common_pb2
@@ -11,11 +13,17 @@ class IKVReaderImpl(IKVReader):
         if client_options is None:
             raise TypeError("client_options are required and can't be None")
         self.client_options = client_options
-
-        # TODO: download dll dynamically
-        self.native_reader = native_reader.NativeReader("/Users/pushkar/projects/ikv-store/ikv/target/release/libikv.dylib")
+        self.native_reader = None # initialized at startup
 
     def startup(self):
+        # download dll and initialize native reader
+        mount_dir = is_valid_str_or_raise(self.client_options.get_ikv_config().stringConfigs["mount_dir"])
+        bin_manager = NativeBinaryManager(mount_dir=mount_dir)
+        dll_path = bin_manager.get_path_to_dll()
+        if dll_path is None:
+            raise RuntimeError("Cannot download IKV native binary")
+        self.native_reader = native_reader.NativeReader(dll_path)
+
         # fetch server supplied config and merge with client cfg
         writer: IKVWriterImpl = IKVWriterImpl(self.client_options)
         writer.startup()
