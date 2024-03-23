@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from clientoptions import ClientOptions
 from document import IKVDocument
-from typing import List, Tuple
-from schemas.services_pb2 import HelloWorldRequest
+from typing import List
 
 class IKVReader(ABC):
     """
@@ -61,12 +60,3 @@ class IKVWriter(ABC):
     @abstractmethod
     def drop_all_fields(self):
         raise NotImplementedError("subclass must override")
-
-"""
-Factory methods
-"""
-def create_new_reader(client_options: ClientOptions) -> IKVReader:
-    pass
-
-def create_new_writer(client_options: ClientOptions) -> IKVWriter:
-    pass
