@@ -4,10 +4,6 @@ from document import IKVDocument
 from typing import List
 
 class IKVReader(ABC):
-    """
-    IKV Reader client. 
-    TODO(pugupta) - docstrings
-    """
     @abstractmethod
     def startup(self):
         raise NotImplementedError("subclass must override")
@@ -25,10 +21,6 @@ class IKVReader(ABC):
         raise NotImplementedError("subclass must override")
 
 class IKVWriter(ABC):
-    """
-    IKV Writer client. 
-    TODO(pugupta) - docstrings
-    """
     @abstractmethod
     def startup(self):
         raise NotImplementedError("subclass must override")

@@ -1,3 +1,4 @@
+from typing import Optional
 from client import IKVReader
 from clientoptions import ClientOptions
 from writer import IKVWriterImpl
@@ -31,7 +32,7 @@ class IKVReaderImpl(IKVReader):
         self.native_reader.close()
 
     # nullable return type
-    def get_bytes_value(self, primary_key, field_name: str) -> bytes:
+    def get_bytes_value(self, primary_key, field_name: str) -> Optional[bytes]:
         if isinstance(primary_key, str):
             return self.native_reader.get_field_value(bytes(primary_key.encode('utf-8')), field_name)
         
@@ -43,7 +44,7 @@ class IKVReaderImpl(IKVReader):
         
         raise TypeError("unsupported primary_key type: {}, supported: str/bytes/bytearray".format(type(primary_key)))
 
-    def get_string_value(self, primary_key, field_name: str) -> str:
+    def get_string_value(self, primary_key, field_name: str) -> Optional[str]:
         maybe_value = self.get_bytes_value(primary_key, field_name)
         
         if maybe_value is None:

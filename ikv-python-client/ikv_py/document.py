@@ -9,9 +9,6 @@ class IKVDocument:
         self.fields: Dict[str, FieldValue] = fields
     
     def len(self):
-        """
-        Number of fields in this document.
-        """
         if self.fields is None:
             return 0
         return len(self.fields)
