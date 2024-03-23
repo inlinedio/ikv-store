@@ -20,7 +20,7 @@ class NativeBinaryManager:
         self.s3_client = boto3.client('s3', region_name=REGION)
         self.mount_dir = is_valid_str_or_raise(mount_dir)
     
-    def init_mount_dir(self):
+    def _init_mount_dir(self):
         """
         Ensures mount & mount/bin directories are usable.
         """
@@ -28,6 +28,8 @@ class NativeBinaryManager:
         os.makedirs("{}/bin".format(self.mount_dir), exist_ok=True)
 
     def get_path_to_dll(self) -> Optional[str]:
+        self._init_mount_dir()
+
         # ex. 0.0.3, /path/to/mount/bin/0.0.3-libikv.so
         local_semver, local_dll_path = self._local_dll_details()
         
@@ -101,12 +103,12 @@ class NativeBinaryManager:
         Also deletes older local binaries.
         """
         # delete existing binaries
-        NativeBinaryManager._delete_files_in_directory()
+        NativeBinaryManager._delete_files_in_directory("{}/bin".format(self.mount_dir))
 
         # ex. release/mac-aarch64/0.0.5-libiky.dylib -> 0.0.5-libiky.dylib
         remote_dll_filename = object_key.split("/")[-1]
         # ex. /path/to/mount/bin/0.0.5-libiky.dylib
-        local_dll_path = "{}/bin/".format(self.mount_dir, remote_dll_filename)
+        local_dll_path = "{}/bin/{}".format(self.mount_dir, remote_dll_filename)
 
         # download from s3 in chunks
         response = self.s3_client.get_object(Bucket=BUCKET_NAME, Key=object_key)

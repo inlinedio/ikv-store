@@ -67,7 +67,7 @@ class IKVWriterImpl(IKVWriter):
             return response.globalConfig
         except grpc.RpcError as rpc_error:
             status = rpc_status.from_call(rpc_error)
-            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
+            raise RuntimeError(f"Unexpected failure {status}")
 
     def upsert_fields(self, document: IKVDocument):
         if document is None or document.len() < 1:
