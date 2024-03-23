@@ -1,15 +1,33 @@
+import json
 import grpc
 import schemas.services_pb2_grpc as services_pb2_grpc
 import schemas.services_pb2 as services_pb2
 import schemas.common_pb2 as common_pb2
 
 from google.protobuf import timestamp_pb2
+from grpc_status import rpc_status
 
 from client import IKVWriter
 from document import IKVDocument
 from typing import List, Optional
 from clientoptions import ClientOptions
 from utils import is_valid_str_or_raise
+
+# grpc call retry policy
+retry_policy = json.dumps(
+    {
+        "methodConfig": [{
+            "name": [{"service": "ikvschemas.InlineKVWriteService"}],
+            "retryPolicy": {
+			  "MaxAttempts": 3,
+			  "InitialBackoff": ".01s",
+			  "MaxBackoff": ".01s",
+			  "BackoffMultiplier": 1.0,
+			  "RetryableStatusCodes": [ "UNAVAILABLE" ]
+            },
+        }]
+    }
+)
 
 class IKVWriterImpl(IKVWriter):
     def __init__(self, client_options: ClientOptions):
@@ -31,7 +49,8 @@ class IKVWriterImpl(IKVWriter):
         self.stub = None
 
     def startup(self):
-        self.channel = grpc.secure_channel(target="gateway.inlined.io:443", credentials=grpc.ssl_channel_credentials())
+        self.channel = grpc.secure_channel(target="gateway.inlined.io:443", credentials=grpc.ssl_channel_credentials(), \
+            options=[("grpc.service_config", retry_policy)])
         self.stub = services_pb2_grpc.InlineKVWriteServiceStub(self.channel)
 
     def shutdown(self):
@@ -43,8 +62,12 @@ class IKVWriterImpl(IKVWriter):
         request: services_pb2.GetUserStoreConfigRequest = services_pb2.GetUserStoreConfigRequest(\
             userStoreContextInitializer=self.user_store_context_initializer)
 
-        response: services_pb2.GetUserStoreConfigResponse = self.stub.getUserStoreConfig(request) # todo: errors and retries
-        return response.globalConfig
+        try:
+            response: services_pb2.GetUserStoreConfigResponse = self.stub.getUserStoreConfig(request)
+            return response.globalConfig
+        except grpc.RpcError as rpc_error:
+            status = rpc_status.from_call(rpc_error)
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
 
     def upsert_fields(self, document: IKVDocument):
         if document is None or document.len() < 1:
@@ -54,7 +77,11 @@ class IKVWriterImpl(IKVWriter):
             userStoreContextInitializer=self.user_store_context_initializer, timestamp=self._create_timestamp(), \
                 document=document.as_ikv_document_on_wire())
         
-        self.stub.upsertFieldValues(request) # TODO: error handling
+        try:
+            self.stub.upsertFieldValues(request)
+        except grpc.RpcError as rpc_error:
+            status = rpc_status.from_call(rpc_error)
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
 
     def delete_fields(self, document: IKVDocument, fields_to_delete: List[str]):
         if document is None or document.len() < 1:
@@ -62,12 +89,16 @@ class IKVWriterImpl(IKVWriter):
         
         if fields_to_delete is None or len(fields_to_delete) == 0:
             return
-        
+
         request = services_pb2.DeleteFieldValueRequest(\
             userStoreContextInitializer=self.user_store_context_initializer, timestamp=self._create_timestamp(), \
                 documentId=document.as_ikv_document_on_wire(), fieldNames=fields_to_delete)
 
-        self.stub.deleteFieldValues(request) # TODO: error handling
+        try:
+            self.stub.deleteFieldValues(request)
+        except grpc.RpcError as rpc_error:
+            status = rpc_status.from_call(rpc_error)
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
 
     def delete_document(self, document: IKVDocument):
         if document is None or document.len() < 1:
@@ -77,7 +108,11 @@ class IKVWriterImpl(IKVWriter):
             userStoreContextInitializer=self.user_store_context_initializer, timestamp=self._create_timestamp(), \
                 documentId=document.as_ikv_document_on_wire())
 
-        self.stub.deleteDocument(request) # TODO: error handling
+        try:
+            self.stub.deleteDocument(request)
+        except grpc.RpcError as rpc_error:
+            status = rpc_status.from_call(rpc_error)
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
 
     def drop_fields_by_name(self, field_names: List[str]):
         if field_names is None or len(field_names) == 0:
@@ -87,7 +122,11 @@ class IKVWriterImpl(IKVWriter):
             userStoreContextInitializer=self.user_store_context_initializer, timestamp=self._create_timestamp(), \
                 field_names=field_names, drop_all=False)
         
-        self.stub.dropFields(request) # TODO: error handling
+        try:
+            self.stub.dropFields(request)
+        except grpc.RpcError as rpc_error:
+            status = rpc_status.from_call(rpc_error)
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
 
     def drop_fields_by_name_prefix(self, field_name_prefixes: List[str]):
         if field_name_prefixes is None or len(field_name_prefixes) == 0:
@@ -97,13 +136,21 @@ class IKVWriterImpl(IKVWriter):
             userStoreContextInitializer=self.user_store_context_initializer, timestamp=self._create_timestamp(), \
                 field_name_prefixes=field_name_prefixes, drop_all=False)
         
-        self.stub.dropFields(request) # TODO: error handling
+        try:
+            self.stub.dropFields(request)
+        except grpc.RpcError as rpc_error:
+            status = rpc_status.from_call(rpc_error)
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
 
     def drop_all_fields(self):
         request: services_pb2.DropFieldsRequest = services_pb2.DropFieldsRequest(\
             userStoreContextInitializer=self.user_store_context_initializer, timestamp=self._create_timestamp(), drop_all=True)
         
-        self.stub.dropFields(request) # TODO: error handling
+        try:
+            self.stub.dropFields(request)
+        except grpc.RpcError as rpc_error:
+            status = rpc_status.from_call(rpc_error)
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
     
     def _create_timestamp(self):
         timestamp = timestamp_pb2.Timestamp()

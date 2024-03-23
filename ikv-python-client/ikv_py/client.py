@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from clientoptions import ClientOptions
 from document import IKVDocument
-from typing import List
+from typing import List, Optional
 
 class IKVReader(ABC):
     @abstractmethod
@@ -13,11 +13,11 @@ class IKVReader(ABC):
         raise NotImplementedError("subclass must override")
 
     @abstractmethod
-    def get_bytes_value(self, primary_key, field_name: str) -> bytes:
+    def get_bytes_value(self, primary_key, field_name: str) -> Optional[bytes]:
         raise NotImplementedError("subclass must override")
 
     @abstractmethod
-    def get_string_value(self, primary_key, field_name: str) -> str:
+    def get_string_value(self, primary_key, field_name: str) -> Optional[str]:
         raise NotImplementedError("subclass must override")
 
 class IKVWriter(ABC):
