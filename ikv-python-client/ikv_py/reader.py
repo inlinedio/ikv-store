@@ -17,8 +17,9 @@ class IKVReaderImpl(IKVReader):
 
     def startup(self):
         # download dll and initialize native reader
-        mount_dir = is_valid_str_or_raise(self.client_options.get_ikv_config().stringConfigs["mount_dir"])
+        mount_dir = is_valid_str_or_raise(self.client_options.get_ikv_config().stringConfigs["mount_directory"])
         bin_manager = NativeBinaryManager(mount_dir=mount_dir)
+
         dll_path = bin_manager.get_path_to_dll()
         if dll_path is None:
             raise RuntimeError("Cannot download IKV native binary")
