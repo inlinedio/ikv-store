@@ -1,5 +1,5 @@
 from typing import Dict
-from schemas.common_pb2 import FieldValue
+from schemas.common_pb2 import FieldValue, IKVDocumentOnWire
 from schemas.common_pb2 import STRING as FieldValueString
 from schemas.common_pb2 import BYTES as FieldValueBytes
 import utils as ikvutils
@@ -7,6 +7,17 @@ import utils as ikvutils
 class IKVDocument:
     def __init__(self, fields: Dict[str, FieldValue]):
         self.fields: Dict[str, FieldValue] = fields
+    
+    def len(self):
+        """
+        Number of fields in this document.
+        """
+        if self.fields is None:
+            return 0
+        return len(self.fields)
+    
+    def as_ikv_document_on_wire(self) -> IKVDocumentOnWire:
+        return IKVDocumentOnWire(document=self.fields)
 
 class IKVDocumentBuilder:
     def __init__(self):

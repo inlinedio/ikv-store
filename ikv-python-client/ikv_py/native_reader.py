@@ -6,11 +6,6 @@ from utils import is_valid_bytes_or_raise
 ffi = FFI()
 ffi.cdef("""
     // Start of common C code (Go, Python)
-    #include <stdarg.h>
-    #include <stdbool.h>
-    #include <stdint.h>
-    #include <stdlib.h>
-
     typedef struct BytesBuffer {
     int32_t length;
     uint8_t *start;
@@ -31,7 +26,7 @@ class NativeReader:
     
     def health_check(self, input: str) -> bool:
         # this will be auto free'd with python gc
-        c_input = ffi.new("char[]", is_valid_str_or_raise(input))
+        c_input = ffi.new("char[]", is_valid_str_or_raise(input).encode('utf-8'))
         status = self.dll.health_check(c_input)
         return status == 0
 
@@ -40,7 +35,7 @@ class NativeReader:
             return
 
         # this will be auto free'd with python gc
-        c_ikv_config = ffi.new("char[]", is_valid_bytes_or_raise(bytes))
+        c_ikv_config = ffi.new("char[]", is_valid_bytes_or_raise(ikv_config))
         self.index_handle = self.dll.open_index(c_ikv_config, len(ikv_config))
 
     def close(self):
@@ -54,7 +49,7 @@ class NativeReader:
         c_primary_key = ffi.new("char[]", primary_key)
 
         # TODO: see if we can create a pool of python->c strings
-        c_field_name = ffi.new("char[]", field_name)
+        c_field_name = ffi.new("char[]", field_name.encode('utf-8'))
 
         bytes_buffer = self.dll.get_field_value(self.index_handle, c_primary_key, len(primary_key), c_field_name)
         

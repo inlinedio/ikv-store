@@ -20,6 +20,8 @@ pub extern "C" fn health_check(input: *const libc::c_char) -> i64 {
 pub extern "C" fn open_index(config: *const libc::c_char, config_len: i32) -> i64 {
     let cfg_bytes = unsafe { std::slice::from_raw_parts(config as *const u8, config_len as usize) };
 
+    // TODO! remove all the unwraps and propagate errors.
+
     // deserialize configs
     let ikv_config = IKVStoreConfig::parse_from_bytes(cfg_bytes).expect("cannot deser");
 

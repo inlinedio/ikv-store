@@ -13,16 +13,14 @@ class ClientOptions:
 class ClientOptionsBuilder:
     def __init__(self):
         # initialize ikvconfig proto object
-        ikv_config = IKVStoreConfig()
-        ikv_config.stringConfigs = {}
-        ikv_config.intConfigs = {}
-        ikv_config.floatConfigs = {}
-        ikv_config.bytesConfigs = {}
-        ikv_config.booleanConfigs = {}
+        ikv_config = IKVStoreConfig(stringConfigs={}, intConfigs={}, floatConfigs={}, bytesConfigs={}, booleanConfigs={})
 
         # default logging options
         ikv_config.stringConfigs["rust_client_log_level"] = "info"
         ikv_config.booleanConfigs["rust_client_log_to_console"] = True
+
+        # TODO: remove explicit parititon
+        ikv_config.intConfigs["partition"] = 0
 
         self.ikv_config: IKVStoreConfig = ikv_config
     
