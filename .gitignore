@@ -7,6 +7,9 @@ build/
 ### Rust
 ikv/target/*
 
+### Python
+ikv-python-client/.env
+
 ### Docs
 ikv-store/docs/node_modules
 
