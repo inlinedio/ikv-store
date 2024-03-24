@@ -5,8 +5,7 @@ use protobuf::Message;
 
 use crate::controller::external_handle;
 use crate::controller::index_builder::IndexBuilder;
-use crate::controller::main::Controller;
-use crate::ffi::utils;
+use crate::ffi::{api, utils};
 use crate::proto::generated_proto::common::IKVStoreConfig;
 use crate::proto::generated_proto::streaming::IKVDataEvent;
 
@@ -87,16 +86,9 @@ fn open<'local>(
     _class: JClass<'local>,
     config: JByteArray<'local>,
 ) -> anyhow::Result<jlong> {
-    // parse supplied configs
     let config = utils::jbyte_array_to_vec(env, config)?;
     let ikv_config = IKVStoreConfig::parse_from_bytes(&config)?;
-
-    // configure logging
-    crate::utils::logging::configure_logging(&ikv_config)?;
-
-    // create and startup controller
-    let controller = Controller::open(&ikv_config)?;
-    Ok(external_handle::to_external_handle(controller))
+    api::open_index(&ikv_config)
 }
 
 #[no_mangle]
@@ -105,8 +97,7 @@ pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_close<'local>(
     _class: JClass<'local>,
     handle: jlong,
 ) {
-    let boxed_controller = external_handle::to_box(handle);
-    if let Err(e) = boxed_controller.close() {
+    if let Err(e) = api::close_index(handle) {
         let exception = format!("Cannot close reader, failed with error: {}", e.to_string());
         let _ = env.throw_new("java/lang/RuntimeException", exception);
         return;

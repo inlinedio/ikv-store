@@ -12,8 +12,13 @@ ffi.cdef("""
     uint8_t *start;
     } BytesBuffer;
 
+    typedef struct IndexHandle {
+    int64_t handle;
+    int64_t status;
+    } IndexHandle;
+
     int64_t health_check(const char *input);
-    int64_t open_index(const char *config, int32_t config_len);
+    IndexHandle open_index_v2(const char *config, int32_t config_len);
     void close_index(int64_t handle);
     BytesBuffer get_field_value(int64_t handle, const char *pkey, int32_t pkey_len, const char *field_name);
     void free_bytes_buffer(BytesBuffer buf);
@@ -37,7 +42,14 @@ class NativeReader:
 
         # this will be auto free'd with python gc
         c_ikv_config = ffi.new("char[]", is_valid_bytes_or_raise(ikv_config))
-        self.index_handle = self.dll.open_index(c_ikv_config, len(ikv_config))
+        index_handle = self.dll.open_index_v2(c_ikv_config, len(ikv_config))
+
+        if index_handle.status == 0:
+            self.index_handle = index_handle.handle
+            return
+        
+        # error
+        raise RuntimeError("Cannot open IKV reader, error code: {}".format(index_handle.status))
 
     def close(self):
         if self.index_handle == -1:
