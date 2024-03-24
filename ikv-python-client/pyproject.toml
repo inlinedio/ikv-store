@@ -1,0 +1,82 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ikv-py"
+dynamic = ["version"]
+description = 'Python client for IKV (Inlined Key Value Store)'
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = ["ikv", "ikv-py", "ikv_py", "inlined"]
+authors = [
+  { name = "Pushkar Gupta", email = "pushkar@inlined.io" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/inlinedio/ikv-store"
+Documentation = "https://github.com/inlinedio/ikv-store#readme"
+Issues = "https://github.com/inlinedio/ikv-store/issues"
+Source = "https://github.com/inlinedio/ikv-store/ikv-python-client"
+
+[tool.hatch.version]
+path = "src/ikv_py/__about__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+  "coverage[toml]>=6.5",
+  "pytest",
+]
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+]
+
+[[tool.hatch.envs.all.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+[tool.hatch.envs.types]
+dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/ikv_py tests}"
+
+[tool.coverage.run]
+source_pkgs = ["ikv_py", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/ikv_py/__about__.py",
+]
+
+[tool.coverage.paths]
+ikv_py = ["src/ikv_py", "*/ikv-py/src/ikv_py"]
+tests = ["tests", "*/ikv-py/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
