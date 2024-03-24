@@ -44,20 +44,21 @@ class IKVWriterImpl(IKVWriter):
         self.user_store_context_initializer: services_pb2.UserStoreContextInitializer = \
             services_pb2.UserStoreContextInitializer(credentials=credentials, storeName=store_name)
 
-        # grpc client state
         self.channel = None
         self.stub = None
 
     def startup(self):
-        options = []
-        options.append(("grpc.service_config", retry_policy))
-        self.channel = grpc.secure_channel(target="gateway.inlined.io:443", credentials=grpc.ssl_channel_credentials(), options=options)
-        self.stub = services_pb2_grpc.InlineKVWriteServiceStub(self.channel)
+        if self.channel is None:
+            options = []
+            options.append(("grpc.service_config", retry_policy))
+            self.channel = grpc.secure_channel(target="gateway.inlined.io:443", credentials=grpc.ssl_channel_credentials(), options=options)
+            self.stub = services_pb2_grpc.InlineKVWriteServiceStub(self.channel)
 
     def shutdown(self):
-        self.channel.close()
-        self.channel = None
-        self.stub = None
+        if self.channel is not None:
+            self.channel.close()
+            self.channel = None
+            self.stub = None
 
     def fetch_server_supplied_config(self) -> Optional[common_pb2.IKVStoreConfig]:
         request: services_pb2.GetUserStoreConfigRequest = services_pb2.GetUserStoreConfigRequest(\
@@ -68,7 +69,7 @@ class IKVWriterImpl(IKVWriter):
             return response.globalConfig
         except grpc.RpcError as rpc_error:
             status = rpc_status.from_call(rpc_error)
-            raise RuntimeError(f"Unexpected failure {status}")
+            raise RuntimeError(f"Unexpected failure, status code: {status.code} message: {status.message}")
 
     def upsert_fields(self, document: IKVDocument):
         if document is None or document.len() < 1:

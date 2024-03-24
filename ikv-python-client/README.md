@@ -1,3 +1,6 @@
+Readme: See https://github.com/inlinedio/ikv-store
+
+
 Generating python code from proto:
 
 $> python3 -m pip install grpcio-tools

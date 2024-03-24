@@ -5,12 +5,17 @@ from schemas.common_pb2 import BYTES as FieldValueBytes
 import utils as ikvutils
 
 class IKVDocument:
+    """ 
+    Representation of documents for writing into IKV. 
+    See IKVDocumentBuilder to instantiate. 
+    """
     def __init__(self, fields: Dict[str, FieldValue]):
+        """ DO NOT use directly, see IKVDocumentBuilder to instantiate."""
+        if fields is None:
+            raise ValueError("fields cannot be None")
         self.fields: Dict[str, FieldValue] = fields
     
     def len(self):
-        if self.fields is None:
-            return 0
         return len(self.fields)
     
     def as_ikv_document_on_wire(self) -> IKVDocumentOnWire:

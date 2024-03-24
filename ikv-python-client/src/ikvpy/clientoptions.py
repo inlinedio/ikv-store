@@ -2,17 +2,27 @@ from schemas.common_pb2 import IKVStoreConfig
 import utils as ikvutils
 
 class ClientOptions:
+    """
+    Reader/Writer client configuration options.
+    Reference: https://docs.inlined.io/clients/python-guide#configuration
+    See ClientOptionsBuilder to instantiate.
+    """
+
     _VALID_LOG_LEVELS = {"error", "warn", "info", "debug", "trace"}
 
     def __init__(self, ikv_config: IKVStoreConfig):
+        """ DO NOT use directly. See ClientOptionsBuilder to instantiate."""
         self._ikv_config = ikv_config
     
     def get_ikv_config(self) -> IKVStoreConfig:
         return self._ikv_config
 
 class ClientOptionsBuilder:
+    """
+    Builder class for ClientOptions.
+    Reference: https://docs.inlined.io/clients/python-guide#configuration
+    """
     def __init__(self):
-        # initialize ikvconfig proto object
         ikv_config = IKVStoreConfig(stringConfigs={}, intConfigs={}, floatConfigs={}, bytesConfigs={}, booleanConfigs={})
 
         # default logging options
