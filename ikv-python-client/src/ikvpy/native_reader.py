@@ -18,9 +18,13 @@ ffi.cdef("""
     } IndexHandle;
 
     int64_t health_check(const char *input);
+    
     IndexHandle open_index_v2(const char *config, int32_t config_len);
+    
     void close_index(int64_t handle);
+    
     BytesBuffer get_field_value(int64_t handle, const char *pkey, int32_t pkey_len, const char *field_name);
+    
     void free_bytes_buffer(BytesBuffer buf);
     // End of common C code (Go, Python)
 """)
