@@ -24,7 +24,13 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "boto3>=1.34.69",
+  "cffi>=1.16.0",
+  "grpcio>=1.62.1",
+  "grpcio_status>=1.62.1",
+  "protobuf>=5.26.0"
+]
 
 [project.urls]
 Documentation = "https://github.com/inlinedio/ikv-store#readme"
