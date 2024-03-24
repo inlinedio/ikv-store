@@ -57,7 +57,7 @@ class NativeReader:
 
         self.dll.close_index(self.index_handle)
 
-    def get_field_value(self, primary_key: bytes, field_name: str) -> Optional[bytes]:
+    def get_bytes_field_value(self, primary_key: bytes, field_name: str) -> Optional[bytes]:
         # avoid runtime arg checks in hot path
         c_primary_key = ffi.new("char[]", primary_key)
 
@@ -74,6 +74,29 @@ class NativeReader:
         
         # copy from the pointer
         value = bytes(ffi.buffer(value_start, value_len))
+
+        # release rust allocated objects
+        self.dll.free_bytes_buffer(bytes_buffer)
+
+        return value
+
+    def get_string_field_value(self, primary_key: bytes, field_name: str) -> Optional[str]:
+        # avoid runtime arg checks in hot path
+        c_primary_key = ffi.new("char[]", primary_key)
+
+        # TODO: see if we can create a pool of python->c strings
+        c_field_name = ffi.new("char[]", field_name.encode('utf-8'))
+
+        bytes_buffer = self.dll.get_field_value(self.index_handle, c_primary_key, len(primary_key), c_field_name)
+
+        value_len = bytes_buffer.length
+        value_start = bytes_buffer.start
+
+        if value_len == 0 or value_start == ffi.NULL:
+            return None
+
+        # zero copy decoding into str
+        value = str(memoryview(ffi.buffer(value_start, value_len)), 'utf-8')
 
         # release rust allocated objects
         self.dll.free_bytes_buffer(bytes_buffer)

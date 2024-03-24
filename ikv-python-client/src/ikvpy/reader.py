@@ -43,23 +43,27 @@ class IKVReaderImpl(IKVReader):
     # nullable return type
     def get_bytes_value(self, primary_key, field_name: str) -> Optional[bytes]:
         if isinstance(primary_key, str):
-            return self.native_reader.get_field_value(bytes(primary_key.encode('utf-8')), field_name)
+            return self.native_reader.get_bytes_field_value(bytes(primary_key.encode('utf-8')), field_name)
         
         if isinstance(primary_key, bytes):
-            return self.native_reader.get_field_value(primary_key, field_name)
+            return self.native_reader.get_bytes_field_value(primary_key, field_name)
         
         if isinstance(primary_key, bytearray):
-            return self.native_reader.get_field_value(bytes(primary_key), field_name)
+            return self.native_reader.get_bytes_field_value(bytes(primary_key), field_name)
         
         raise TypeError("unsupported primary_key type: {}, supported: str/bytes/bytearray".format(type(primary_key)))
 
     def get_string_value(self, primary_key, field_name: str) -> Optional[str]:
-        maybe_value = self.get_bytes_value(primary_key, field_name)
+        if isinstance(primary_key, str):
+            return self.native_reader.get_string_field_value(bytes(primary_key.encode('utf-8')), field_name)
         
-        if maybe_value is None:
-            return None
+        if isinstance(primary_key, bytes):
+            return self.native_reader.get_string_field_value(primary_key, field_name)
         
-        return maybe_value.decode('utf-8')
+        if isinstance(primary_key, bytearray):
+            return self.native_reader.get_string_field_value(bytes(primary_key), field_name)
+
+        raise TypeError("unsupported primary_key type: {}, supported: str/bytes/bytearray".format(type(primary_key)))
     
     def _merge_configs(self, server_cfg: common_pb2.IKVStoreConfig) -> common_pb2.IKVStoreConfig:
         client_cfg = self.client_options.get_ikv_config()
