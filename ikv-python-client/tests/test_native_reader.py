@@ -1,5 +1,5 @@
 import unittest
-from ikv_py.native_reader import NativeReader
+from ikvpy.native_reader import NativeReader
 
 class TestNativeReader(unittest.TestCase):
     @classmethod

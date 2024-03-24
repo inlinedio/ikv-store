@@ -3,15 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ikv-py"
-dynamic = ["version"]
-description = 'Python client for IKV (https://inlined.io)'
+name = "ikvpy"
+version = "0.0.1"
+description = 'Python client for IKV (Inlined Key Value Store).'
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
-keywords = []
+keywords = ["ikv", "inlined", "ikv python", "inlined python client", "ikv py client"]
 authors = [
-  { name = "Pushkar Gupta", email = "pushkar.moi@gmail.com" },
+  { name = "Inlined I/O", email = "pushkar@inlined.io" },
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -27,12 +27,12 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Documentation = "https://github.com/unknown/ikv-py#readme"
-Issues = "https://github.com/unknown/ikv-py/issues"
-Source = "https://github.com/unknown/ikv-py"
+Documentation = "https://github.com/inlinedio/ikv-store#readme"
+Issues = "https://github.com/inlinedio/ikv-store/issues"
+Source = "https://github.com/inlinedio/ikv-store/ikv-python-client"
 
 [tool.hatch.version]
-path = "src/ikv_py/__about__.py"
+path = "src/ikvpy/__about__.py"
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -59,19 +59,19 @@ dependencies = [
   "mypy>=1.0.0",
 ]
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/ikv_py tests}"
+check = "mypy --install-types --non-interactive {args:src/ikvpy tests}"
 
 [tool.coverage.run]
-source_pkgs = ["ikv_py", "tests"]
+source_pkgs = ["ikvpy", "tests"]
 branch = true
 parallel = true
 omit = [
-  "src/ikv_py/__about__.py",
+  "src/ikvpy/__about__.py",
 ]
 
 [tool.coverage.paths]
-ikv_py = ["src/ikv_py", "*/ikv-py/src/ikv_py"]
-tests = ["tests", "*/ikv-py/tests"]
+ikvpy = ["src/ikvpy", "*/ikvpy/src/ikvpy"]
+tests = ["tests", "*/ikvpy/tests"]
 
 [tool.coverage.report]
 exclude_lines = [

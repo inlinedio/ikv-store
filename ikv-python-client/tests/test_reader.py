@@ -1,8 +1,8 @@
 import unittest
-from ikv_py.native_reader import NativeReader
-from ikv_py.clientoptions import ClientOptions, ClientOptionsBuilder
-import ikv_py.client as ikv_client
-from ikv_py.factory import create_new_reader
+from ikvpy.native_reader import NativeReader
+from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
+import ikvpy.client as ikv_client
+from ikvpy.factory import create_new_reader
 from env_var import EnvReader
 
 class TestIKVReaderImpl(unittest.TestCase):
