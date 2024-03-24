@@ -19,11 +19,11 @@ retry_policy = json.dumps(
         "methodConfig": [{
             "name": [{"service": "ikvschemas.InlineKVWriteService"}],
             "retryPolicy": {
-			  "MaxAttempts": 3,
-			  "InitialBackoff": ".01s",
-			  "MaxBackoff": ".01s",
-			  "BackoffMultiplier": 1.0,
-			  "RetryableStatusCodes": [ "UNAVAILABLE" ]
+			  "maxAttempts": 3,
+			  "initialBackoff": "0.01s",
+			  "maxBackoff": "0.01s",
+			  "backoffMultiplier": 1.0,
+			  "retryableStatusCodes": [ "UNAVAILABLE" ]
             },
         }]
     }
@@ -49,8 +49,9 @@ class IKVWriterImpl(IKVWriter):
         self.stub = None
 
     def startup(self):
-        self.channel = grpc.secure_channel(target="gateway.inlined.io:443", credentials=grpc.ssl_channel_credentials(), \
-            options=[("grpc.service_config", retry_policy)])
+        options = []
+        options.append(("grpc.service_config", retry_policy))
+        self.channel = grpc.secure_channel(target="gateway.inlined.io:443", credentials=grpc.ssl_channel_credentials(), options=options)
         self.stub = services_pb2_grpc.InlineKVWriteServiceStub(self.channel)
 
     def shutdown(self):
