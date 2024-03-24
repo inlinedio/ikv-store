@@ -1,11 +1,13 @@
 use std::ffi::CStr;
 
+use log::error;
 use protobuf::Message;
 
-use crate::{
-    controller::{external_handle, main::Controller},
-    proto::generated_proto::common::IKVStoreConfig,
-};
+use crate::proto::generated_proto::common::IKVStoreConfig;
+
+use crate::controller::external_handle;
+
+use crate::ffi::api;
 
 #[no_mangle]
 pub extern "C" fn health_check(input: *const libc::c_char) -> i64 {
@@ -16,29 +18,69 @@ pub extern "C" fn health_check(input: *const libc::c_char) -> i64 {
     }
 }
 
+#[repr(C)]
+pub struct IndexHandle {
+    // handle for subsequent api calls
+    // valid only iff status=0
+    handle: i64,
+
+    // initialization status
+    // success -> status=0
+    // failure -> status=error_code
+    status: i64,
+}
+
+#[deprecated]
 #[no_mangle]
 pub extern "C" fn open_index(config: *const libc::c_char, config_len: i32) -> i64 {
     let cfg_bytes = unsafe { std::slice::from_raw_parts(config as *const u8, config_len as usize) };
 
-    // TODO! remove all the unwraps and propagate errors.
-
     // deserialize configs
-    let ikv_config = IKVStoreConfig::parse_from_bytes(cfg_bytes).expect("cannot deser");
+    let ikv_config =
+        IKVStoreConfig::parse_from_bytes(cfg_bytes).expect("cannot deserialize client options");
 
-    // configure logging
-    crate::utils::logging::configure_logging(&ikv_config).unwrap();
+    api::open_index(&ikv_config).expect("IKV startup error")
+}
 
-    // create and startup controller
-    let controller = Controller::open(&ikv_config).unwrap();
+#[no_mangle]
+pub extern "C" fn open_index_v2(config: *const libc::c_char, config_len: i32) -> IndexHandle {
+    let cfg_bytes = unsafe { std::slice::from_raw_parts(config as *const u8, config_len as usize) };
 
-    external_handle::to_external_handle(controller)
+    // parse configs
+    let ikv_config;
+    match IKVStoreConfig::parse_from_bytes(cfg_bytes) {
+        Ok(c) => ikv_config = c,
+        Err(e) => {
+            eprintln!(
+                "Cannot parse client_options (proto3 deser error), details: {}",
+                e.to_string()
+            );
+            return IndexHandle {
+                handle: -1,
+                status: 1,
+            };
+        }
+    }
+
+    let handle;
+    match api::open_index(&ikv_config) {
+        Ok(h) => handle = h,
+        Err(e) => {
+            error!("Cannot startup IKV reader, details: {}", e.to_string());
+            return IndexHandle {
+                handle: -1,
+                status: 2,
+            };
+        }
+    }
+
+    return IndexHandle { handle, status: 0 };
 }
 
 #[no_mangle]
 pub extern "C" fn close_index(handle: i64) {
-    let boxed_controller = external_handle::to_box(handle);
-    if let Err(e) = boxed_controller.close() {
-        eprintln!("Cannot close reader, failed with error: {}", e.to_string());
+    if let Err(e) = api::close_index(handle) {
+        error!("Cannot close reader, failed with error: {}", e.to_string());
     }
 }
 

@@ -40,7 +40,6 @@ impl Controller {
         // Blocks till pending events are consumed
         // Consumes incoming events in background thereafter
 
-        // TODO: kafka consumer code needs to be reviewed!!
         kafka_consumer.run_in_background()?;
 
         Ok(Controller {
