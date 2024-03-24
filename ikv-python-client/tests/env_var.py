@@ -1,5 +1,5 @@
 from typing import Optional
-from ikv_py.utils import is_valid_str_or_raise
+from ikvpy.utils import is_valid_str_or_raise
 
 
 class EnvReader():

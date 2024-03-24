@@ -30,7 +30,7 @@ class TestInteg(unittest.TestCase):
 
     def test_single_doc(self):
         # upsert {"userid": "0", "firstname": "Alice"}
-        document = ikv_py.document.IKVDocumentBuilder().put_string_field("userid", "0")\
+        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "0")\
             .put_string_field("firstname", "Alice").build()
         self.writer.upsert_fields(document)
         time.sleep(5)
@@ -48,12 +48,12 @@ class TestInteg(unittest.TestCase):
 
     def test_upsert_delete_doc(self):
         # upsert {"userid": "1", "firstname": "Alice"}
-        document = ikv_py.document.IKVDocumentBuilder().put_string_field("userid", "1")\
+        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "1")\
             .put_string_field("firstname", "Alice").build()
         self.writer.upsert_fields(document)
        
         # delete {"userid": "1"}
-        document = ikv_py.document.IKVDocumentBuilder().put_string_field("userid", "1").build()
+        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "1").build()
         self.writer.delete_document(document)
 
         time.sleep(5)
@@ -66,15 +66,15 @@ class TestInteg(unittest.TestCase):
         # upsert {"userid": "5", "firstname": "Alice"}
         # upsert {"userid": "6", "firstname": "Bob", "city": "NYC"}
         # upsert {"userid": "7", "firstname": "Allison", "city": "NYC"}
-        document = ikv_py.document.IKVDocumentBuilder().put_string_field("userid", "5")\
+        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "5")\
             .put_string_field("firstname", "Alice").build()
         self.writer.upsert_fields(document)
         
-        document = ikv_py.document.IKVDocumentBuilder().put_string_field("userid", "6")\
+        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "6")\
             .put_string_field("firstname", "Bob").put_string_field("city", "NYC").build()
         self.writer.upsert_fields(document)
         
-        document = ikv_py.document.IKVDocumentBuilder().put_string_field("userid", "7")\
+        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "7")\
             .put_string_field("firstname", "Allison").put_string_field("city", "NYC").build()
         self.writer.upsert_fields(document)
 
