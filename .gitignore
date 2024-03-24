@@ -8,6 +8,10 @@ build/
 ikv/target/*
 
 ### Python
+ikv-python-client/dist
+ikv-python-client/dist/*
+
+### Python
 ikv-python-client/.env
 
 ### Docs

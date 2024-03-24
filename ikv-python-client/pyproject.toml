@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "ikv-py"
 dynamic = ["version"]
-description = 'Python client for IKV (Inlined Key Value Store)'
+description = 'Python client for IKV (https://inlined.io)'
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
-keywords = ["ikv", "ikv-py", "ikv_py", "inlined"]
+keywords = []
 authors = [
-  { name = "Pushkar Gupta", email = "pushkar@inlined.io" },
+  { name = "Pushkar Gupta", email = "pushkar.moi@gmail.com" },
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -27,10 +27,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/inlinedio/ikv-store"
-Documentation = "https://github.com/inlinedio/ikv-store#readme"
-Issues = "https://github.com/inlinedio/ikv-store/issues"
-Source = "https://github.com/inlinedio/ikv-store/ikv-python-client"
+Documentation = "https://github.com/unknown/ikv-py#readme"
+Issues = "https://github.com/unknown/ikv-py/issues"
+Source = "https://github.com/unknown/ikv-py"
 
 [tool.hatch.version]
 path = "src/ikv_py/__about__.py"
