@@ -33,7 +33,7 @@ def compare_semver(version1, version2):
     v2 = _parse_semver(version2)
     return (v1 > v2) - (v1 < v2)
 
-def concat_strings_with_size_prefix(input: List[str]) -> bytearray:
+def concat_strings_with_size_prefix(input: List[str] = []) -> bytearray:
     if not len(input):
         return bytearray()
 
@@ -57,7 +57,7 @@ def concat_strings_with_size_prefix(input: List[str]) -> bytearray:
 
     return output
 
-def concat_as_utf8_with_size_prefix(bytes_input: List[bytes], str_input: List[str]) -> bytearray:
+def concat_as_utf8_with_size_prefix(bytes_input: List[bytes] = [], str_input: List[str] = []) -> bytearray:
     if not len(bytes_input) and not len(str_input):
         return bytearray()
 
@@ -88,20 +88,28 @@ def concat_as_utf8_with_size_prefix(bytes_input: List[bytes], str_input: List[st
 def unpack_size_prefixed_bytes_as_bytes(input: bytes) -> Iterator[Optional[bytes]]:
     i = 0
     while i < len(input):
-        size = struct.unpack_from('<i', input, i)
-        if size == 0:
+        size = struct.unpack_from('<i', input, i)[0]
+        i += 4
+
+        if size == -1:
             yield None
+        elif size == 0:
+            yield bytes()
         else:
             yield input[i:i+size]
-        i += 4 + size
+            i += size
 
 def unpack_size_prefixed_bytes_as_str(input: bytes) -> Iterator[Optional[str]]:
     i = 0
     while i < len(input):
-        size = struct.unpack_from('<i', input, i)
-        if size == 0:
+        size = struct.unpack_from('<i', input, i)[0]
+        i += 4
+
+        if size == -1:
             yield None
+        elif size == 0:
+            yield ""
         else:
-            yield str(memoryview(input[i:i+size], 'utf-8'))
-        i += 4 + size
+            yield str(memoryview(input[i:i+size]), 'utf-8')
+            i += size
 

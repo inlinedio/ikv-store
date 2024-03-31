@@ -1,10 +1,9 @@
 import time
 import unittest
-from ikvpy.native_reader import NativeReader
-from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
-import ikvpy.client as ikv_client
-import ikvpy.document
-from ikvpy.factory import create_new_reader, create_new_writer
+from src.ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
+import src.ikvpy.client as ikv_client
+import src.ikvpy.document as ikv_document
+from src.ikvpy.factory import create_new_reader, create_new_writer
 from env_var import EnvReader
 
 class TestInteg(unittest.TestCase):
@@ -30,7 +29,7 @@ class TestInteg(unittest.TestCase):
 
     def test_single_doc(self):
         # upsert {"userid": "0", "firstname": "Alice"}
-        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "0")\
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "0")\
             .put_string_field("firstname", "Alice").build()
         self.writer.upsert_fields(document)
         time.sleep(5)
@@ -45,15 +44,49 @@ class TestInteg(unittest.TestCase):
         # read invalid fields for valid document
         self.assertIsNone(self.reader.get_string_value("0", "foo_field"))
         
+    def test_multiget(self):
+        # empty check
+        empty_list = list(self.reader.multiget_string_values(field_names=["firstname"]))
+        self.assertEqual(len(empty_list), 0)
+
+        # upsert {"userid": "8", "firstname": "Alice"}
+        # upsert {"userid": "9", "firstname": "Bob", "city": "NYC"}
+        # upsert {"userid": "10", "firstname": "Allison", "city": "NYC"}
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "8")\
+            .put_string_field("firstname", "Alice").build()
+        self.writer.upsert_fields(document)
+        
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "9")\
+            .put_string_field("firstname", "Bob").put_string_field("city", "NYC").build()
+        self.writer.upsert_fields(document)
+        
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "10")\
+            .put_string_field("firstname", "Allison").put_string_field("city", "NYC").build()
+        self.writer.upsert_fields(document)
+
+        time.sleep(5)
+
+        # get for "10" and "9"
+        multiget_iter = self.reader.multiget_string_values(bytes_primary_keys=["10".encode("utf-8")],
+            str_primary_keys=["8", "9", "foo"], field_names=["firstname", "bar", "city"])
+        drained_multiget_iter = list(multiget_iter)
+        
+        # ouput:
+        # 10#firstname,None,10#city
+        # 8#firstname,None,8#city
+        # 9#firstname,None,9#city
+        # None,None,None
+        self.assertEqual(["Allison",None,"NYC","Alice",None,None,"Bob",None,"NYC",None,None,None],
+            drained_multiget_iter)
 
     def test_upsert_delete_doc(self):
         # upsert {"userid": "1", "firstname": "Alice"}
-        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "1")\
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "1")\
             .put_string_field("firstname", "Alice").build()
         self.writer.upsert_fields(document)
        
         # delete {"userid": "1"}
-        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "1").build()
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "1").build()
         self.writer.delete_document(document)
 
         time.sleep(5)
@@ -66,15 +99,15 @@ class TestInteg(unittest.TestCase):
         # upsert {"userid": "5", "firstname": "Alice"}
         # upsert {"userid": "6", "firstname": "Bob", "city": "NYC"}
         # upsert {"userid": "7", "firstname": "Allison", "city": "NYC"}
-        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "5")\
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "5")\
             .put_string_field("firstname", "Alice").build()
         self.writer.upsert_fields(document)
         
-        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "6")\
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "6")\
             .put_string_field("firstname", "Bob").put_string_field("city", "NYC").build()
         self.writer.upsert_fields(document)
         
-        document = ikvpy.document.IKVDocumentBuilder().put_string_field("userid", "7")\
+        document = ikv_document.IKVDocumentBuilder().put_string_field("userid", "7")\
             .put_string_field("firstname", "Allison").put_string_field("city", "NYC").build()
         self.writer.upsert_fields(document)
 
@@ -97,7 +130,7 @@ class TestInteg(unittest.TestCase):
         self.assertIsNone(self.reader.get_string_value("6", "city"))
         self.assertIsNone(self.reader.get_string_value("7", "city"))
 
-# run: $> python3 tests/test_native_reader.py
+# run: $> python3 tests/test_integ.py
 #      $> [ikv-python-client/tests]$ python3 -m unittest
 if __name__ == '__main__':
     unittest.main()

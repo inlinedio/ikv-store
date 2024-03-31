@@ -65,11 +65,8 @@ class NativeReader:
         self.dll.close_index(self.index_handle)
 
     def get_bytes_field_value(self, primary_key: bytes, field_name: str) -> Optional[bytes]:
-        # avoid runtime arg checks in hot path
-        c_primary_key = ffi.new("char[]", primary_key)
-
-        # TODO: see if we can create a pool of python->c strings
-        c_field_name = ffi.new("char[]", field_name.encode('utf-8'))
+        c_primary_key = ffi.from_buffer(primary_key)
+        c_field_name = ffi.from_buffer(field_name.encode('utf-8'))
 
         bytes_buffer = self.dll.get_field_value(self.index_handle, c_primary_key, len(primary_key), c_field_name)
         
@@ -88,11 +85,8 @@ class NativeReader:
         return value
 
     def get_string_field_value(self, primary_key: bytes, field_name: str) -> Optional[str]:
-        # avoid runtime arg checks in hot path
-        c_primary_key = ffi.new("char[]", primary_key)
-
-        # TODO: see if we can create a pool of python->c strings
-        c_field_name = ffi.new("char[]", field_name.encode('utf-8'))
+        c_primary_key = ffi.from_buffer(primary_key)
+        c_field_name = ffi.from_buffer(field_name.encode('utf-8'))
 
         bytes_buffer = self.dll.get_field_value(self.index_handle, c_primary_key, len(primary_key), c_field_name)
 
@@ -119,9 +113,9 @@ class NativeReader:
             return EMPTY_ITERATOR
 
         concat_primary_keys: bytearray = utils.concat_as_utf8_with_size_prefix(bytes_primary_keys, str_primary_keys)
-        c_concat_primary_keys = ffi.new("char[]", concat_primary_keys)
+        c_concat_primary_keys = ffi.from_buffer(concat_primary_keys)
         concat_field_names: bytearray = utils.concat_strings_with_size_prefix(field_names)
-        c_concat_field_names = ffi.new("char[]", concat_field_names)
+        c_concat_field_names = ffi.from_buffer(concat_field_names)
 
         bytes_buffer = self.dll.multiget_field_values(self.index_handle, c_concat_primary_keys,
             len(concat_primary_keys), c_concat_field_names, len(concat_field_names))
@@ -149,9 +143,9 @@ class NativeReader:
             return EMPTY_ITERATOR
 
         concat_primary_keys: bytearray = utils.concat_as_utf8_with_size_prefix(bytes_primary_keys, str_primary_keys)
-        c_concat_primary_keys = ffi.new("char[]", concat_primary_keys)
+        c_concat_primary_keys = ffi.from_buffer(concat_primary_keys)
         concat_field_names: bytearray = utils.concat_strings_with_size_prefix(field_names)
-        c_concat_field_names = ffi.new("char[]", concat_field_names)
+        c_concat_field_names = ffi.from_buffer(concat_field_names)
 
         bytes_buffer = self.dll.multiget_field_values(self.index_handle, c_concat_primary_keys,
             len(concat_primary_keys), c_concat_field_names, len(concat_field_names))
