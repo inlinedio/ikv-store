@@ -163,8 +163,8 @@ impl CKVIndex {
     /// size: 0 for empty values
     pub fn batch_get_field_values<'a>(
         &self,
-        primary_keys: Vec<Vec<u8>>,
-        field_names: Vec<String>,
+        primary_keys: Vec<&[u8]>,
+        field_names: Vec<&str>,
     ) -> Vec<u8> {
         let capacity = primary_keys.len() * field_names.len() * 16;
         if capacity == 0 {
@@ -179,7 +179,7 @@ impl CKVIndex {
         {
             let schema = self.schema.read().unwrap();
             for field_name in field_names {
-                let maybe_field_id = schema.fetch_id_by_name(&field_name);
+                let maybe_field_id = schema.fetch_id_by_name(field_name);
                 field_ids.push(maybe_field_id);
             }
         }

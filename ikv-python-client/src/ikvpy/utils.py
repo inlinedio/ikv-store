@@ -1,5 +1,6 @@
-from typing import Tuple, Optional
+import struct
 
+from typing import List, Tuple, Optional, Iterator
 
 def is_valid_str_or_raise(input: str) -> str:
     if not isinstance(input, str):
@@ -31,3 +32,76 @@ def compare_semver(version1, version2):
     v1 = _parse_semver(version1)
     v2 = _parse_semver(version2)
     return (v1 > v2) - (v1 < v2)
+
+def concat_strings_with_size_prefix(input: List[str]) -> bytearray:
+    if not len(input):
+        return bytearray()
+
+    capacity = 0
+    input_as_bytes = [None] * len(input)
+    for i, inp in enumerate(input):
+        inp_bytes = inp.encode("utf-8")
+        capacity += 4 + len(inp_bytes)
+        input_as_bytes[i] = inp_bytes
+
+    output = bytearray(capacity)
+
+    i = 0
+    for inp in input_as_bytes:
+        # lower endian i32
+        struct.pack_into('<i', output, i, len(inp))
+        i += 4
+        # utf8 bytes
+        output[i:i+len(inp)] = inp
+        i += len(inp)
+
+    return output
+
+def concat_as_utf8_with_size_prefix(bytes_input: List[bytes], str_input: List[str]) -> bytearray:
+    if not len(bytes_input) and not len(str_input):
+        return bytearray()
+
+    capacity = 0
+    for inp in bytes_input:
+        capacity += 4 + len(inp)
+
+    str_input_as_bytes = [None] * len(str_input)
+    for i, inp in enumerate(str_input):
+        inp_bytes = inp.encode("utf-8")
+        capacity += 4 + len(inp_bytes)
+        str_input_as_bytes[i] = inp_bytes
+
+    output = bytearray(capacity)
+
+    i = 0
+    for inp_list in [bytes_input, str_input_as_bytes]:
+        for inp in inp_list:
+            # lower endian i32
+            struct.pack_into('<i', output, i, len(inp))
+            i += 4
+            # utf8 bytes
+            output[i:i+len(inp)] = inp
+            i += len(inp)
+
+    return output
+
+def unpack_size_prefixed_bytes_as_bytes(input: bytes) -> Iterator[Optional[bytes]]:
+    i = 0
+    while i < len(input):
+        size = struct.unpack_from('<i', input, i)
+        if size == 0:
+            yield None
+        else:
+            yield input[i:i+size]
+        i += 4 + size
+
+def unpack_size_prefixed_bytes_as_str(input: bytes) -> Iterator[Optional[str]]:
+    i = 0
+    while i < len(input):
+        size = struct.unpack_from('<i', input, i)
+        if size == 0:
+            yield None
+        else:
+            yield str(memoryview(input[i:i+size], 'utf-8'))
+        i += 4 + size
+

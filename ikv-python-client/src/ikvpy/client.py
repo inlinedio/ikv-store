@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from clientoptions import ClientOptions
 from document import IKVDocument
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 class IKVReader(ABC):
     """
@@ -40,6 +40,16 @@ class IKVReader(ABC):
         returns:
             field value if it exists (bytes or None)
         """
+        raise NotImplementedError("cannot be used directly, use IKVReaderImpl")
+
+    @abstractmethod
+    def multiget_bytes_values(self, bytes_primary_keys: List[bytes] = [], str_primary_keys: List[str] = [],\
+            field_names: List[str] = []) -> Iterator[Optional[bytes]]:
+        raise NotImplementedError("cannot be used directly, use IKVReaderImpl")
+
+    @abstractmethod
+    def multiget_string_values(self, bytes_primary_keys: List[bytes] = [], str_primary_keys: List[str] = [],\
+            field_names: List[str] = []) -> Iterator[Optional[str]]:
         raise NotImplementedError("cannot be used directly, use IKVReaderImpl")
 
     @abstractmethod
