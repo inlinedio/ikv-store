@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Iterator
 from client import IKVReader
 from clientoptions import ClientOptions
 from writer import IKVWriterImpl
@@ -67,7 +67,15 @@ class IKVReaderImpl(IKVReader):
             return self.native_reader.get_string_field_value(bytes(primary_key), field_name)
 
         raise TypeError("unsupported primary_key type: {}, supported: str/bytes/bytearray".format(type(primary_key)))
-    
+
+    def multiget_bytes_values(self, bytes_primary_keys: List[bytes] = [], str_primary_keys: List[str] = [],\
+            field_names: List[str] = []) -> Iterator[Optional[bytes]]:
+        return self.native_reader.multiget_bytes_field_values(bytes_primary_keys, str_primary_keys, field_names)
+
+    def multiget_string_values(self, bytes_primary_keys: List[bytes] = [], str_primary_keys: List[str] = [],\
+            field_names: List[str] = []) -> Iterator[Optional[str]]:
+        return self.native_reader.multiget_str_field_values(bytes_primary_keys, str_primary_keys, field_names)
+
     def _merge_configs(self, server_cfg: common_pb2.IKVStoreConfig) -> common_pb2.IKVStoreConfig:
         """ Internal method, overrides & merges server supplied cfg with client supplier cfg. """
         client_cfg = self.client_options.get_ikv_config()

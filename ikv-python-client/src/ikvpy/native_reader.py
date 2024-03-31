@@ -1,8 +1,9 @@
-from typing import Optional
+from typing import Iterator, List, Optional
 from cffi import FFI
-from utils import is_valid_str_or_raise
-from utils import is_valid_bytes_or_raise
+import utils
+from utils import is_valid_str_or_raise, is_valid_bytes_or_raise
 
+EMPTY_ITERATOR = iter([])
 
 ffi = FFI()
 ffi.cdef("""
@@ -24,7 +25,9 @@ ffi.cdef("""
     void close_index(int64_t handle);
     
     BytesBuffer get_field_value(int64_t handle, const char *pkey, int32_t pkey_len, const char *field_name);
-    
+
+    BytesBuffer multiget_field_values(int64_t handle, const char *pkeys, int32_t pkeys_len, const char *field_names, int32_t field_names_len);
+
     void free_bytes_buffer(BytesBuffer buf);
     // End of common C code (Go, Python)
 """)
@@ -106,3 +109,63 @@ class NativeReader:
         self.dll.free_bytes_buffer(bytes_buffer)
 
         return value
+
+    def multiget_bytes_field_values(self, bytes_primary_keys: List[bytes] = [], str_primary_keys: List[str] = [],
+            field_names: List[str] = []) -> Iterator[Optional[bytes]]:
+        """ native muti-get wrapper. """
+
+        num_values = (len(bytes_primary_keys) + len(str_primary_keys)) * len(field_names)
+        if num_values == 0:
+            return EMPTY_ITERATOR
+
+        concat_primary_keys: bytearray = utils.concat_as_utf8_with_size_prefix(bytes_primary_keys, str_primary_keys)
+        c_concat_primary_keys = ffi.new("char[]", concat_primary_keys)
+        concat_field_names: bytearray = utils.concat_strings_with_size_prefix(field_names)
+        c_concat_field_names = ffi.new("char[]", concat_field_names)
+
+        bytes_buffer = self.dll.multiget_field_values(self.index_handle, c_concat_primary_keys,
+            len(concat_primary_keys), c_concat_field_names, len(concat_field_names))
+
+        value_len = bytes_buffer.length
+        value_start = bytes_buffer.start
+        if value_len == 0 or value_start == ffi.NULL:
+            return iter([None] * num_values)
+
+        # copy from the pointer
+        value = bytes(ffi.buffer(value_start, value_len))
+
+        # release rust allocated objects
+        self.dll.free_bytes_buffer(bytes_buffer)
+
+        # return iterator over `value`
+        return utils.unpack_size_prefixed_bytes_as_bytes(value)
+
+    def multiget_str_field_values(self, bytes_primary_keys: List[bytes] = [], str_primary_keys: List[str] = [],
+            field_names: List[str] = []) -> Iterator[Optional[str]]:
+        """ native muti-get wrapper. """
+
+        num_values = (len(bytes_primary_keys) + len(str_primary_keys)) * len(field_names)
+        if num_values == 0:
+            return EMPTY_ITERATOR
+
+        concat_primary_keys: bytearray = utils.concat_as_utf8_with_size_prefix(bytes_primary_keys, str_primary_keys)
+        c_concat_primary_keys = ffi.new("char[]", concat_primary_keys)
+        concat_field_names: bytearray = utils.concat_strings_with_size_prefix(field_names)
+        c_concat_field_names = ffi.new("char[]", concat_field_names)
+
+        bytes_buffer = self.dll.multiget_field_values(self.index_handle, c_concat_primary_keys,
+            len(concat_primary_keys), c_concat_field_names, len(concat_field_names))
+
+        value_len = bytes_buffer.length
+        value_start = bytes_buffer.start
+        if value_len == 0 or value_start == ffi.NULL:
+            return iter([None] * num_values)
+
+        # copy from the pointer
+        value = bytes(ffi.buffer(value_start, value_len))
+
+        # release rust allocated objects
+        self.dll.free_bytes_buffer(bytes_buffer)
+
+        # return iterator over `value`
+        return utils.unpack_size_prefixed_bytes_as_str(value)

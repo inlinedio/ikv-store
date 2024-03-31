@@ -71,12 +71,8 @@ pub fn _jlist_to_vec_bytes<'local>(
     results
 }
 
-/// Size prefixed concatenated byte[] to Vec<Vec<u8>>
-pub fn jbytearray_to_vec_bytes<'local>(
-    env: &mut JNIEnv<'local>,
-    input: JByteArray<'local>,
-) -> Vec<Vec<u8>> {
-    let input = jbyte_array_to_vec(&env, input).unwrap();
+/// Size prefixed concatenated byte[] to Vec<&[u8]>
+pub fn unpack_size_prefixed_bytes<'a>(input: &'a [u8]) -> Vec<&'a [u8]> {
     if input.len() == 0 {
         return vec![];
     }
@@ -90,13 +86,39 @@ pub fn jbytearray_to_vec_bytes<'local>(
             .expect("size prefix must be 4 bytes wide");
         let size_prefix = i32::from_le_bytes(size_prefix) as usize;
         if size_prefix == 0 {
-            // filter out empty inner bytes
             i = i + 4;
             continue;
         }
 
         let inner_input_slice = &input[i + 4..i + 4 + size_prefix];
-        result.push(inner_input_slice.to_vec());
+        result.push(inner_input_slice);
+
+        i = i + 4 + size_prefix;
+    }
+
+    result
+}
+
+pub fn unpack_size_prefixed_strs<'a>(input: &'a [u8]) -> Vec<&'a str> {
+    if input.len() == 0 {
+        return vec![];
+    }
+
+    let mut result = Vec::new();
+
+    let mut i = 0;
+    while i < input.len() {
+        let size_prefix: [u8; 4] = input[i..i + 4]
+            .try_into()
+            .expect("size prefix must be 4 bytes wide");
+        let size_prefix = i32::from_le_bytes(size_prefix) as usize;
+        if size_prefix == 0 {
+            i = i + 4;
+            continue;
+        }
+
+        let inner_input_slice = &input[i + 4..i + 4 + size_prefix];
+        result.push(unsafe { std::str::from_utf8_unchecked(inner_input_slice) });
 
         i = i + 4 + size_prefix;
     }
