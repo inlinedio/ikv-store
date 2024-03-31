@@ -28,7 +28,7 @@ use crate::{
 };
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
-const ZERO_I32: [u8; 4] = 0i32.to_le_bytes();
+const NONE_SIZE: [u8; 4] = (-1 as i32).to_le_bytes();
 
 pub struct CKVIndexSegment {
     // hash-table index, document_id bytes -> vector of offsets
@@ -242,7 +242,7 @@ impl CKVIndexSegment {
     }
 
     /// Read all fields for a given primary-key and push the values at the end of `dest` vector.
-    /// Values are size/length prefixed with i32 values. Size=0 for missing values.
+    /// Values are size/length prefixed with i32 values. Size=-1 for missing values, Size=0 for empty values
     ///
     /// Format of dest: [(size)field1][(size)field2]...[(size)fieldn]
     pub fn read_fields(
@@ -254,7 +254,7 @@ impl CKVIndexSegment {
         let maybe_offsets = self.offset_table.get(primary_key);
         if maybe_offsets.is_none() {
             for _ in 0..field_ids.len() {
-                dest.extend(ZERO_I32);
+                dest.extend(NONE_SIZE);
             }
             return;
         }
@@ -262,19 +262,19 @@ impl CKVIndexSegment {
         let offsets = maybe_offsets.unwrap();
         for field_id in field_ids {
             if field_id.is_none() {
-                dest.extend(ZERO_I32);
+                dest.extend(NONE_SIZE);
                 continue;
             }
 
             let maybe_offset = offsets.get(field_id.unwrap() as usize).copied();
             if maybe_offset.is_none() {
-                dest.extend(ZERO_I32);
+                dest.extend(NONE_SIZE);
                 continue;
             }
 
             match self.read_from_mmap(maybe_offset.unwrap()) {
                 None => {
-                    dest.extend(ZERO_I32);
+                    dest.extend(NONE_SIZE);
                 }
                 Some(value) => {
                     dest.extend((value.len() as i32).to_le_bytes());

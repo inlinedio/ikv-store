@@ -160,7 +160,7 @@ impl CKVIndex {
     /// Fetch field values for multiple primary keys.
     /// Result format: [(values_doc1)][(values_doc2)][(values_doc3)]
     /// values_doc1: [(size)field1][(size)field2]...[(size)fieldn]
-    /// size: 0 for empty values
+    /// size: 0 for empty values, size: -1 for missing values
     pub fn batch_get_field_values<'a>(
         &self,
         primary_keys: Vec<&[u8]>,
