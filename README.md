@@ -339,7 +339,7 @@ func example(t *testing.T) error {
 
 ### Python Usage
 #### Installation
-Fetch the latest version from [PyPi](#https://pypi.org/project/ikvpy/) using **pip**.
+Fetch the latest version from [PyPi](https://pypi.org/project/ikvpy/) using **pip**.
 
 ```bash
 python -m pip install ikvpy
@@ -348,6 +348,58 @@ python -m pip install ikvpy
 Prerequisites - (1) [Provisioned](#onboarding) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
 
 ```python
+import time
+from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
+import ikvpy.client as ikv_client
+import ikvpy.document as ikv_document
+import ikvpy.factory as ikv_factory
+
+# create client options - for writer
+client_options = ClientOptionsBuilder() \
+	.with_account_id("--account-id--")\
+	.with_account_passkey("--account-passkey--")\
+	.with_store_name("--store-name--")\
+	.build()
+
+# create writer
+writer: ikv_client.IKVWriter = ikv_factory.create_new_writer(client_options)
+writer.startup()
+
+# create documents and invoke upsert() operations
+doc1 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Alice").put_string_field("age", "22").build()
+writer.upsert_fields(doc1) # can raise exception on error, see source docs
+
+doc2 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Alice").put_string_field("city", "San Francisco").build()
+writer.upsert_fields(doc2) # can raise exception on error, see source docs
+
+doc3 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Bob").put_string_field("age", "25").build()
+writer.upsert_fields(doc3) # can raise exception on error, see source docs
+
+# create client options - for reader
+client_options = ClientOptionsBuilder() \
+	.with_account_id("--account-id--")\
+	.with_account_passkey("--account-passkey--")\
+	.with_store_name("--store-name--")\
+	.with_mount_directory("--mount-directory--")\
+	.build()
+
+# create reader
+reader: ikv_client.IKVReader = ikv_factory.create_new_reader(client_options)
+reader.startup()
+
+# read documents
+
+# Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
+# before reading your writes.
+time.Sleep(1)
+
+assert reader.get_string_value("Alice", "firstname") == "Alice"
+assert reader.get_string_value("Alice", "age") is None
+assert reader.get_string_value("Alice", "city") == "San Francisco"
+
+assert reader.get_string_value("Bob", "firstname") == "Bob"
+assert reader.get_string_value("Bob", "age") == "25"
+assert reader.get_string_value("Bob", "city") is None
 ```
 
 ## Technical Support
