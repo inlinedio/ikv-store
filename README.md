@@ -338,7 +338,17 @@ func example(t *testing.T) error {
 ```
 
 ### Python Usage
-Python SDK is under development, ETA - April 2024.
+#### Installation
+Fetch the latest version from [PyPi](#https://pypi.org/project/ikvpy/) using **pip**.
+
+```bash
+python -m pip install ikvpy
+```
+#### Python Usage
+Prerequisites - (1) [Provisioned](#onboarding) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
+
+```python
+```
 
 ## Technical Support
 For provisioning, documentation or any technical support- onboarding[@]inlined.io
