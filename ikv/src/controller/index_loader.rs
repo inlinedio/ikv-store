@@ -127,6 +127,7 @@ async fn orchestrate_index_upload(
     // TODO: need to handle large file uploads!!
     // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
 
+    // assume credentials are present on the invoking instance
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
         .region("us-west-2")
         .load()
@@ -191,10 +192,11 @@ async fn orchestrate_index_upload(
 /// If present, returns the full S3-key and base-index epoch.
 async fn find_latest_base_index(config: &IKVStoreConfig) -> anyhow::Result<Option<(String, u128)>> {
     let aws_config = aws_config::defaults(BehaviorVersion::latest())
+        .no_credentials()
         .region("us-west-2")
         .load()
         .await;
-    let client = S3Client::new(&aws_config);
+    let s3_client = S3Client::new(&aws_config);
 
     let bucket_name = config
         .stringConfigs
@@ -226,7 +228,7 @@ async fn find_latest_base_index(config: &IKVStoreConfig) -> anyhow::Result<Optio
     let s3_key_prefix = format!("{}/{}/{}", account_id, store_name, partition);
 
     // list objects based on prefix
-    let mut response = client
+    let mut response = s3_client
         .list_objects_v2()
         .bucket(bucket_name.clone())
         .max_keys(3)
@@ -279,16 +281,6 @@ async fn orchestrate_index_download(
     let key = maybe_base_index.unwrap().0;
     info!("Found base index, base-index-key: {}", &key);
 
-    // References:
-    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
-    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_ListObjects_section.html
-
-    let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region("us-west-2")
-        .load()
-        .await;
-    let client = S3Client::new(&aws_config);
-
     let bucket_name = config
         .stringConfigs
         .get("base_index_s3_bucket_name")
@@ -305,7 +297,25 @@ async fn orchestrate_index_download(
         std::fs::remove_file(&tarball_index_filename)?;
     }
 
-    download_from_s3(&client, config, &bucket_name, &key, &tarball_index_filename).await?;
+    // References:
+    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_UsingLargeFiles_section.html
+    // https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_ListObjects_section.html
+
+    let aws_config = aws_config::defaults(BehaviorVersion::latest())
+        .no_credentials()
+        .region("us-west-2")
+        .load()
+        .await;
+    let s3_client = S3Client::new(&aws_config);
+
+    download_from_s3(
+        &s3_client,
+        config,
+        &bucket_name,
+        &key,
+        &tarball_index_filename,
+    )
+    .await?;
     unpack_tarball(&tarball_index_filename, working_mount_directory)?;
 
     // after unpacking, the decompressed index is in <mount-dir>/base_index, move it to <mount-dir>
