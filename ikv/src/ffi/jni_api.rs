@@ -181,3 +181,19 @@ pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_processIKVDataEvent<
         ),
     };
 }
+
+#[no_mangle]
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_flushWrites<'local>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    handle: jlong,
+) {
+    let controller = external_handle::from_external_handle(handle);
+    let _ = match controller.index_ref().flush_writes() {
+        Ok(_) => jni::errors::Result::Ok(()),
+        Err(e) => env.throw_new(
+            "java/lang/RuntimeException",
+            format!("Flush error for IKVDataEvent. Error: {}", e.to_string()),
+        ),
+    };
+}
