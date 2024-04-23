@@ -69,7 +69,7 @@ Host the containerized data-plane in your private cloud.
 
 ## Architecture
 <p align="center">
-    <img src="readme-img/architecturev2.png" alt="IKV Architecture Schematic">
+    <img src="readme-img/inlined-architecture-2.png" alt="IKV Architecture">
 </p>
 IKV is composed of two parts - (a) an embedded database, which can be used as a library to store data in your application container (b) a data-plane (hosted by inlined.io or self-hosted), which persists data and propagates it to the database instances.
 
