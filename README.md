@@ -140,88 +140,80 @@ We added a new document, no new fields were added. The following queries can be 
 ```
 
 ## Language specific SDKs
-IKV provides client SDKs in Java, Go and Python. Documentation: [docs.inlined.io](https://docs.inlined.io/category/clients)
+IKV provides client SDKs in Python, Go and Java. Documentation: [docs.inlined.io](https://docs.inlined.io/category/clients)
 
-### Java Usage
-
+### Python Usage
 #### Installation
-`ikv-java-client` is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client). The latest version is: [![Release](https://jitpack.io/v/io.inlined/ikv-java-client.svg)](https://jitpack.io/#io.inlined/ikv-java-client)
+Fetch the latest version from [PyPi](https://pypi.org/project/ikvpy/) using **pip**.
 
-#### Java Usage
+```bash
+python -m pip install ikvpy
+```
+#### Python Usage
 Prerequisites - (1) [Provisioned](#onboarding) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
 
-```java
-// Instantiate reader and writer clients using IKVClientFactory.
-// In this example we will upsert and read "user" profile data - the same example
-// which was discussed in IKV APIs section.
+```python
+import time
+from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
+import ikvpy.client as ikv_client
+import ikvpy.document as ikv_document
+import ikvpy.factory as ikv_factory
 
-import io.inlined.clients.ClientOptions;  
-import io.inlined.clients.IKVClientFactory;  
-import io.inlined.clients.IKVDocument;  
-import io.inlined.clients.InlineKVReader;  
-import io.inlined.clients.InlineKVWriter;
+# create client options - for writer
+client_options = ClientOptionsBuilder() \
+	.with_account_id("--account-id--")\
+	.with_account_passkey("--account-passkey--")\
+	.with_store_name("--store-name--")\
+	.build()
 
-IKVClientFactory factory = new IKVClientFactory();
+# create writer
+writer: ikv_client.IKVWriter = ikv_factory.create_new_writer(client_options)
+writer.startup()
 
-// Create client options - for Writer
-ClientOptions writerClientOptions = new ClientOptions.Builder()
-  .withStoreName("user-profile")  
-  .withAccountId("--account-id--")  
-  .withAccountPassKey("--account-passkey--")
-  .build();
+# create documents and invoke upsert() operations
+doc1 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Alice").put_string_field("age", "22").build()
+writer.upsert_fields(doc1) # can raise exception on error, see source docs
 
-// Create Writer instance
-InlineKVWriter writer = factory.createNewWriterInstance(writerClientOptions);
-writer.startupWriter();
+doc2 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Alice").put_string_field("city", "San Francisco").build()
+writer.upsert_fields(doc2) # can raise exception on error, see source docs
 
-// create documents and invoke upsert() operations
-IKVDocument doc1 =  new IKVDocument.Builder()
-  .putStringField("firstname", "Alice")
-  .putIntField("age", 22)
-  .build();  
-writer.upsertFieldValues(doc1);
+doc3 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Bob").put_string_field("age", "25").build()
+writer.upsert_fields(doc3) # can raise exception on error, see source docs
 
-IKVDocument doc2 =  new IKVDocument.Builder()
-  .putStringField("firstname", "Alice")
-  .putStringField("city", "San Francisco")
-  .build();  
-writer.upsertFieldValues(doc2);
+# create client options - for reader
+client_options = ClientOptionsBuilder() \
+	.with_account_id("--account-id--")\
+	.with_account_passkey("--account-passkey--")\
+	.with_store_name("--store-name--")\
+	.with_mount_directory("--mount-directory--")\
+	.build()
 
-IKVDocument doc3 =  new IKVDocument.Builder()
-  .putStringField("firstname", "Bob")
-  .putIntField("age", 25)
-  .build();  
-writer.upsertFieldValues(doc3);
+# create reader
+reader: ikv_client.IKVReader = ikv_factory.create_new_reader(client_options)
+reader.startup()
 
-// Create client options - for Reader
-ClientOptions readerClientOptions = new ClientOptions.Builder()
-  .withMountDirectory("/tmp/UserProfiles")  
-  .withStoreName("user-profile")  
-  .withAccountId("--account-id--")  
-  .withAccountPassKey("--account-passkey--")  
-  .useStringPrimaryKey()  
-  .build();
+# read documents
 
-// Create Reader instance
-InlineKVReader reader = factory.createNewReaderInstance(readerClientOptions);  
-reader.startupReader();
+# Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
+# before reading your writes.
+time.Sleep(1)
 
-// read documents
-// Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
-// before reading your writes.
-Thread.sleep(1000);
+# single gets
+assert reader.get_string_value("Alice", "firstname") == "Alice"
+assert reader.get_string_value("Alice", "age") is None
+assert reader.get_string_value("Alice", "city") == "San Francisco"
+assert reader.get_string_value("Bob", "firstname") == "Bob"
+assert reader.get_string_value("Bob", "age") == "25"
+assert reader.get_string_value("Bob", "city") is None
 
-Assertions.assertEquals(reader.getStringValue("Alice", "firstname"), "Alice");
-Assertions.assertEquals(reader.getIntValue("Alice", "age"), 22);
-Assertions.assertEquals(reader.getStringValue("Alice", "city"), "San Francisco");
+# multi/batch get
+cities = reader.multiget_string_values(str_primary_keys=["Alice", "Bob"])
 
-Assertions.assertEquals(reader.getStringValue("Bob", "firstname"), "Bob");
-Assertions.assertEquals(reader.getIntValue("Bob", "age"), 25);
-Assertions.assertNull(reader.getStringValue("Bob", "city"));
-
-writer.shutdownWriter();
-reader.shutdownReader();
+# note: the returned iterator can be drained into a list using list(cities)
+assert next(cities) == "San Francisco"
+assert next(cities) is None
 ```
+
 ### Go Usage
 
 #### Installation
@@ -337,69 +329,85 @@ func example(t *testing.T) error {
 }
 ```
 
-### Python Usage
-#### Installation
-Fetch the latest version from [PyPi](https://pypi.org/project/ikvpy/) using **pip**.
+### Java Usage
 
-```bash
-python -m pip install ikvpy
-```
-#### Python Usage
+#### Installation
+`ikv-java-client` is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client). The latest version is: [![Release](https://jitpack.io/v/io.inlined/ikv-java-client.svg)](https://jitpack.io/#io.inlined/ikv-java-client)
+
+#### Java Usage
 Prerequisites - (1) [Provisioned](#onboarding) IKV store  (2) Basic familiarity with [IKV APIs and concepts](#apis)
 
-```python
-import time
-from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
-import ikvpy.client as ikv_client
-import ikvpy.document as ikv_document
-import ikvpy.factory as ikv_factory
+```java
+// Instantiate reader and writer clients using IKVClientFactory.
+// In this example we will upsert and read "user" profile data - the same example
+// which was discussed in IKV APIs section.
 
-# create client options - for writer
-client_options = ClientOptionsBuilder() \
-	.with_account_id("--account-id--")\
-	.with_account_passkey("--account-passkey--")\
-	.with_store_name("--store-name--")\
-	.build()
+import io.inlined.clients.ClientOptions;  
+import io.inlined.clients.IKVClientFactory;  
+import io.inlined.clients.IKVDocument;  
+import io.inlined.clients.InlineKVReader;  
+import io.inlined.clients.InlineKVWriter;
 
-# create writer
-writer: ikv_client.IKVWriter = ikv_factory.create_new_writer(client_options)
-writer.startup()
+IKVClientFactory factory = new IKVClientFactory();
 
-# create documents and invoke upsert() operations
-doc1 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Alice").put_string_field("age", "22").build()
-writer.upsert_fields(doc1) # can raise exception on error, see source docs
+// Create client options - for Writer
+ClientOptions writerClientOptions = new ClientOptions.Builder()
+  .withStoreName("user-profile")  
+  .withAccountId("--account-id--")  
+  .withAccountPassKey("--account-passkey--")
+  .build();
 
-doc2 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Alice").put_string_field("city", "San Francisco").build()
-writer.upsert_fields(doc2) # can raise exception on error, see source docs
+// Create Writer instance
+InlineKVWriter writer = factory.createNewWriterInstance(writerClientOptions);
+writer.startupWriter();
 
-doc3 = ikv_document.IKVDocumentBuilder().put_string_field("firstname", "Bob").put_string_field("age", "25").build()
-writer.upsert_fields(doc3) # can raise exception on error, see source docs
+// create documents and invoke upsert() operations
+IKVDocument doc1 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Alice")
+  .putIntField("age", 22)
+  .build();  
+writer.upsertFieldValues(doc1);
 
-# create client options - for reader
-client_options = ClientOptionsBuilder() \
-	.with_account_id("--account-id--")\
-	.with_account_passkey("--account-passkey--")\
-	.with_store_name("--store-name--")\
-	.with_mount_directory("--mount-directory--")\
-	.build()
+IKVDocument doc2 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Alice")
+  .putStringField("city", "San Francisco")
+  .build();  
+writer.upsertFieldValues(doc2);
 
-# create reader
-reader: ikv_client.IKVReader = ikv_factory.create_new_reader(client_options)
-reader.startup()
+IKVDocument doc3 =  new IKVDocument.Builder()
+  .putStringField("firstname", "Bob")
+  .putIntField("age", 25)
+  .build();  
+writer.upsertFieldValues(doc3);
 
-# read documents
+// Create client options - for Reader
+ClientOptions readerClientOptions = new ClientOptions.Builder()
+  .withMountDirectory("/tmp/UserProfiles")  
+  .withStoreName("user-profile")  
+  .withAccountId("--account-id--")  
+  .withAccountPassKey("--account-passkey--")  
+  .useStringPrimaryKey()  
+  .build();
 
-# Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
-# before reading your writes.
-time.Sleep(1)
+// Create Reader instance
+InlineKVReader reader = factory.createNewReaderInstance(readerClientOptions);  
+reader.startupReader();
 
-assert reader.get_string_value("Alice", "firstname") == "Alice"
-assert reader.get_string_value("Alice", "age") is None
-assert reader.get_string_value("Alice", "city") == "San Francisco"
+// read documents
+// Due to eventual-consistent nature of IKV, you might need to add a small delay (or retries)
+// before reading your writes.
+Thread.sleep(1000);
 
-assert reader.get_string_value("Bob", "firstname") == "Bob"
-assert reader.get_string_value("Bob", "age") == "25"
-assert reader.get_string_value("Bob", "city") is None
+Assertions.assertEquals(reader.getStringValue("Alice", "firstname"), "Alice");
+Assertions.assertEquals(reader.getIntValue("Alice", "age"), 22);
+Assertions.assertEquals(reader.getStringValue("Alice", "city"), "San Francisco");
+
+Assertions.assertEquals(reader.getStringValue("Bob", "firstname"), "Bob");
+Assertions.assertEquals(reader.getIntValue("Bob", "age"), 25);
+Assertions.assertNull(reader.getStringValue("Bob", "city"));
+
+writer.shutdownWriter();
+reader.shutdownReader();
 ```
 
 ## Technical Support
