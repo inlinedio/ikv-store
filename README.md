@@ -2,12 +2,10 @@
     <img src="readme-img/inlined-logo.png" alt="IKV logo">
 </p>
 
-Website: **[inlined.io](https://inlined.io)**
-
-Read the docs at **[docs.inlined.io](https://docs.inlined.io)**
+Website: **[inlined.io](https://inlined.io)** | Documentation: **[docs.inlined.io](https://docs.inlined.io)**
 
 # IKV | Inlined Key-Value Store
-IKV is a key-value store primarly designed for storing ML features. It is fully-managed, [eventually-consistent](https://en.wikipedia.org/wiki/Eventual_consistency) and most importantly an [embedded database](https://en.wikipedia.org/wiki/Embedded_database). IKV is written in Rust, and provides SDKs (client libraries) in **Python, Go and Java**. 
+IKV is a key-value store primarly designed for storing ML features. It is persistent, [eventually-consistent](https://en.wikipedia.org/wiki/Eventual_consistency) and most importantly an [embedded database](https://en.wikipedia.org/wiki/Embedded_database). IKV is written in Rust, and provides SDKs (client libraries) in **Python, Go and Java**. 
 
 Most key-value stores (think Redis or Cassandra) need a remote database cluster, whereas IKV allows you to utilize your existing application infrastructure to store data (cost efficient) and access it without any network calls (better performance).
 
@@ -21,22 +19,24 @@ Most key-value stores require you to allocate a dedicated database cluster which
  - Automatic data-tiering and zero-copy disk reads. IKV's memory-mapped index keeps frequently accessed data in memory and the rest automatically spills to disk (no need for configuration).
  - Auto-scaling friendly. IKV can be used as a library, i.e. it auto-scales with your existing application cluster. Traditional database clusters need to be provisioned for peak-load at all times.
 
-#### Embedded and blaing fast
+#### Embedded and blazing fast
 IKV can serve read requests without making any network calls, and can provide **single-digit microsecond** P99 read latency, when your dataset can fit in memory (sub-millisecond when used with Flash/SSD). This is **100x faster than existing solutions like Redis**. (See [benchmarks](#benchmarks--100x-faster-than-redis) below)
 
 IKV is heavily optimized for read performance (latency and throughput):
  - Zero network latency for reads (even on a cold start). No overhead of network hops, encryption and minimal ser-deserialization.
- - Frequently accessed data occupies local memory
+ - Frequently accessed data occupies local memory.
  - No need for index compaction (like LSM tree based stores), hence there is no resource saturation. 
- - No Garbage Collection. IKV is written in Rust, with client SDKs Java, Go & Python
+ - No Garbage Collection. IKV is written in Rust with client SDKs in Python, Go and Java.
 
-#### Fully Managed
-IKV is more than just a library - it handles all data management aspects for you. It provides "write once, read forever" semantics, i.e. data is fully persistent (stored in IKV cloud). It replicates data across your fleet of application containers (globally). IKV scales horizontally for large datasets (with partitions) and high read/write traffic (with replication). This makes IKV unique as compared to other "library-only" embedded databases (ex. LevelDB, RocksDB or LMDB).
-
-In short, you get the performance benefits of embedded DB architecture, plus all the ease & reliability of a cloud hosted client-server DB architecture.
+#### Fully-managed, more than a library
+Traditional embedded databases (like RocksDB or LevelDB) are just libraries, IKV does way more:
+ - Data is fully persistent. Write once and read forever, without the need to perform any explicit backups or snapshots.
+ - Geo-replicated. IKV's underlying data-plane (IKV Cloud or self-hosted) replicates your data globally across your application clusters.
+ - Horizontal scaling - IKV scales horizontally for large datasets (with partitions) and high read/write traffic (with replication).
 
 #### Usecases for IKV
-Typical usecases include recommendation-engines, ML inference (feature stores), information-retrieval related tasks or fast general-purpose caching (anything with tight latency requirements that does not need strong read-after-write consistency or transactions).
+IKV's primary usecase is for storing ML features for online retrieval - as part of ML inference/scoring for applications like recommendation engines, search, ecommerce, etc.
+It can also be used for fast general-purpose storage/caching - anything with tight latency requirements and doesn't need read-after-write consistency.
 
 ## Benchmarks | 100x faster than Redis
 IKV provides single-digit microsecond response-time at P99 and is 100x faster than Redis. Read our full benchmarking setup and report [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
@@ -56,14 +56,16 @@ IKV provides single-digit microsecond response-time at P99 and is 100x faster th
 These benchmarks were performed by a multi-threaded client machine which made blocking calls to the underlying database. For a constant load (queries-per-second), we note down the response-time of both databases (avg/P99/etc). We tested "get" performance i.e. given a primary-key and a field/attribute name - fetch the field's value. IKV is inherently built for multithreaded use, for Redis we used a 16 shard, single-node Redis Cluster to ensure fairness. The report linked above has details about hardware and testing methodology.
 
 ## Developer Documentation
-Detailed documentation about data-modeling, best practices and language specific SDKs and more: **[docs.inlined.io](https://docs.inlined.io)**
+Detailed documentation about data-modeling, best practices and language specific client SDKs and more: **[docs.inlined.io](https://docs.inlined.io)**
 
-## Onboarding
-IKV is an embedded database on top of a backend data layer (**IKV Cloud**). You need an IKV cloud account and a provisioned IKV store to start using it in your application. All provisioning related communication can be done by contacting **onboarding@inlined.io**. Store provisioning takes 1-3 hours.
+## Using IKV
+IKV is an embedded database, but it is built on top of a data-plane (streams, block storage & config endpoints) which propagates new data to the embedded database instances. You can either use the data-plane hosted by inlined.io (IKV cloud) or self-host.
 
-## Pricing
-Unlimited read quota, pay only for the amount of data you store ($ per GB/month). We offer a free-tier for small data volumes.
-Pricing details can be requested based on quota requirements by contacting **onboarding@inlined.io**
+### IKV Cloud (data-plane hosted by inlined.io)
+Use IKV in cloud enviornments - AWS, Azure, Google Cloud or on-prem. You need an IKV Cloud account and a provisioned IKV store to start - by contacting **onboarding@inlined.io** or booking an appointment at [https://inlined.io](https://inlined.io). IKV Cloud is a paid fully-managed service - where you get unlimited read quota, pay only for the amount of data you store ($ per GB/month).
+
+### Self Hosted (Coming soon)
+Host the containerized data-plane in your private cloud.
 
 ## Architecture
 <p align="center">
@@ -154,7 +156,7 @@ We added a new document, no new fields were added. The following queries can be 
 ## Language specific SDKs
 IKV provides client SDKs in Python, Go and Java. Documentation: [docs.inlined.io](https://docs.inlined.io/category/clients)
 
-### Python Usage
+### Python SDK
 #### Installation
 Fetch the latest version from [PyPi](https://pypi.org/project/ikvpy/) using **pip**.
 
@@ -226,7 +228,7 @@ assert next(cities) == "San Francisco"
 assert next(cities) is None
 ```
 
-### Go Usage
+### Go SDK
 
 #### Installation
 Fetch the latest version using the **go** tool.
@@ -341,7 +343,7 @@ func example(t *testing.T) error {
 }
 ```
 
-### Java Usage
+### Java SDK
 
 #### Installation
 `ikv-java-client` is hosted on [Jitpack](https://jitpack.io/#io.inlined/ikv-java-client). The latest version is: [![Release](https://jitpack.io/v/io.inlined/ikv-java-client.svg)](https://jitpack.io/#io.inlined/ikv-java-client)
