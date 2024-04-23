@@ -7,16 +7,28 @@ Website: **[inlined.io](https://inlined.io)**
 Read the docs at **[docs.inlined.io](https://docs.inlined.io)**
 
 # IKV | Inlined Key-Value Store
-IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting. IKV is written in Rust, and provides SDKs (client libraries) to use it in **Go, Java and Python**.
+IKV is a cost-effective and fast key-value store primarly designed for storing ML features. It is fully-managed, [eventually-consistent](https://en.wikipedia.org/wiki/Eventual_consistency) and most importantly an [embedded database](https://en.wikipedia.org/wiki/Embedded_database). IKV is written in Rust, and provides SDKs (client libraries) in **Python, Go and Java**. 
 
-#### Embedded & Blazing Fast
-IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. It can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. (See [benchmarks](#benchmarks--100x-faster-than-redis) below)
+Most key-value stores (think Redis or Cassandra) need a remote database cluster, whereas IKV allows you to utilize your existing application infrastructure to store data (cost efficient) and access it without any network calls (better performance).
+
+<p align="center">
+    <img src="readme-img/architecture.png" alt="IKV Architecture">
+</p>
+
+#### Cost-effective caching at sub-millisecond speed
+Most key-value stores require you to allocate a dedicated database cluster which is costly (hardware + operations). IKV allows you to augment your existing application cluster with additional memory or Flash/SSD to store your data, without sacrificing on speed. 
+ - Sub-millisecond access latency when used with local (attached) Flash/SSD storage, which is still 2x faster than a remote all-in-memory Redis cluster. (See [benchmarks](#benchmarks--100x-faster-than-redis) below)
+ - Automatic data-tiering and zero-copy disk reads. IKV's memory-mapped index keeps frequently accessed data in memory and the rest automatically spills to disk (no need for configuration).
+ - Auto-scaling friendly. IKV can be used as a library, i.e. it auto-scales with your existing application cluster. Traditional database clusters need to be provisioned for peak-load at all times.
+
+#### Embedded and blaing fast
+IKV can serve read requests without making any network calls, and can provide **single-digit microsecond** P99 read latency, when your dataset can fit in memory (sub-millisecond when used with Flash/SSD). This is **100x faster than existing solutions like Redis**. (See [benchmarks](#benchmarks--100x-faster-than-redis) below)
 
 IKV is heavily optimized for read performance (latency and throughput):
- - In-memory with option to spill to local disk.
- - Designed for point-lookups ("hashtable/dictionary API").
- - No cold start problem or RPCs during cache misses.
- - No Garbage Collection. IKV is written in Rust, with thin clients in languages like Java, Go & Python.
+ - Zero network latency for reads (even on a cold start). No overhead of network hops, encryption and minimal ser-deserialization.
+ - Frequently accessed data occupies local memory
+ - No need for index compaction (like LSM tree based stores), hence there is no resource saturation. 
+ - No Garbage Collection. IKV is written in Rust, with client SDKs Java, Go & Python
 
 #### Fully Managed
 IKV is more than just a library - it handles all data management aspects for you. It provides "write once, read forever" semantics, i.e. data is fully persistent (stored in IKV cloud). It replicates data across your fleet of application containers (globally). IKV scales horizontally for large datasets (with partitions) and high read/write traffic (with replication). This makes IKV unique as compared to other "library-only" embedded databases (ex. LevelDB, RocksDB or LMDB).
