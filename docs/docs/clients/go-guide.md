@@ -5,7 +5,7 @@ sidebar_position: 2
 ---
 
 # Go Guide
-In this section we go over how to use IKV's Go client library.
+In this section we go over how to use IKV's Go SDK.
 
  - [Installation](#installation)
  - [Example](#example)
@@ -135,7 +135,7 @@ func example(t *testing.T) error {
 ```
 
 ### Write Documents
-This section provides more details about writing data to IKV. You will interact with the following main components to write (insert/update/delete) documents in an IKV store:
+You will interact with the following main interfaces to write (insert/update/delete) documents in an IKV store:
 
 1. `IKVDocument` - A document is a collection of fields/attributes, identified by a primary-key. It is an abstraction for modeling data and writing/reading from IKV.
 2. `IKVWriter` - A writer client which can insert/update documents i.e. `IKVDocument` structs, to a particular IKV store.
@@ -153,6 +153,9 @@ This section provides more details about writing data to IKV. You will interact 
 -  **UpsertFields**: Insert or Update (if not exists) fields for a document. The document must contain the value of the primary-key and (if-specified) partitioning-key. Include values of other fields you wish to upsert. Different values for the same primary-key are aggregated by unionizing distincts and overwriting duplicates, ex. upsert of `{"name": "Alice", "age": 22}` followed by upsert of `{"name": "Alice", "age": 25, "city": "San Francisco"}` , results in `{"name": "Alice", "age": 25, "city": "San Francisco"}` being saved in IKV.
 -  **DeleteFields**: Delete specified fields from a document, if they exist. The document must contain the value of the primary-key and (if-specified) partitioning-key.
 -  **DeleteDocument**: Deletes specified document if it exists. The document must contain the value of the primary-key and (if-specified) partitioning-key.
+-  **DropFieldsByName**: Drop specified fields for all documents. Attempts to drop primary-key field are silently ignored (no error).
+-  **DropFieldsByNamePrefix**: Drop specified fields for all documents, by specifying field name prefixes. Attempts to drop primary-key field are silently ignored (no error).
+-  **DropAllFields**: Drop all fields (except primary-key) for all documents.
 
 :::info
 **Multithreaded Usage**: All write operations on IKVWriter are thread-safe. However, you must ensure there is caller side synchronization while
@@ -160,7 +163,7 @@ invoking write operations for documents with the same primary-key with multiple 
 :::
 
 ### Read Documents
-This section provides more details about reading data from IKV. You will interact with the following main components to read document fields from an IKV store:
+You will interact with the following main interfaces to read document fields from an IKV store:
 
 1. `IKVReader` - A read client over an embedded key-value store, which can be used to read strongly-typed field-values for a given document.
 2. `IKVClientFactory` - A factory struct for creating an `IKVReader` instance, by accepting various configuration options for the embedded key-value store i.e. `ClientOptions` struct ([reference](#configuration)).

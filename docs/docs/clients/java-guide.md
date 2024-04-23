@@ -1,11 +1,11 @@
 ---
 title: Java
 label: Java
-sidebar_position: 1
+sidebar_position: 3
 ---
 
 # Java Usage Guide
-In this section we go over how to use IKV's Java client library.
+In this section we go over how to use IKV's Java SDK.
 
  - [Installation](#installation)
  - [Example](#example)
@@ -118,7 +118,7 @@ reader.shutdownReader();
 ```
 
 ### Write Documents
-This section provides more details about writing data to IKV. You will interact with the following main components to write (insert/update/delete) documents in an IKV store:
+You will interact with the following main interfaces to write (insert/update/delete) documents in an IKV store:
 
 1. `IKVDocument` - A document is a collection of fields/attributes, identified by a primary-key. It is an abstraction for modeling data and writing/reading from IKV.
 2. `InlineKVWriter` - A writer client which can insert/update/delete documents i.e. `IKVDocument` objects, to a particular IKV store.
@@ -144,7 +144,7 @@ invoking write operations for documents with the same primary-key with multiple 
 :::
 
 ### Read Documents
-This section provides more details about reading data from IKV. You will interact with the following main components to read document fields from an IKV store:
+You will interact with the following main interfaces to read document fields from an IKV store:
 
 1. `InlineKVReader` - A read client over an embedded key-value store, which can be used to read strongly-typed field-values for a given document.
 2. `IKVClientFactory` - A factory class for creating an `InlineKVReader` instance, by accepting various configuration options for the embedded key-value store i.e. `ClientOptions` object ([reference](#configuration)).
