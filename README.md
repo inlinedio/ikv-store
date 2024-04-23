@@ -64,7 +64,7 @@ IKV is an embedded database, but it is built on top of a data-plane (streams, bl
 ### IKV Cloud (data-plane hosted by inlined.io)
 Use IKV in cloud enviornments - AWS, Azure, Google Cloud or on-prem. You need an IKV Cloud account and a provisioned IKV store to start - by contacting **onboarding@inlined.io** or booking an appointment at [https://inlined.io](https://inlined.io). IKV Cloud is a paid fully-managed service - where you get unlimited read quota, pay only for the amount of data you store ($ per GB/month).
 
-### Self Hosted (Coming soon)
+### Self-Hosted (coming soon)
 Host the containerized data-plane in your private cloud.
 
 ## Architecture
