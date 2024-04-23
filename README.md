@@ -71,11 +71,11 @@ Host the containerized data-plane in your private cloud.
 <p align="center">
     <img src="readme-img/architecturev2.png" alt="IKV Architecture Schematic">
 </p>
-IKV has a hybrid architecture, the database reads are served from an embedded database but writes are persisted and propagated using a standalone service (i.e. IKV Cloud).
+IKV is composed of two parts - (a) an embedded database, which can be used as a library to store data in your application container (b) a data-plane (hosted by inlined.io or self-hosted), which persists data and propagates it to the database instances.
 
- 1. **Reader/Writer Clients**: Distributed as language specific libraries, this is how users perform all CRUD operations. The writer client publishes the events to IKV Cloud, while the reader client queries the embedded database which is up-to-date with latest data (in near real-time).
- 2. **IKV Cloud**: Gateway for write operations. It distributes incoming writes to readers using Kafka streams. It also serves other essential tasks like building index images periodically (for bootstrapping new readers), serving configuration, etc.
- 3. **Embedded database**: Written in Rust, this component is the core database engine used by readers. Clients interface with this using foreign function interface (ex. JNI for Java). The key data structures include: (1) sharded memory-mapped files which store serialized field values (2) hash-table which indexes primary-keys versus "offsets" into the mmaps. This design enables highly concurrent key-value lookup. For most scenarios, all of the data will reside in RAM, providing high performance.
+ 1. **Reader/Writer Clients**: Distributed as language specific libraries, this is how users perform all CRUD operations. The writer client publishes the events to IKV's data plane (IKV Cloud), while the reader client queries the embedded database which is up-to-date with latest data (in near real-time).
+ 2. **IKV Data Plane**: Gateway for write operations. It distributes incoming writes to readers using Kafka streams. It also serves other essential tasks like building index images periodically (for bootstrapping new readers), serving configuration, etc.
+ 3. **Embedded database**: Written in Rust, this component is the core database engine used by readers. Clients interface with this using foreign function interface (ex. JNI for Java). The key data structures include: (1) partitioned memory-mapped files which store serialized field values (2) hash-table which indexes primary-keys versus "offsets" into the mmaps. This design enables highly concurrent key-value lookup. Data occupies RAM/memory and automatically spills to configured disk (local/remote).
 
 ## APIs
 IKV stores documents (the "value") associated with primary-keys (the "key"), in an [eventually consistent](https://en.wikipedia.org/wiki/Eventual_consistency) (read-after-write) manner. Given a primary-key, a user can do CRUD operations i.e. create/read/update/delete on documents.
