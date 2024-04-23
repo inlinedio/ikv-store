@@ -7,7 +7,7 @@ Website: **[inlined.io](https://inlined.io)**
 Read the docs at **[docs.inlined.io](https://docs.inlined.io)**
 
 # IKV | Inlined Key-Value Store
-IKV is a cost-effective and fast key-value store primarly designed for storing ML features. It is fully-managed, [eventually-consistent](https://en.wikipedia.org/wiki/Eventual_consistency) and most importantly an [embedded database](https://en.wikipedia.org/wiki/Embedded_database). IKV is written in Rust, and provides SDKs (client libraries) in **Python, Go and Java**. 
+IKV is a key-value store primarly designed for storing ML features. It is fully-managed, [eventually-consistent](https://en.wikipedia.org/wiki/Eventual_consistency) and most importantly an [embedded database](https://en.wikipedia.org/wiki/Embedded_database). IKV is written in Rust, and provides SDKs (client libraries) in **Python, Go and Java**. 
 
 Most key-value stores (think Redis or Cassandra) need a remote database cluster, whereas IKV allows you to utilize your existing application infrastructure to store data (cost efficient) and access it without any network calls (better performance).
 
