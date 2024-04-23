@@ -12,7 +12,7 @@ IKV is a cost-effective and fast key-value store primarly designed for storing M
 Most key-value stores (think Redis or Cassandra) need a remote database cluster, whereas IKV allows you to utilize your existing application infrastructure to store data (cost efficient) and access it without any network calls (better performance).
 
 <p align="center">
-    <img src="readme-img/architecture.png" alt="IKV Architecture">
+    <img src="readme-img/inlined-architecture-main-1.svg" alt="IKV Architecture">
 </p>
 
 #### Cost-effective caching at sub-millisecond speed
