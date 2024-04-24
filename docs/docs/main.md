@@ -4,26 +4,33 @@ sidebar_position: 1
 ---
 
 # IKV | Inlined Key-Value Store
-IKV is a high-performance **fully-managed, embedded key-value** store for powering ML inference. It's unique design tradeoffs makes it perfect for accessing large key-value datasets with very low latency in a production setting. This website provides detailed documentation for using IKV in your application.
+IKV is a key-value store primarly designed for storing ML features. It is persistent, eventually-consistent and most importantly an **embedded database**. IKV is written in Rust, and provides SDKs (client libraries) in Python, Go and Java. This website provides detailed documentation for using IKV in your application.
  - [Onboarding](./onboarding.md)
  - [Data Modeling](./data-modeling.md)
  - [Clients (Language Specific SDKs)](./category/clients)
 
 
 ## About IKV
+#### Cost-effective caching at sub-millisecond speed
+Most key-value stores require you to allocate a dedicated database cluster which is costly (hardware + operations). IKV allows you to augment your existing application cluster with additional memory or Flash/SSD to store your data, without sacrificing on speed.
+ - Sub-millisecond access latency when used with local (attached) Flash/SSD storage, which is still 2x faster than a remote all-in-memory Redis cluster
+ - Automatic data-tiering and zero-copy disk reads.
+
 #### Embedded & Blazing Fast
-IKV is an eventually-consistent, partitioned **[embedded database](https://en.wikipedia.org/wiki/Embedded_database)** on top of a backend data layer. IKV can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. Read our benchmarks [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
+IKV can serve read requests without making any network calls, and provides **single-digit microsecond** P99 read latency from a client’s point-of-view. This is **100x faster than existing solutions like Redis**. Read our benchmarks [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk).
 
-IKV is heavily optimized for read performance (latency/throughput):
- - In-memory with option to spill to local disk.
- - Designed for point-lookups ("hashtable/dictionary API").
- - No cold start problem or RPCs during cache misses.
- - No Garbage Collection. IKV is written in Rust, with thin clients in languages like Java, Go & Python.
+IKV is heavily optimized for read performance (latency and throughput):
+ - Zero network latency for reads (even on a cold start). No overhead of network hops, encryption and minimal ser-deserialization.
+ - Frequently accessed data occupies local memory.
+ - No need for index compaction (like LSM tree based stores), hence there is no resource saturation. 
+ - No Garbage Collection. IKV is written in Rust with client SDKs in Python, Go and Java.
 
-#### Fully Managed
-IKV is more than just a library - it handles all data management aspects for you. It provides "write once, read forever" semantics, i.e. data is fully persistent (stored in IKV cloud). It replicates data across your fleet of application containers (globally). IKV scales horizontally for large datasets (with partitions) and high read/write traffic (with replication). This makes IKV unique as compared to other "library-only" embedded databases (ex. LevelDB, RocksDB or LMDB).
+#### Fully-managed, more than a library
+Traditional embedded databases (like RocksDB or LevelDB) are just libraries, IKV does way more:
+ - Data is fully persistent. Write once and read forever, without the need to perform any explicit backups or snapshots.
+ - Geo-replicated. IKV's underlying data-plane (IKV Cloud or self-hosted) replicates your data globally across your application clusters.
+ - Horizontal scaling - IKV scales horizontally for large datasets (with partitions) and high read/write traffic (with replication).
 
-## Usecases for IKV
-Typical usecases include recommendation-engines, ML inference (feature stores) and information-retrieval related tasks; which make several database calls per application request. IKV is for you if you -
- - Do not need strong read-after-write consistency for your data.
- - Have tight latency requirements for large key-value data sets
+#### Usecases for IKV
+IKV's primary usecase is for storing ML features for online retrieval - as part of ML inference/scoring for applications like recommendation engines, search, ecommerce, etc.
+It can also be used for fast general-purpose storage/caching - anything with tight latency requirements and doesn't need read-after-write consistency.
