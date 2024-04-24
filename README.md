@@ -20,9 +20,7 @@ Most key-value stores require you to allocate a dedicated database cluster which
  - Auto-scaling friendly. IKV can be used as a library, i.e. it auto-scales with your existing application cluster. Traditional database clusters need to be provisioned for peak-load at all times.
 
 #### Embedded and blazing fast
-IKV can serve read requests without making any network calls, and can provide **single-digit microsecond** P99 read latency, when your dataset can fit in memory (sub-millisecond when used with Flash/SSD). This is **100x faster than existing solutions like Redis**. (See [benchmarks](#benchmarks--100x-faster-than-redis) below)
-
-IKV is heavily optimized for read performance (latency and throughput):
+IKV can serve read requests without making any network calls, and can provide **single-digit microsecond** P99 read latency, when your dataset can fit in memory (sub-millisecond when used with Flash/SSD). This is **100x faster than existing solutions like Redis**. (See [benchmarks](#benchmarks--100x-faster-than-redis) below). IKV is heavily optimized for read performance (latency and throughput):
  - Zero network latency for reads (even on a cold start). No overhead of network hops, encryption and minimal ser-deserialization.
  - Frequently accessed data occupies local memory.
  - No need for index compaction (like LSM tree based stores), hence there is no resource saturation. 
@@ -39,7 +37,10 @@ IKV's primary usecase is for storing ML features for online retrieval - as part 
 It can also be used for fast general-purpose storage/caching - anything with tight latency requirements and doesn't need read-after-write consistency.
 
 ## Benchmarks | 100x faster than Redis
-IKV provides single-digit microsecond response-time at P99 and is 100x faster than Redis. Read our full benchmarking setup and report [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
+For data that can fit in memory/RAM, IKV provides single-digit microsecond response-time at P99 and is 100x faster than Redis.
+For bigger datasets (2x-4x bigger than memory/RAM), IKV still provides sub-millisecond response-time at P99, and is still faster than Redis operating in in-memory mode.
+
+Read our full benchmarking setup and report [here](https://docs.google.com/document/d/1aDsS0V-AybpvXEwblBlahGLpKH5NmUmi6mTWGsbABGk/edit#heading=h.ey4ngxmm384e).
 
 ```markdown
 | Read-Only Load (QPS) | IKV (Inlined Key Value Store)   | Redis Cluster (AWS ElastiCache) |
