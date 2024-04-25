@@ -89,13 +89,17 @@ message BatchDeleteDocumentsRequest {
   repeated IKVDocumentOnWire documentIds = 3;
 }
 
-// Drop (delete) field(s) from all documents. No-op if the fields don't exist.
-// Attempts to delete primary-key will be ignored.
+// Drop (delete) field(s) from all documents or all documents.
 message DropFieldsRequest {
   UserStoreContextInitializer userStoreContextInitializer = 1;
   google.protobuf.Timestamp timestamp = 2;
+
+  // Attempts to delete primary-key will be ignored.
+  // No-op if the fields don't exist.
   repeated string field_names = 3;
   repeated string field_name_prefixes = 4;
+
+  // drop all data
   bool drop_all = 5;
 }
 

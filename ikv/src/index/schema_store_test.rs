@@ -153,7 +153,7 @@ fn drop_fields() {
 
     // drop fields (name, gender)
     index
-        .drop_fields(
+        .soft_delete_fields(
             &vec![
                 "name".to_string(),
                 "foo".to_string(),
@@ -168,7 +168,7 @@ fn drop_fields() {
     assert!(index.fetch_id_by_name("gender").is_none());
 
     // drop all fields
-    index.drop_all_fields().unwrap();
+    index.hard_delete_all_fields().unwrap();
 
     assert!(index.fetch_id_by_name(PRIMARY_KEY_FIELD_NAME).unwrap() == 0);
     assert!(index.fetch_id_by_name("name").is_none());

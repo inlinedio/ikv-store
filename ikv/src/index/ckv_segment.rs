@@ -31,24 +31,28 @@ const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
 const NONE_SIZE: [u8; 4] = (-1 as i32).to_le_bytes();
 
 pub struct CKVIndexSegment {
-    // hash-table index, document_id bytes -> vector of offsets
-    // offsets point into the memory map
+    /**
+     * file references
+     */
+    // offset-table-file: persists changes to offset table
     offset_table_file_writer: BufWriter<File>,
 
+    // metadata-file: persists information about this segment like next available offset into mmap file
+    metadata_file_writer: BufWriter<File>,
+
+    // mmap file, stores payloads
+    mmap_file: File,
+
+    /**
+     * Core index structures.
+     */
+    // hash-table index, document_id bytes -> vector of offsets
+    // offsets point into the memory map
     // TODO: offset table should hold u64 for cross platform index builds
     // TODO: this is incompatible on 32 bit architecture
     offset_table: HashMap<Vec<u8>, Vec<usize>>,
-
-    // current (usable) offset for new writes into the mmap
-    write_offset: u64,
-
-    // metadata file writer
-    metadata_file_writer: BufWriter<File>,
-
-    // memory-mapping
-    // underlying file, grows in chunks of size `CHUNK_SIZE`
-    mmap_file: File,
     mmap: MmapMut,
+    write_offset: u64,
 }
 
 impl CKVIndexSegment {
@@ -68,7 +72,7 @@ impl CKVIndexSegment {
         // offset-table exists on disk...
         let offset_table_file = open_offset_table_file(mount_directory, index_id)?;
 
-        // build offset-table
+        // build offset-table by replaying offset_table_file
         let mut offset_table = HashMap::new();
         let mut reader = BufReader::new(&offset_table_file);
 
@@ -156,11 +160,11 @@ impl CKVIndexSegment {
 
         Ok(CKVIndexSegment {
             offset_table_file_writer: BufWriter::new(offset_table_file),
-            offset_table,
-            write_offset,
             metadata_file_writer: BufWriter::new(metadata_file),
             mmap_file,
+            offset_table,
             mmap,
+            write_offset,
         })
     }
 
@@ -180,11 +184,11 @@ impl CKVIndexSegment {
 
         Ok(CKVIndexSegment {
             offset_table_file_writer: BufWriter::new(offset_table_file),
-            offset_table: HashMap::new(),
-            write_offset: 0,
             metadata_file_writer,
             mmap_file,
+            offset_table: HashMap::new(),
             mmap,
+            write_offset: 0,
         })
     }
 
@@ -469,6 +473,7 @@ impl CKVIndexSegment {
             self.write_offset += num_bytes as u64;
         }
 
+        // propagate to disk (OffsetTableEntry.proto)
         let mut offset_table_entry = OffsetTableEntry::new();
         offset_table_entry.operation = Some(
             proto::generated_proto::index::offset_table_entry::Operation::UpdateDocFields(
@@ -521,7 +526,7 @@ impl CKVIndexSegment {
         Ok(())
     }
 
-    /// Delete document.
+    /// Delete document (soft delete).
     pub fn delete_document(&mut self, primary_key: &[u8]) -> io::Result<()> {
         if primary_key.is_empty() {
             return Ok(());
@@ -538,6 +543,26 @@ impl CKVIndexSegment {
 
         // remove from in-memory offset_table
         self.offset_table.remove(primary_key);
+        Ok(())
+    }
+
+    /// Drops all indexed data (hard delete).
+    pub fn delete_all_documents(&mut self) -> io::Result<()> {
+        // flush pending writes
+        self.flush_writes()?;
+
+        // clear offset table and file (deallocate memory too)
+        self.offset_table_file_writer.flush()?;
+        self.offset_table_file_writer.get_ref().set_len(0)?;
+        self.offset_table_file_writer.rewind()?;
+        self.offset_table = HashMap::new();
+
+        // clear mmap
+        self.mmap_file.set_len(0)?;
+        self.mmap = unsafe { MmapMut::map_mut(&self.mmap_file)? };
+        self.write_offset = 0;
+        write_metadata(&mut self.metadata_file_writer, 0u64)?;
+
         Ok(())
     }
 
