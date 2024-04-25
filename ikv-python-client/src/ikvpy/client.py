@@ -141,6 +141,6 @@ class IKVWriter(ABC):
     @abstractmethod
     def drop_all_fields(self):
         """
-        Drop all fields (except primary-key) for all documents.
+        Drop all documents from this store.
         """
         raise NotImplementedError("cannot be used directly, use IKVWriterImpl")

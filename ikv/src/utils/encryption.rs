@@ -1,6 +1,7 @@
 use crate::proto::generated_proto::common::IKVStoreConfig;
 
 // Base64 encoded string from 256-bit/32-byte AES256 key constructed from config.
+#[allow(deprecated)]
 pub fn sse_key_and_digest(config: &IKVStoreConfig) -> anyhow::Result<(String, String)> {
     let account_passkey = config.stringConfigs.get("account_passkey").ok_or(
         rdkafka::error::KafkaError::ClientCreation(
@@ -14,7 +15,7 @@ pub fn sse_key_and_digest(config: &IKVStoreConfig) -> anyhow::Result<(String, St
     }
 
     let key = &account_passkey_utf8[0..32];
-    let key_md5_digest = md5::compute(&key);
+    let key_md5_digest = md5::compute(key);
 
     // https://www.reddit.com/r/programmingcirclejerk/comments/16zkmnl/base64s_rust_create_maintainer_bravely_defends/
     let base64_key = base64::encode(key);

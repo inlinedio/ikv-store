@@ -79,7 +79,7 @@ type IKVWriter interface {
 	// Attempts to drop primary-key field are silently ignored (no error).
 	DropFieldsByNamePrefix(fieldNamePrefixes []string) error
 
-	// Drop all fields (except primary-key) for all documents.
+	// Drop all documents from the store.
 	DropAllFields() error
 
 	HealthCheck() (bool, error)

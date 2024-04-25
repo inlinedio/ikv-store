@@ -144,7 +144,8 @@ impl CKVIndexSchema {
     }
 
     /// Drops provided fields (exact names or prefixes). Ignores attempt to drop primary-key.
-    pub fn drop_fields(
+    /// We do NOT reset field_id counter, since new fields need bigger ids
+    pub fn soft_delete_fields(
         &mut self,
         field_names: &[String],
         field_name_prefixes: &[String],
@@ -182,17 +183,15 @@ impl CKVIndexSchema {
     }
 
     /// Drops all fields except primary-key.
-    pub fn drop_all_fields(&mut self) -> anyhow::Result<()> {
-        let updated = self.field_name_to_id.len() > 1;
+    /// We also reset field_id counter - since this is used for hard data delete.
+    pub fn hard_delete_all_fields(&mut self) -> anyhow::Result<()> {
+        self.field_id_counter = 1;
 
         // modify map
         let mut field_name_to_id = HashMap::new();
         field_name_to_id.insert(self.primary_key_field_name.clone(), 0 as FieldId);
         self.field_name_to_id = field_name_to_id;
-
-        if updated {
-            self.save()?;
-        }
+        self.save()?;
 
         Ok(())
     }

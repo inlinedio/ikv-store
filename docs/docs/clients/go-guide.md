@@ -155,7 +155,7 @@ You will interact with the following main interfaces to write (insert/update/del
 -  **DeleteDocument**: Deletes specified document if it exists. The document must contain the value of the primary-key and (if-specified) partitioning-key.
 -  **DropFieldsByName**: Drop specified fields for all documents. Attempts to drop primary-key field are silently ignored (no error).
 -  **DropFieldsByNamePrefix**: Drop specified fields for all documents, by specifying field name prefixes. Attempts to drop primary-key field are silently ignored (no error).
--  **DropAllFields**: Drop all fields (except primary-key) for all documents.
+-  **DropAllFields**: Drop all documents from the store.
 
 :::info
 **Multithreaded Usage**: All write operations on IKVWriter are thread-safe. However, you must ensure there is caller side synchronization while

@@ -347,13 +347,20 @@ impl CKVIndex {
         }
 
         let mut schema = self.schema.write().unwrap();
-        schema.drop_fields(field_names, field_name_prefixes)
+        schema.soft_delete_fields(field_names, field_name_prefixes)
     }
 
-    /// Drops all fields except primary-key.
-    pub fn drop_all_fields(&self) -> anyhow::Result<()> {
+    /// Drops all indexed data, and clears schema.
+    pub fn drop_all_documents(&self) -> anyhow::Result<()> {
+        for segment in self.segments.iter() {
+            // ok to delete sequentially with reads to other segments
+            // ok to fail partially
+            segment.write().unwrap().delete_all_documents()?;
+        }
+
+        // clear schema, except primary-key
         let mut schema = self.schema.write().unwrap();
-        schema.drop_all_fields()
+        schema.hard_delete_all_fields()
     }
 
     fn upsert_schema(&self, document: &HashMap<String, FieldValue>) -> anyhow::Result<()> {

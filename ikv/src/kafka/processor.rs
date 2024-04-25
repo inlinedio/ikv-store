@@ -79,7 +79,7 @@ impl WritesProcessor {
                 .ckv_index
                 .drop_fields(&event.field_names, &event.field_name_prefixes);
         } else if event.drop_all {
-            return self.ckv_index.drop_all_fields();
+            return self.ckv_index.drop_all_documents();
         }
 
         Ok(())
