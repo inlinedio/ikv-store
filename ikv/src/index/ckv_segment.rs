@@ -559,6 +559,7 @@ impl CKVIndexSegment {
 
         // clear mmap
         self.mmap_file.set_len(0)?;
+        self.mmap_file.rewind()?;
         self.mmap = unsafe { MmapMut::map_mut(&self.mmap_file)? };
         self.write_offset = 0;
         write_metadata(&mut self.metadata_file_writer, 0u64)?;
