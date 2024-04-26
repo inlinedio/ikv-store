@@ -12,6 +12,7 @@ use protobuf::Message;
 use crate::proto::generated_proto::index::CKVIndexHeader;
 
 /// Manages index level headers
+#[derive(Debug)]
 pub struct HeaderStore {
     lock: RwLock<()>,
     file: File,

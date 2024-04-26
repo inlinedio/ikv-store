@@ -30,6 +30,7 @@ use crate::{
 const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
 const NONE_SIZE: [u8; 4] = (-1 as i32).to_le_bytes();
 
+#[derive(Debug)]
 pub struct CKVIndexSegment {
     /**
      * file references
@@ -56,28 +57,22 @@ pub struct CKVIndexSegment {
 }
 
 impl CKVIndexSegment {
-    pub fn open_or_create(
-        mount_directory: &str,
-        index_id: usize,
-    ) -> anyhow::Result<CKVIndexSegment> {
-        // offset-table
-        let filename = format!(
-            "{}/index/segment_{}/offset_table",
-            mount_directory, index_id
-        );
-        if !Path::new(&filename).exists() {
-            return CKVIndexSegment::new(mount_directory, index_id);
+    /// segment_mount_directory format: usr-mount-dir/store/partition/index/segment-N
+    pub fn open_or_create(segment_mount_directory: &str) -> anyhow::Result<CKVIndexSegment> {
+        // check if `segment_mount_directory` is present - valid index or create one
+        if !Path::new(segment_mount_directory).exists() {
+            std::fs::create_dir_all(segment_mount_directory)?;
+            return CKVIndexSegment::new(segment_mount_directory);
         }
 
         // offset-table exists on disk...
-        let offset_table_file = open_offset_table_file(mount_directory, index_id)?;
+        let offset_table_file = open_offset_table_file(segment_mount_directory)?;
 
         // build offset-table by replaying offset_table_file
         let mut offset_table = HashMap::new();
         let mut reader = BufReader::new(&offset_table_file);
 
         let mut entry_buffer = vec![];
-
         loop {
             // read size of serialized `OffsetTableEntry.proto`
             let entry_size: usize;
@@ -142,11 +137,11 @@ impl CKVIndexSegment {
         }
 
         // mmap file
-        let mmap_file = open_mmap_file(mount_directory, index_id)?;
+        let mmap_file = open_mmap_file(segment_mount_directory)?;
         let mmap = unsafe { MmapMut::map_mut(&mmap_file)? };
 
         // metadata file
-        let metadata_file = open_metadata_file(mount_directory, index_id)?;
+        let metadata_file = open_metadata_file(segment_mount_directory)?;
 
         let write_offset: u64;
         {
@@ -169,17 +164,17 @@ impl CKVIndexSegment {
     }
 
     /// Creates a brand new empty instance of a primary-key index.
-    fn new(mount_directory: &str, index_id: usize) -> anyhow::Result<CKVIndexSegment> {
+    fn new(segment_mount_directory: &str) -> anyhow::Result<CKVIndexSegment> {
         // offset table index
-        let offset_table_file = create_new_offset_table_file(mount_directory, index_id)?;
+        let offset_table_file = create_new_offset_table_file(segment_mount_directory)?;
 
         // mmap file
-        let mmap_file = create_new_mmap_file(mount_directory, index_id)?;
+        let mmap_file = create_new_mmap_file(segment_mount_directory)?;
         let mmap = unsafe { MmapMut::map_mut(&mmap_file)? };
 
         // metadata file
         let mut metadata_file_writer =
-            BufWriter::new(create_new_metadata_file(mount_directory, index_id)?);
+            BufWriter::new(create_new_metadata_file(segment_mount_directory)?);
         write_metadata(&mut metadata_file_writer, 0u64)?;
 
         Ok(CKVIndexSegment {
@@ -192,8 +187,8 @@ impl CKVIndexSegment {
         })
     }
 
-    pub fn is_valid_segment(mount_directory: &str, index_id: usize) -> anyhow::Result<()> {
-        let filename = format!("{}/index/segment_{}/metadata", mount_directory, index_id);
+    pub fn is_valid_segment(segment_mount_directory: &str) -> anyhow::Result<()> {
+        let filename = format!("{}/metadata", segment_mount_directory);
         if !Path::new(&filename).exists() {
             bail!(
                 "CKVIndexSegment metadata file does not exist: {}",
@@ -201,15 +196,12 @@ impl CKVIndexSegment {
             );
         }
 
-        let filename = format!("{}/index/segment_{}/mmap", mount_directory, index_id);
+        let filename = format!("{}/mmap", segment_mount_directory);
         if !Path::new(&filename).exists() {
             bail!("CKVIndexSegment mmap file does not exist: {}", &filename);
         }
 
-        let filename = format!(
-            "{}/index/segment_{}/offset_table",
-            mount_directory, index_id
-        );
+        let filename = format!("{}/offset_table", segment_mount_directory);
         if !Path::new(&filename).exists() {
             bail!(
                 "CKVIndexSegment offset_table file does not exist: {}",
@@ -621,13 +613,8 @@ fn write_metadata(writer: &mut BufWriter<File>, write_offset: u64) -> io::Result
     Ok(())
 }
 
-fn create_new_offset_table_file(dir: &str, index_id: usize) -> io::Result<File> {
-    let segment_dir = format!("{}/index/segment_{}", dir, index_id);
-    if !Path::new(&segment_dir).exists() {
-        std::fs::create_dir_all(&segment_dir)?;
-    }
-
-    let filename = format!("{}/index/segment_{}/offset_table", dir, index_id);
+fn create_new_offset_table_file(segment_mount_directory: &str) -> io::Result<File> {
+    let filename = format!("{}/offset_table", segment_mount_directory);
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -636,8 +623,8 @@ fn create_new_offset_table_file(dir: &str, index_id: usize) -> io::Result<File> 
     Ok(file)
 }
 
-fn open_offset_table_file(dir: &str, index_id: usize) -> io::Result<File> {
-    let filename = format!("{}/index/segment_{}/offset_table", dir, index_id);
+fn open_offset_table_file(segment_mount_directory: &str) -> io::Result<File> {
+    let filename = format!("{}/offset_table", segment_mount_directory);
     let mut file = OpenOptions::new()
         .read(true)
         .append(true)
@@ -647,13 +634,8 @@ fn open_offset_table_file(dir: &str, index_id: usize) -> io::Result<File> {
     Ok(file)
 }
 
-fn create_new_mmap_file(dir: &str, index_id: usize) -> io::Result<File> {
-    let segment_dir = format!("{}/index/segment_{}", dir, index_id);
-    if !Path::new(&segment_dir).exists() {
-        std::fs::create_dir_all(&segment_dir)?;
-    }
-
-    let filename = format!("{}/index/segment_{}/mmap", dir, index_id);
+fn create_new_mmap_file(segment_mount_directory: &str) -> io::Result<File> {
+    let filename = format!("{}/mmap", segment_mount_directory);
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -662,8 +644,8 @@ fn create_new_mmap_file(dir: &str, index_id: usize) -> io::Result<File> {
     Ok(file)
 }
 
-fn open_mmap_file(dir: &str, index_id: usize) -> io::Result<File> {
-    let filename = format!("{}/index/segment_{}/mmap", dir, index_id);
+fn open_mmap_file(segment_mount_directory: &str) -> io::Result<File> {
+    let filename = format!("{}/mmap", segment_mount_directory);
     let mut file = OpenOptions::new()
         .read(true)
         .append(true)
@@ -673,13 +655,8 @@ fn open_mmap_file(dir: &str, index_id: usize) -> io::Result<File> {
     Ok(file)
 }
 
-fn create_new_metadata_file(dir: &str, index_id: usize) -> io::Result<File> {
-    let segment_dir = format!("{}/index/segment_{}", dir, index_id);
-    if !Path::new(&segment_dir).exists() {
-        std::fs::create_dir_all(&segment_dir)?;
-    }
-
-    let filename = format!("{}/index/segment_{}/metadata", dir, index_id);
+fn create_new_metadata_file(segment_mount_directory: &str) -> io::Result<File> {
+    let filename = format!("{}/metadata", segment_mount_directory);
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -688,8 +665,8 @@ fn create_new_metadata_file(dir: &str, index_id: usize) -> io::Result<File> {
     Ok(file)
 }
 
-fn open_metadata_file(dir: &str, index_id: usize) -> io::Result<File> {
-    let filename = format!("{}/index/segment_{}/metadata", dir, index_id);
+fn open_metadata_file(segment_mount_directory: &str) -> io::Result<File> {
+    let filename = format!("{}/metadata", segment_mount_directory);
     let mut file = OpenOptions::new()
         .read(true)
         .append(true)

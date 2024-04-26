@@ -47,19 +47,9 @@ pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_buildIndex<'local>(
     }
 
     // build and export
-    let index_builder = maybe_builder.unwrap();
+    let mut index_builder = maybe_builder.unwrap();
     if let Err(e) = index_builder.build_and_export(&ikv_config) {
         let exception = format!("Cannot build offline index: {}", e.to_string());
-        let _ = env.throw_new("java/lang/RuntimeException", exception);
-        return;
-    }
-
-    // close
-    if let Err(e) = index_builder.close() {
-        let exception = format!(
-            "Cannot close index_builder, failed with error: {}",
-            e.to_string()
-        );
         let _ = env.throw_new("java/lang/RuntimeException", exception);
         return;
     }
