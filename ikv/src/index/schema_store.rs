@@ -15,6 +15,7 @@ use crate::schema::field::FieldId;
 #[path = "schema_store_test.rs"]
 mod schema_store_test;
 
+#[derive(Debug)]
 pub struct CKVIndexSchema {
     mount_directory: String,
 

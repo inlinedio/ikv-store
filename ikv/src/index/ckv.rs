@@ -26,6 +26,7 @@ mod ckv_test;
 const NUM_SEGMENTS: usize = 16;
 
 /// Memmap based row-oriented key-value index.
+#[derive(Debug)]
 pub struct CKVIndex {
     // hash(key) -> PrimaryKeyIndex
     segments: Vec<RwLock<CKVIndexSegment>>,
@@ -55,7 +56,8 @@ impl CKVIndex {
         // open_or_create index segments
         let mut segments = Vec::with_capacity(NUM_SEGMENTS);
         for index_id in 0..NUM_SEGMENTS {
-            let segment = CKVIndexSegment::open_or_create(&mount_directory, index_id)?;
+            let segment_mount_directory = format!("{}/index/segment_{}", mount_directory, index_id);
+            let segment = CKVIndexSegment::open_or_create(&segment_mount_directory)?;
             segments.push(RwLock::new(segment));
         }
 
@@ -97,8 +99,9 @@ impl CKVIndex {
         }
 
         // check if all segments are valid
-        for i in 0..NUM_SEGMENTS {
-            CKVIndexSegment::is_valid_segment(&mount_directory, i)?;
+        for index_id in 0..NUM_SEGMENTS {
+            let segment_mount_directory = format!("{}/index/segment_{}", mount_directory, index_id);
+            CKVIndexSegment::is_valid_segment(&segment_mount_directory)?;
         }
 
         // check if schema is valid
@@ -129,7 +132,7 @@ impl CKVIndex {
         Ok(())
     }
 
-    pub fn compact(&self) -> anyhow::Result<()> {
+    pub fn compact(&mut self) -> anyhow::Result<()> {
         // lock all
         let mut segments = Vec::with_capacity(NUM_SEGMENTS);
         for i in 0..NUM_SEGMENTS {

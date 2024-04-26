@@ -12,28 +12,20 @@ use crate::proto::generated_proto::index::CKVIndexHeader;
 use super::index_loader;
 
 pub struct IndexBuilder {
-    index: Arc<CKVIndex>,
-    kafka_consumer: IKVKafkaConsumer,
+    index: CKVIndex,
 }
 
 impl IndexBuilder {
     pub fn new(config: &IKVStoreConfig) -> anyhow::Result<Self> {
         // Load index
         index_loader::load_index(config)?;
-        let index = Arc::new(CKVIndex::open_or_create(config)?);
+        let index = CKVIndex::open_or_create(config)?;
 
-        // Initialize kafka consumer
-        let processor = Arc::new(WritesProcessor::new(index.clone()));
-        let kafka_consumer = IKVKafkaConsumer::new(config, processor.clone())?;
-
-        Ok(Self {
-            index,
-            kafka_consumer,
-        })
+        Ok(Self { index })
     }
 
     // NOTE: callers must cleanup their working directories
-    pub fn build_and_export(&self, config: &IKVStoreConfig) -> anyhow::Result<()> {
+    pub fn build_and_export(self, config: &IKVStoreConfig) -> anyhow::Result<()> {
         info!("Starting base index build.");
 
         // set index headers
@@ -44,25 +36,27 @@ impl IndexBuilder {
             self.index.write_index_header(&header)?;
         }
 
-        // start write processing
-        // blocks to consume pending messages
-        self.kafka_consumer.blocking_run_till_completion()?;
-        info!("Starting base index compaction.");
+        let arc_index = Arc::new(self.index);
+
+        // process writes till high watermark
+        {
+            let processor = Arc::new(WritesProcessor::new(arc_index.clone()));
+            let kafka_consumer = IKVKafkaConsumer::new(config, processor.clone())?;
+            kafka_consumer.blocking_run_till_completion()?;
+            kafka_consumer.stop();
+        }
+
+        let mut index = Arc::try_unwrap(arc_index).expect("there should be no other references");
 
         // index compaction
-        self.index.compact()?;
+        info!("Starting base index compaction.");
+        index.compact()?;
 
         // upload to S3
         info!("Uploading base index to S3.");
         index_loader::upload_index(config)?;
 
         info!("Base index build and upload successful.");
-        Ok(())
-    }
-
-    pub fn close(self) -> anyhow::Result<()> {
-        self.kafka_consumer.stop();
-        info!("Closing IKV, Bye Bye.");
         Ok(())
     }
 }
