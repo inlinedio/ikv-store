@@ -1,6 +1,8 @@
 package ikvclient
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -88,26 +90,80 @@ func (reader *DefaultIKVReader) HealthCheck() (bool, error) {
 	return reader.native_reader.HealthCheck("healthcheck")
 }
 
-func (reader *DefaultIKVReader) GetBytesValue(key interface{}, fieldname string) (bool, []byte, error) {
+func (reader *DefaultIKVReader) GetBytesValue(primaryKey interface{}, fieldname string) (bool, []byte, error) {
 	var nullable_value []byte
-	switch primaryKey := key.(type) {
+	switch typedPrimaryKey := primaryKey.(type) {
 	case string:
 		nullable_value = reader.native_reader.GetFieldValue(
-			[]byte(primaryKey),
+			[]byte(typedPrimaryKey),
 			fieldname)
 	case []byte:
+		if typedPrimaryKey == nil {
+			return false, nil, errors.New("primaryKey can only be a string or []byte")
+		}
 		nullable_value = reader.native_reader.GetFieldValue(
-			primaryKey,
+			typedPrimaryKey,
 			fieldname)
 	default:
-		return false, nil, errors.New("key can only be a string or []byte")
+		// also handles the case where primaryKey == nil
+		return false, nil, errors.New("primaryKey can only be a string or []byte")
 	}
 
 	return nullable_value != nil, nullable_value, nil
 }
 
-func (reader *DefaultIKVReader) GetStringValue(key interface{}, fieldname string) (bool, string, error) {
-	exists, bytes_value, err := reader.GetBytesValue(key, fieldname)
+func (reader *DefaultIKVReader) MultiGetBytesValues(primaryKeys []interface{}, fieldNames []string) ([][]byte, error) {
+	if primaryKeys == nil {
+		return nil, errors.New("primaryKeys slice cannot be nil")
+	}
+
+	if fieldNames == nil {
+		return nil, errors.New("fieldNames slice cannot be nil")
+	}
+
+	if len(primaryKeys) == 0 || len(fieldNames) == 0 {
+		return make([][]byte, 0), nil
+	}
+
+	// serialize typed keys
+	// calculate capacity
+	var capacity = 0
+	for _, primaryKey := range primaryKeys {
+		switch typedPrimaryKey := primaryKey.(type) {
+		case string:
+			capacity += 4 + len(typedPrimaryKey)
+		case []byte:
+			if typedPrimaryKey == nil {
+				return nil, errors.New("primaryKey can only be a string or []byte")
+			}
+			capacity += 4 + len(typedPrimaryKey)
+		default:
+			// also handles the case where primaryKey == nil
+			return nil, errors.New("primaryKey can only be a string or []byte")
+		}
+	}
+	sizePrefixedPrimaryKeys := bytes.NewBuffer(make([]byte, 0, capacity))
+
+	for _, primaryKey := range primaryKeys {
+		switch typedPrimaryKey := primaryKey.(type) {
+		case string:
+			value := []byte(typedPrimaryKey)
+			binary.Write(sizePrefixedPrimaryKeys, binary.LittleEndian, int32(len(value)))
+			sizePrefixedPrimaryKeys.Write([]byte(typedPrimaryKey))
+		case []byte:
+			binary.Write(sizePrefixedPrimaryKeys, binary.LittleEndian, int32(len(typedPrimaryKey)))
+			sizePrefixedPrimaryKeys.Write(typedPrimaryKey)
+		default:
+			// also handles the case where primaryKey == nil
+			return nil, errors.New("primaryKey can only be a string or []byte")
+		}
+	}
+
+	return reader.native_reader.MultiGetFieldValues(int32(len(primaryKeys)), sizePrefixedPrimaryKeys.Bytes(), fieldNames)
+}
+
+func (reader *DefaultIKVReader) GetStringValue(primaryKey interface{}, fieldname string) (bool, string, error) {
+	exists, bytes_value, err := reader.GetBytesValue(primaryKey, fieldname)
 	if !exists || err != nil {
 		return false, EMPTY_STRING, err
 	}
