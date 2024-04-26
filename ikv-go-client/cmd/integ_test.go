@@ -147,7 +147,7 @@ func TestMultiGet(t *testing.T) {
 	results, _ = reader.MultiGetBytesValues([]interface{}{"id_1"}, []string{})
 	assert.Equal(t, 0, len(results))
 
-	_, err := reader.MultiGetBytesValues([]interface{}{"id_1", []byte(nil)}, []string{"firstname"})
+	_, err = reader.MultiGetBytesValues([]interface{}{"id_1", []byte(nil)}, []string{"firstname"})
 	assert.NotNil(t, err, nil)
 }
 

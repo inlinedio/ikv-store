@@ -27,6 +27,15 @@ type IKVReader interface {
 	// There can be a very small delay between writing document (with IKVWriter) and reading them.
 	GetBytesValue(primaryKey interface{}, fieldname string) (bool, []byte, error)
 
+	// Multi-get version of GetBytesValue (multiple primary-keys and multiple fields).
+	//
+	// Args:
+	// primaryKeys - documents to fetch fields for, of type string or []byte, nil not allowed
+	// fieldNames - fields to fetch as a slice of string
+	//
+	// Returns field values as slice of byte slices, in document order, i.e:
+	// [doc0-field0][doc0-field1]..[doc0-fieldN][doc1-field0][doc1-field1]...[docN-fieldN]
+	// The inner byte slices will be nil ([]byte(nil)) if the field does not exist for the document.
 	MultiGetBytesValues(primaryKeys []interface{}, fieldNames []string) ([][]byte, error)
 
 	// Fetch an inner field of type string, by providing the primary-key
