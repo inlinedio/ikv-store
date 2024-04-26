@@ -27,6 +27,8 @@ type IKVReader interface {
 	// There can be a very small delay between writing document (with IKVWriter) and reading them.
 	GetBytesValue(primaryKey interface{}, fieldname string) (bool, []byte, error)
 
+	MultiGetBytesValues(primaryKeys []interface{}, fieldNames []string) ([][]byte, error)
+
 	// Fetch an inner field of type string, by providing the primary-key
 	// for the document and the field-name.
 	//
