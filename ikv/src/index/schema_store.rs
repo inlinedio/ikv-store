@@ -108,6 +108,33 @@ impl CKVIndexSchema {
         Ok(())
     }
 
+    pub fn compact(&mut self) -> anyhow::Result<Vec<FieldId>> {
+        // calculate new-field-id -> old-field-id mapping
+        let mut new_fid_to_old_fid: Vec<FieldId> = Vec::with_capacity(self.field_name_to_id.len());
+        let mut old_fid_to_field_name: HashMap<FieldId, String> =
+            HashMap::with_capacity(self.field_name_to_id.len());
+        for (field_name, field_id) in self.field_name_to_id.iter() {
+            new_fid_to_old_fid.push(*field_id as FieldId);
+            old_fid_to_field_name.insert(*field_id as FieldId, field_name.clone());
+        }
+        new_fid_to_old_fid.sort();
+
+        // change string->id mappings
+        let mut field_name_to_id = HashMap::with_capacity(new_fid_to_old_fid.len());
+        for new_fid in 0..new_fid_to_old_fid.len() {
+            let old_fid = new_fid_to_old_fid[new_fid];
+            let field_name = old_fid_to_field_name.get(&old_fid).unwrap();
+            field_name_to_id.insert(field_name.clone(), new_fid as FieldId);
+        }
+
+        // reset counter and save to disk
+        self.field_name_to_id = field_name_to_id;
+        self.field_id_counter = self.field_name_to_id.len() as u64;
+        self.save()?;
+
+        Ok(new_fid_to_old_fid)
+    }
+
     pub fn fetch_id_by_name(&self, field_name: &str) -> Option<FieldId> {
         self.field_name_to_id.get(field_name).copied()
     }

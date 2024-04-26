@@ -51,6 +51,8 @@ impl IndexBuilder {
         // index compaction
         info!("Starting base index compaction.");
         index.compact()?;
+        index.close()?;
+        CKVIndex::swap_compacted_segments(config)?;
 
         // upload to S3
         info!("Uploading base index to S3.");

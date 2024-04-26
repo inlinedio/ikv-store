@@ -28,6 +28,10 @@ const NUM_SEGMENTS: usize = 16;
 /// Memmap based row-oriented key-value index.
 #[derive(Debug)]
 pub struct CKVIndex {
+    // Top level usable directory
+    // Format: tmp/usr-mount-dir/<storename>/<partition>
+    mount_directory: String,
+
     // hash(key) -> PrimaryKeyIndex
     segments: Vec<RwLock<CKVIndexSegment>>,
 
@@ -57,6 +61,8 @@ impl CKVIndex {
         let mut segments = Vec::with_capacity(NUM_SEGMENTS);
         for index_id in 0..NUM_SEGMENTS {
             let segment_mount_directory = format!("{}/index/segment_{}", mount_directory, index_id);
+
+            // TODO: this needs to be parallelized, can take time for large indexes
             let segment = CKVIndexSegment::open_or_create(&segment_mount_directory)?;
             segments.push(RwLock::new(segment));
         }
@@ -68,10 +74,15 @@ impl CKVIndex {
         let header_store = HeaderStore::open_or_create(&mount_directory)?;
 
         Ok(Self {
+            mount_directory,
             segments,
             schema: RwLock::new(schema),
             header_store,
         })
+    }
+
+    pub fn close(self) -> anyhow::Result<()> {
+        Ok(())
     }
 
     pub fn index_not_present(config: &IKVStoreConfig) -> anyhow::Result<bool> {
@@ -133,14 +144,42 @@ impl CKVIndex {
     }
 
     pub fn compact(&mut self) -> anyhow::Result<()> {
-        // lock all
-        let mut segments = Vec::with_capacity(NUM_SEGMENTS);
-        for i in 0..NUM_SEGMENTS {
-            segments.push(self.segments[i].write().unwrap());
+        // compact schema and get field id mapping
+        let new_fid_to_old_fid = self.schema.write().unwrap().compact()?;
+
+        // create new empty segments
+        let mut compacted_segments = Vec::with_capacity(NUM_SEGMENTS);
+        for index_id in 0..NUM_SEGMENTS {
+            let segment_mount_directory = format!(
+                "{}/index/compacted_segment_{}",
+                &self.mount_directory, index_id
+            );
+            let segment = CKVIndexSegment::open_or_create(&segment_mount_directory)?;
+            compacted_segments.push(RwLock::new(segment));
         }
 
-        for mut segment in segments {
-            segment.compact()?;
+        // loop over existing segment, copy on compact
+        for i in 0..NUM_SEGMENTS {
+            let mut segment = self.segments[i].write().unwrap();
+            let mut compacted_segment = compacted_segments[i].write().unwrap();
+            segment.copy_to_compact(&mut compacted_segment, &new_fid_to_old_fid)?;
+        }
+
+        // At this point the compacted segments are in new directories
+        // Caller should do file level swapping by calling - swap_compacted_segments()
+
+        Ok(())
+    }
+
+    pub fn swap_compacted_segments(config: &IKVStoreConfig) -> anyhow::Result<()> {
+        //Format: tmp/usr-mount-dir/<storename>/<partition>
+        let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
+
+        for i in 0..NUM_SEGMENTS {
+            let segment_mount_directory = format!("{}/index/segment_{}", &mount_directory, i);
+            let compacted_segment_mount_directory =
+                format!("{}/index/compacted_segment_{}", &mount_directory, i);
+            std::fs::rename(&compacted_segment_mount_directory, &segment_mount_directory)?;
         }
 
         Ok(())
@@ -269,7 +308,7 @@ impl CKVIndex {
                         .fetch_id_by_name(field_name)
                         .expect("upsert_schema ensures schema is known"),
                 );
-                values.push(field_value);
+                values.push(field_value.clone());
             }
         }
 
@@ -280,7 +319,7 @@ impl CKVIndex {
 
         let index_id = fxhash::hash(&primary_key) % NUM_SEGMENTS;
         let mut ckv_index_segment = self.segments[index_id].write().unwrap();
-        ckv_index_segment.upsert_document(&primary_key, field_ids, values)?;
+        ckv_index_segment.upsert_document(&primary_key, &field_ids, &values)?;
         Ok(())
     }
 
@@ -314,7 +353,7 @@ impl CKVIndex {
 
         let index_id = fxhash::hash(&primary_key) % NUM_SEGMENTS;
         let mut ckv_index_segment = self.segments[index_id].write().unwrap();
-        ckv_index_segment.delete_field_values(&primary_key, field_ids)?;
+        ckv_index_segment.delete_field_values(&primary_key, &field_ids)?;
 
         Ok(())
     }

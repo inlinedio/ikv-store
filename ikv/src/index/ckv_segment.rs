@@ -212,16 +212,36 @@ impl CKVIndexSegment {
         Ok(())
     }
 
-    /// Offline index build hook.
-    /// Does field colocation and deletes compaction to create a compressed
-    /// and efficient offline index.
-    pub fn compact(&mut self) -> anyhow::Result<()> {
+    pub fn copy_to_compact(
+        &mut self,
+        destination: &mut CKVIndexSegment,
+        new_fid_to_old_fid: &[FieldId],
+    ) -> anyhow::Result<()> {
         self.flush_writes()?;
 
-        // TODO: add linear pass to compact.
+        for (primary_key, offsets) in self.offset_table.iter() {
+            // construct new document
+            let capacity = std::cmp::min(offsets.len(), new_fid_to_old_fid.len());
+            let mut field_ids = Vec::with_capacity(capacity);
+            let mut field_values = Vec::with_capacity(capacity);
 
-        // The current index files on disk have been mutated
-        // with ETL'ed kafka events.
+            for new_fid in 0..new_fid_to_old_fid.len() {
+                let old_fid = new_fid_to_old_fid[new_fid];
+                if let Some(offset) = offsets.get(old_fid as usize).copied() {
+                    if let Some((field_type, value)) = self.read_from_mmap(offset) {
+                        field_ids.push(new_fid as FieldId);
+
+                        let mut field_value = FieldValue::new();
+                        field_value.fieldType = field_type.into();
+                        field_value.value = value.to_vec();
+                        field_values.push(field_value);
+                    }
+                }
+            }
+
+            // write to destination segment
+            destination.upsert_document(primary_key, &field_ids, &field_values)?;
+        }
 
         Ok(())
     }
@@ -230,7 +250,7 @@ impl CKVIndexSegment {
         let offsets = self.offset_table.get(primary_key)?;
         let maybe_offset = offsets.get(field_id as usize).copied();
         if let Some(offset) = maybe_offset {
-            let result = self.read_from_mmap(offset)?;
+            let (_field_type, result) = self.read_from_mmap(offset)?;
             return Some(result.to_vec());
         }
 
@@ -272,7 +292,7 @@ impl CKVIndexSegment {
                 None => {
                     dest.extend(NONE_SIZE);
                 }
-                Some(value) => {
+                Some((_field_type, value)) => {
                     dest.extend((value.len() as i32).to_le_bytes());
                     dest.extend_from_slice(value);
                 }
@@ -280,7 +300,7 @@ impl CKVIndexSegment {
         }
     }
 
-    fn read_from_mmap(&self, mmap_offset: usize) -> Option<&[u8]> {
+    fn read_from_mmap(&self, mmap_offset: usize) -> Option<(FieldType, &[u8])> {
         if mmap_offset == usize::MAX {
             return None;
         }
@@ -299,15 +319,22 @@ impl CKVIndexSegment {
 
         let mmap_offset = mmap_offset + 2;
         match field_type {
-            FieldType::UNKNOWN => None,
-            FieldType::INT32 | FieldType::FLOAT32 => Some(&self.mmap[mmap_offset..mmap_offset + 4]),
-            FieldType::INT64 | FieldType::FLOAT64 => Some(&self.mmap[mmap_offset..mmap_offset + 8]),
-            FieldType::BOOLEAN => Some(&self.mmap[mmap_offset..mmap_offset + 1]),
+            FieldType::UNKNOWN => None, // unreachable statement since unknown types are never written
+            FieldType::INT32 | FieldType::FLOAT32 => {
+                Some((field_type, &self.mmap[mmap_offset..mmap_offset + 4]))
+            }
+            FieldType::INT64 | FieldType::FLOAT64 => {
+                Some((field_type, &self.mmap[mmap_offset..mmap_offset + 8]))
+            }
+            FieldType::BOOLEAN => Some((field_type, &self.mmap[mmap_offset..mmap_offset + 1])),
             FieldType::STRING | FieldType::BYTES => {
                 // extract size (varint decoding)
                 let (size, bytes_read) = u32::decode_var(&self.mmap[mmap_offset..])?;
                 let mmap_offset = mmap_offset + bytes_read;
-                Some(&self.mmap[mmap_offset..mmap_offset + size as usize])
+                Some((
+                    field_type,
+                    &self.mmap[mmap_offset..mmap_offset + size as usize],
+                ))
             }
         }
     }
@@ -415,8 +442,8 @@ impl CKVIndexSegment {
     pub fn upsert_document(
         &mut self,
         primary_key: &[u8],
-        field_ids: Vec<FieldId>,
-        field_values: Vec<&FieldValue>,
+        field_ids: &[FieldId],
+        field_values: &[FieldValue],
     ) -> anyhow::Result<()> {
         if primary_key.is_empty() || field_ids.is_empty() {
             return Ok(());
@@ -481,7 +508,7 @@ impl CKVIndexSegment {
     pub fn delete_field_values(
         &mut self,
         primary_key: &[u8],
-        field_ids: Vec<FieldId>,
+        field_ids: &[FieldId],
     ) -> io::Result<()> {
         if primary_key.is_empty() || field_ids.is_empty() {
             return Ok(());
