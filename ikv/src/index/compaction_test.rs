@@ -70,7 +70,7 @@ pub fn live_drop_all_documents() {
 
 #[test]
 pub fn change_fields() {
-    let mount_directory: &str = "/tmp/compactions_test_live_drop_all_documents";
+    let mount_directory: &str = "/tmp/compactions_test_change_fields";
     let ikv_config = utils::testing::setup_index_cfg(&mount_directory);
     let _ = std::fs::remove_dir_all(&mount_directory);
     let index = CKVIndex::open_or_create(&ikv_config).unwrap();
@@ -121,5 +121,6 @@ pub fn change_fields() {
     }
 
     // cleanup mount dir
+    index.close().unwrap();
     let _ = std::fs::remove_dir_all(&mount_directory);
 }

@@ -137,6 +137,7 @@ pub fn test_full_document_operations() {
     );
 
     // cleanup mount dir
+    index.close().unwrap();
     let _ = std::fs::remove_dir_all(&mount_directory);
 }
 
@@ -196,6 +197,8 @@ pub fn test_drop_fields() {
         index.get_field_value(&pkey0, DOCFIELD1).unwrap(),
         doc0.get(DOCFIELD1).unwrap().value.clone()
     );
+
+    index.close().unwrap();
 
     // cleanup mount dir
     let _ = std::fs::remove_dir_all(&mount_directory);
@@ -257,6 +260,7 @@ pub fn test_projected_document_operations() {
     );
 
     // cleanup mount dir
+    index.close().unwrap();
     let _ = std::fs::remove_dir_all(&mount_directory);
 }
 
