@@ -28,6 +28,8 @@ use crate::{
     schema::field::FieldId,
 };
 
+use super::stats::CompactionStats;
+
 const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
 const EMPTY_BYTE_SLICE: &[u8] = &[];
 const NONE_SIZE: [u8; 4] = (-1 as i32).to_le_bytes();
@@ -255,6 +257,10 @@ impl CKVIndexSegment {
         }
 
         Ok(())
+    }
+
+    pub fn compaction_stats(&self) -> CompactionStats {
+        return Default::default();
     }
 
     pub fn read_field(&self, primary_key: &[u8], field_id: FieldId) -> Option<Vec<u8>> {

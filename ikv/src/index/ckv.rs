@@ -7,10 +7,11 @@ use crate::{
     schema::field::FieldId,
 };
 use anyhow::{anyhow, bail};
+use log::info;
 
 use super::{
     ckv_segment::CKVIndexSegment, header::HeaderStore, offset_store::OffsetStore,
-    schema_store::CKVIndexSchema,
+    schema_store::CKVIndexSchema, stats::CompactionStats,
 };
 use std::{
     collections::HashMap,
@@ -81,10 +82,6 @@ impl CKVIndex {
         })
     }
 
-    pub fn close(self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
     pub fn index_not_present(config: &IKVStoreConfig) -> anyhow::Result<bool> {
         let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
         let index_path = format!("{}/index", &mount_directory);
@@ -143,11 +140,11 @@ impl CKVIndex {
         Ok(())
     }
 
-    pub fn compact(&mut self) -> anyhow::Result<()> {
-        // compact schema and get field id mapping
+    pub fn compact_and_close(mut self) -> anyhow::Result<()> {
+        // schema compaction, get field id mapping
         let new_fid_to_old_fid = self.schema.write().unwrap().compact()?;
 
-        // create new empty segments
+        // create (empty) compacted-segments
         let mut compacted_segments = Vec::with_capacity(NUM_SEGMENTS);
         for index_id in 0..NUM_SEGMENTS {
             let segment_mount_directory = format!(
@@ -158,29 +155,43 @@ impl CKVIndex {
             compacted_segments.push(RwLock::new(segment));
         }
 
-        // loop over existing segment, copy on compact
-        for i in 0..NUM_SEGMENTS {
-            let mut segment = self.segments[i].write().unwrap();
-            let mut compacted_segment = compacted_segments[i].write().unwrap();
+        // loop over existing segments, copy-to-compact, and close both
+        let mut pre_compaction_stats: Vec<CompactionStats> = vec![];
+        let mut post_compaction_stats: Vec<CompactionStats> = vec![];
+
+        for (segment_id, segment) in self.segments.drain(..).enumerate() {
+            info!(
+                "Starting in-place compaction of index segment: {}",
+                segment_id
+            );
+
+            let mut segment = segment.write().unwrap();
+            let mut compacted_segment = compacted_segments[segment_id].write().unwrap();
+
+            pre_compaction_stats.push(segment.compaction_stats());
             segment.copy_to_compact(&mut compacted_segment, &new_fid_to_old_fid)?;
+            post_compaction_stats.push(compacted_segment.compaction_stats());
         }
 
-        // At this point the compacted segments are in new directories
-        // Caller should do file level swapping by calling - swap_compacted_segments()
+        drop(compacted_segments);
 
-        Ok(())
-    }
-
-    pub fn swap_compacted_segments(config: &IKVStoreConfig) -> anyhow::Result<()> {
-        //Format: tmp/usr-mount-dir/<storename>/<partition>
-        let mount_directory = crate::utils::paths::get_index_mount_directory_fqn(config)?;
-
+        // swap directories
         for i in 0..NUM_SEGMENTS {
-            let segment_mount_directory = format!("{}/index/segment_{}", &mount_directory, i);
+            let segment_mount_directory = format!("{}/index/segment_{}", &self.mount_directory, i);
             let compacted_segment_mount_directory =
-                format!("{}/index/compacted_segment_{}", &mount_directory, i);
+                format!("{}/index/compacted_segment_{}", &self.mount_directory, i);
             std::fs::rename(&compacted_segment_mount_directory, &segment_mount_directory)?;
         }
+
+        // print stats
+        info!(
+            "Pre-compaction stats: {:?}",
+            CompactionStats::aggregate(&pre_compaction_stats)
+        );
+        info!(
+            "Post-compaction stats: {:?}",
+            CompactionStats::aggregate(&post_compaction_stats)
+        );
 
         Ok(())
     }
