@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     collections::HashMap,
     fs::{File, OpenOptions},
     io::{self, BufReader, BufWriter, ErrorKind, Read, Seek, Write},
@@ -27,7 +28,10 @@ use crate::{
     schema::field::FieldId,
 };
 
+use super::stats::CompactionStats;
+
 const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8M
+const EMPTY_BYTE_SLICE: &[u8] = &[];
 const NONE_SIZE: [u8; 4] = (-1 as i32).to_le_bytes();
 
 #[derive(Debug)]
@@ -212,26 +216,64 @@ impl CKVIndexSegment {
         Ok(())
     }
 
-    /// Offline index build hook.
-    /// Does field colocation and deletes compaction to create a compressed
-    /// and efficient offline index.
-    pub fn compact(&mut self) -> anyhow::Result<()> {
+    pub fn copy_to_compact(
+        &mut self,
+        destination: &mut CKVIndexSegment,
+        new_fid_to_old_fid: &[FieldId],
+    ) -> anyhow::Result<()> {
         self.flush_writes()?;
 
-        // TODO: add linear pass to compact.
+        for (primary_key, offsets) in self.offset_table.iter() {
+            // construct document to copy
+            let capacity = std::cmp::min(offsets.len(), new_fid_to_old_fid.len());
+            let mut field_ids = Vec::with_capacity(capacity);
+            let mut field_values = Vec::with_capacity(capacity);
 
-        // The current index files on disk have been mutated
-        // with ETL'ed kafka events.
+            for new_fid in 0..new_fid_to_old_fid.len() {
+                let old_fid = new_fid_to_old_fid[new_fid];
+                if let Some(offset) = offsets.get(old_fid as usize).copied() {
+                    if let Some((field_type, value)) = self.read_from_mmap(offset) {
+                        if field_type == FieldType::UNKNOWN {
+                            // either write event in kafka stream was missing type info, or
+                            // this node is behind on symbol list
+                            bail!(
+                                "Found unknown fieldType for primary-key: {}",
+                                format!("{:?}", primary_key.as_slice())
+                            );
+                        }
+
+                        let mut field_value = FieldValue::new();
+                        field_value.fieldType = field_type.into();
+                        field_value.value = value.to_vec();
+                        field_values.push(field_value);
+
+                        field_ids.push(new_fid as FieldId);
+                    }
+                }
+            }
+
+            // write to destination segment
+            destination.upsert_document(primary_key, &field_ids, &field_values)?;
+        }
 
         Ok(())
+    }
+
+    pub fn compaction_stats(&self) -> anyhow::Result<CompactionStats> {
+        return Ok(CompactionStats {
+            offset_table_size_bytes: self.offset_table_file_writer.get_ref().metadata()?.len(),
+            mmap_file_size_bytes: self.mmap_file.metadata()?.len(),
+        });
     }
 
     pub fn read_field(&self, primary_key: &[u8], field_id: FieldId) -> Option<Vec<u8>> {
         let offsets = self.offset_table.get(primary_key)?;
         let maybe_offset = offsets.get(field_id as usize).copied();
         if let Some(offset) = maybe_offset {
-            let result = self.read_from_mmap(offset)?;
-            return Some(result.to_vec());
+            let (field_type, result) = self.read_from_mmap(offset)?;
+            if field_type != FieldType::UNKNOWN {
+                return Some(result.to_vec());
+            }
         }
 
         None
@@ -272,15 +314,19 @@ impl CKVIndexSegment {
                 None => {
                     dest.extend(NONE_SIZE);
                 }
-                Some(value) => {
-                    dest.extend((value.len() as i32).to_le_bytes());
-                    dest.extend_from_slice(value);
+                Some((field_type, value)) => {
+                    if field_type == FieldType::UNKNOWN {
+                        dest.extend(NONE_SIZE);
+                    } else {
+                        dest.extend((value.len() as i32).to_le_bytes());
+                        dest.extend_from_slice(value);
+                    }
                 }
             };
         }
     }
 
-    fn read_from_mmap(&self, mmap_offset: usize) -> Option<&[u8]> {
+    fn read_from_mmap(&self, mmap_offset: usize) -> Option<(FieldType, &[u8])> {
         if mmap_offset == usize::MAX {
             return None;
         }
@@ -299,15 +345,28 @@ impl CKVIndexSegment {
 
         let mmap_offset = mmap_offset + 2;
         match field_type {
-            FieldType::UNKNOWN => None,
-            FieldType::INT32 | FieldType::FLOAT32 => Some(&self.mmap[mmap_offset..mmap_offset + 4]),
-            FieldType::INT64 | FieldType::FLOAT64 => Some(&self.mmap[mmap_offset..mmap_offset + 8]),
-            FieldType::BOOLEAN => Some(&self.mmap[mmap_offset..mmap_offset + 1]),
+            FieldType::UNKNOWN => {
+                // Some unknown field-type was written to the mmap files
+                // can occur when this reader is behind on the FieldType.proto symbol list.
+                // Can be okay to ignore this when doing live reads on the index, but this
+                // should not be ignored during data copy (ex. compaction).
+                Some((field_type, EMPTY_BYTE_SLICE))
+            }
+            FieldType::INT32 | FieldType::FLOAT32 => {
+                Some((field_type, &self.mmap[mmap_offset..mmap_offset + 4]))
+            }
+            FieldType::INT64 | FieldType::FLOAT64 => {
+                Some((field_type, &self.mmap[mmap_offset..mmap_offset + 8]))
+            }
+            FieldType::BOOLEAN => Some((field_type, &self.mmap[mmap_offset..mmap_offset + 1])),
             FieldType::STRING | FieldType::BYTES => {
                 // extract size (varint decoding)
                 let (size, bytes_read) = u32::decode_var(&self.mmap[mmap_offset..])?;
                 let mmap_offset = mmap_offset + bytes_read;
-                Some(&self.mmap[mmap_offset..mmap_offset + size as usize])
+                Some((
+                    field_type,
+                    &self.mmap[mmap_offset..mmap_offset + size as usize],
+                ))
             }
         }
     }
@@ -337,7 +396,10 @@ impl CKVIndexSegment {
         let mut size: usize = 2; // for storing type
 
         match field_value.fieldType.enum_value_or_default() {
-            FieldType::UNKNOWN => bail!("unknown feld type cannot be indexed in mmap"),
+            FieldType::UNKNOWN => {
+                // unknown types are serialized by just saving the type (=0)
+                size += 0
+            }
             FieldType::INT32 | FieldType::FLOAT32 => size += 4,
             FieldType::INT64 | FieldType::FLOAT64 => size += 8,
             FieldType::BOOLEAN => size += 1,
@@ -372,16 +434,26 @@ impl CKVIndexSegment {
         // TODO: consider being more robust by not gettings stuck on incorrect input
         // events - limit blast radius of bad serialization schemes in producer.
 
-        // write field_type
-        let field_type = (field_value.fieldType.value() as u16).to_le_bytes();
-        mmap[write_offset..write_offset + 2].copy_from_slice(&field_type[..]);
+        // serialize field_type
+        if CKVIndexSegment::is_unknown_field_type(field_value) {
+            // we save unknown types as sentinels
+            // they are ignored during normal read ops but caught during compaction
+            let field_type = (FieldType::UNKNOWN.value() as u16).to_le_bytes();
+            mmap[write_offset..write_offset + 2].copy_from_slice(&field_type[..]);
+        } else {
+            let field_type = (field_value.fieldType.value() as u16).to_le_bytes();
+            mmap[write_offset..write_offset + 2].copy_from_slice(&field_type[..]);
+        }
 
         let mut num_bytes = 2;
         let write_offset = write_offset + 2;
 
         // write value
         num_bytes += match field_value.fieldType.enum_value_or_default() {
-            FieldType::UNKNOWN => bail!("unknown feld type cannot be indexed in mmap"),
+            FieldType::UNKNOWN => {
+                // no field value data required
+                0
+            }
             FieldType::INT32 | FieldType::FLOAT32 => {
                 mmap[write_offset..write_offset + 4].copy_from_slice(&field_value.value[..]);
                 4
@@ -412,27 +484,39 @@ impl CKVIndexSegment {
     }
 
     /// Upsert field values for a document.
-    pub fn upsert_document(
+    pub fn upsert_document<T>(
         &mut self,
         primary_key: &[u8],
-        field_ids: Vec<FieldId>,
-        field_values: Vec<&FieldValue>,
-    ) -> anyhow::Result<()> {
+        field_ids: &[FieldId],
+        field_values: &[T],
+    ) -> anyhow::Result<()>
+    where
+        T: Borrow<FieldValue>,
+    {
         if primary_key.is_empty() || field_ids.is_empty() {
             return Ok(());
         }
 
+        // Unknown field types (i.e. FieldType::UNKNOWN) handling.
+        // They can occur when we are behind on symbol list or upstream ingestion path didn't propelry construct the write event
+        // We save a sentinel which is 2 bytes for the field-type (=0), and no additonal data.
+        // They get ignored during normal reads, but get caught during compaction.
+        //
+        // TODO: we should have cfg flags to block kafka stream for such events (catch compaction errors earlier).
+
+        // mmap resizing?
+        let mmap;
         {
             // mmap instantiation
-            let mut total_num_bytes = 0;
-            for field_value in field_values.iter() {
-                total_num_bytes += Self::size_of_mmap_entry(field_value)?;
+            let mut mmap_entry_size = 0;
+            for field_value in field_values.iter().map(|fv| fv.borrow()) {
+                mmap_entry_size += Self::size_of_mmap_entry(field_value)?;
             }
 
             // mmap instantiation
-            self.expand_mmap_if_required(self.write_offset, total_num_bytes)?;
+            self.expand_mmap_if_required(self.write_offset, mmap_entry_size)?;
+            mmap = self.mmap.deref_mut();
         }
-        let mmap = self.mmap.deref_mut();
 
         // propagate to disk (OffsetTableEntry.proto)
         let mut update_doc_fields = UpdateDocFields::new();
@@ -444,7 +528,7 @@ impl CKVIndexSegment {
 
         for i in 0..field_ids.len() {
             let field_id = field_ids[i];
-            let field_value = &field_values[i];
+            let field_value = field_values[i].borrow();
 
             let write_offset = self.write_offset;
 
@@ -477,11 +561,15 @@ impl CKVIndexSegment {
         Ok(())
     }
 
+    fn is_unknown_field_type(value: &FieldValue) -> bool {
+        return value.fieldType.enum_value_or_default() == FieldType::UNKNOWN;
+    }
+
     /// Delete field values for a document.
     pub fn delete_field_values(
         &mut self,
         primary_key: &[u8],
-        field_ids: Vec<FieldId>,
+        field_ids: &[FieldId],
     ) -> io::Result<()> {
         if primary_key.is_empty() || field_ids.is_empty() {
             return Ok(());

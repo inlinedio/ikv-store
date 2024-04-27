@@ -11,46 +11,38 @@ use crate::proto::generated_proto::index::CKVIndexHeader;
 
 use super::index_loader;
 
-pub struct IndexBuilder {
-    index: CKVIndex,
-}
+pub struct IndexBuilder {}
 
 impl IndexBuilder {
-    pub fn new(config: &IKVStoreConfig) -> anyhow::Result<Self> {
-        // Load index
+    // NOTE: callers must cleanup their working directories
+
+    pub fn build_and_export(config: &IKVStoreConfig) -> anyhow::Result<()> {
+        // Download and load previous base index
+        info!("Loading previous base index");
         index_loader::load_index(config)?;
         let index = CKVIndex::open_or_create(config)?;
 
-        Ok(Self { index })
-    }
-
-    // NOTE: callers must cleanup their working directories
-    pub fn build_and_export(self, config: &IKVStoreConfig) -> anyhow::Result<()> {
-        info!("Starting base index build.");
-
-        // set index headers
-        {
-            let mut header = CKVIndexHeader::new();
-            header.base_index_epoch_millis =
-                SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
-            self.index.write_index_header(&header)?;
-        }
-
-        let arc_index = Arc::new(self.index);
+        let arc_index = Arc::new(index);
 
         // process writes till high watermark
         {
+            info!("Consuming pending write events till high watermark.");
             let processor = Arc::new(WritesProcessor::new(arc_index.clone()));
             let kafka_consumer = IKVKafkaConsumer::new(config, processor.clone())?;
             kafka_consumer.blocking_run_till_completion()?;
             kafka_consumer.stop();
         }
+        let index = Arc::try_unwrap(arc_index).expect("there should be no other references");
 
-        let mut index = Arc::try_unwrap(arc_index).expect("there should be no other references");
+        info!("Starting index compaction.");
+        // set headers - date time of data present in this index.
+        let mut header = CKVIndexHeader::new();
+        header.base_index_epoch_millis =
+            SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
+        index.write_index_header(&header)?;
 
-        // index compaction
-        info!("Starting base index compaction.");
-        index.compact()?;
+        // in-place compaction
+        index.compact_and_close()?;
 
         // upload to S3
         info!("Uploading base index to S3.");
