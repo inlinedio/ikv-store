@@ -308,7 +308,7 @@ impl CKVIndex {
                         .fetch_id_by_name(field_name)
                         .expect("upsert_schema ensures schema is known"),
                 );
-                values.push(field_value.clone());
+                values.push(field_value);
             }
         }
 
