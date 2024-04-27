@@ -21,7 +21,7 @@ go get github.com/inlinedio/ikv-store@latest
 ```
 ```go
 import (
-  ikv "github.com/inlinedio/ikv-store/ikv-go-client"
+  ikvclient "github.com/inlinedio/ikv-store/ikv-go-client"
 )
 ```
 
@@ -38,7 +38,7 @@ import (
 
   "github.com/stretchr/testify/assert"
 
-  ikv "github.com/inlinedio/ikv-store/ikv-go-client"
+  ikvclient "github.com/inlinedio/ikv-store/ikv-go-client"
 )
 
 func example(t *testing.T) error {
