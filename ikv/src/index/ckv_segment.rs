@@ -259,8 +259,11 @@ impl CKVIndexSegment {
         Ok(())
     }
 
-    pub fn compaction_stats(&self) -> CompactionStats {
-        return Default::default();
+    pub fn compaction_stats(&self) -> anyhow::Result<CompactionStats> {
+        return Ok(CompactionStats {
+            offset_table_size_bytes: self.offset_table_file_writer.get_ref().metadata()?.len(),
+            mmap_file_size_bytes: self.mmap_file.metadata()?.len(),
+        });
     }
 
     pub fn read_field(&self, primary_key: &[u8], field_id: FieldId) -> Option<Vec<u8>> {

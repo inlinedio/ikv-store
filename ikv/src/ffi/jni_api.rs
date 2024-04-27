@@ -40,7 +40,7 @@ pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_buildIndex<'local>(
 
     // build and export
     if let Err(e) = IndexBuilder::build_and_export(&ikv_config) {
-        let exception = format!("Cannot build offline index: {}", e.to_string());
+        let exception = format!("Cannot build offline index, error: {}", e.to_string());
         let _ = env.throw_new("java/lang/RuntimeException", exception);
         return;
     }

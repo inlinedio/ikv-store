@@ -140,7 +140,7 @@ impl CKVIndex {
         Ok(())
     }
 
-    pub fn compact_and_close(mut self) -> anyhow::Result<()> {
+    pub fn compact_and_close(mut self) -> anyhow::Result<(CompactionStats, CompactionStats)> {
         // schema compaction, get field id mapping
         let new_fid_to_old_fid = self.schema.write().unwrap().compact()?;
 
@@ -168,9 +168,9 @@ impl CKVIndex {
             let mut segment = segment.write().unwrap();
             let mut compacted_segment = compacted_segments[segment_id].write().unwrap();
 
-            pre_compaction_stats.push(segment.compaction_stats());
+            pre_compaction_stats.push(segment.compaction_stats()?);
             segment.copy_to_compact(&mut compacted_segment, &new_fid_to_old_fid)?;
-            post_compaction_stats.push(compacted_segment.compaction_stats());
+            post_compaction_stats.push(compacted_segment.compaction_stats()?);
         }
 
         drop(compacted_segments);
@@ -184,16 +184,12 @@ impl CKVIndex {
         }
 
         // print stats
-        info!(
-            "Pre-compaction stats: {:?}",
-            CompactionStats::aggregate(&pre_compaction_stats)
-        );
-        info!(
-            "Post-compaction stats: {:?}",
-            CompactionStats::aggregate(&post_compaction_stats)
-        );
+        let pre_stats = CompactionStats::aggregate(&pre_compaction_stats);
+        let post_stats = CompactionStats::aggregate(&post_compaction_stats);
+        info!("Pre-compaction stats: {:?}", &pre_stats);
+        info!("Post-compaction stats: {:?}", &post_stats);
 
-        Ok(())
+        Ok((pre_stats, post_stats))
     }
 
     /// Fetch field value for a primary key.

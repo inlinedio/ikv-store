@@ -1,7 +1,7 @@
 #[derive(Debug, Default)]
 pub struct CompactionStats {
-    pub offset_table_size_bytes: usize,
-    pub mmap_file_size_bytes: usize,
+    pub offset_table_size_bytes: u64,
+    pub mmap_file_size_bytes: u64,
 }
 
 impl CompactionStats {
