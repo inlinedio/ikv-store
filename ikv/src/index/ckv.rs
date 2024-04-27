@@ -24,6 +24,10 @@ use std::{
 #[path = "ckv_test.rs"]
 mod ckv_test;
 
+#[cfg(test)]
+#[path = "compaction_test.rs"]
+mod compaction_test;
+
 const NUM_SEGMENTS: usize = 16;
 
 /// Memmap based row-oriented key-value index.
@@ -80,6 +84,15 @@ impl CKVIndex {
             schema: RwLock::new(schema),
             header_store,
         })
+    }
+
+    /// Safe index closing.
+    /// TODO: needs to be hooked into shutdown sequence
+    pub fn close(mut self) -> anyhow::Result<()> {
+        for segment in self.segments.drain(..) {
+            segment.into_inner().unwrap().close()?;
+        }
+        Ok(())
     }
 
     pub fn index_not_present(config: &IKVStoreConfig) -> anyhow::Result<bool> {
@@ -144,17 +157,6 @@ impl CKVIndex {
         // schema compaction, get field id mapping
         let new_fid_to_old_fid = self.schema.write().unwrap().compact()?;
 
-        // create (empty) compacted-segments
-        let mut compacted_segments = Vec::with_capacity(NUM_SEGMENTS);
-        for index_id in 0..NUM_SEGMENTS {
-            let segment_mount_directory = format!(
-                "{}/index/compacted_segment_{}",
-                &self.mount_directory, index_id
-            );
-            let segment = CKVIndexSegment::open_or_create(&segment_mount_directory)?;
-            compacted_segments.push(RwLock::new(segment));
-        }
-
         // loop over existing segments, copy-to-compact, and close both
         let mut pre_compaction_stats: Vec<CompactionStats> = vec![];
         let mut post_compaction_stats: Vec<CompactionStats> = vec![];
@@ -165,25 +167,39 @@ impl CKVIndex {
                 segment_id
             );
 
-            let mut segment = segment.write().unwrap();
-            let mut compacted_segment = compacted_segments[segment_id].write().unwrap();
+            // curent segment
+            let mut segment = segment.into_inner().unwrap();
 
-            pre_compaction_stats.push(segment.compaction_stats()?);
+            // compacted segment
+            let segment_mount_directory = format!(
+                "{}/index/compacted_segment_{}",
+                &self.mount_directory, segment_id
+            );
+            let mut compacted_segment = CKVIndexSegment::open_or_create(&segment_mount_directory)?;
+
             segment.copy_to_compact(&mut compacted_segment, &new_fid_to_old_fid)?;
-            post_compaction_stats.push(compacted_segment.compaction_stats()?);
-        }
 
-        drop(compacted_segments);
+            // collect stats
+            pre_compaction_stats.push(segment.compaction_stats()?);
+            post_compaction_stats.push(compacted_segment.compaction_stats()?);
+
+            // close segments
+            segment.close()?;
+            compacted_segment.close()?;
+        }
 
         // swap directories
         for i in 0..NUM_SEGMENTS {
+            // clear mount-dir/store/partition/index/segment-N
             let segment_mount_directory = format!("{}/index/segment_{}", &self.mount_directory, i);
+            std::fs::remove_dir_all(&segment_mount_directory)?;
+
             let compacted_segment_mount_directory =
                 format!("{}/index/compacted_segment_{}", &self.mount_directory, i);
             std::fs::rename(&compacted_segment_mount_directory, &segment_mount_directory)?;
         }
 
-        // print stats
+        // log compaction statistics
         let pre_stats = CompactionStats::aggregate(&pre_compaction_stats);
         let post_stats = CompactionStats::aggregate(&post_compaction_stats);
         info!("Pre-compaction stats: {:?}", &pre_stats);

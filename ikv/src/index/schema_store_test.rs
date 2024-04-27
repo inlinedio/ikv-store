@@ -178,3 +178,51 @@ fn drop_fields() {
     // cleanup mount dir
     let _ = std::fs::remove_dir_all(&mount_directory);
 }
+
+#[test]
+fn test_compact() {
+    // create mount dir
+    let mount_directory = "/tmp/schema_store_test_compact";
+    let _ = std::fs::remove_dir_all(&mount_directory);
+    std::fs::create_dir_all(&mount_directory).unwrap();
+
+    let mut schema_store =
+        CKVIndexSchema::open_or_create(mount_directory, "field0".to_owned()).unwrap();
+
+    // add fields field1 and field2 -
+    let mut doc: HashMap<String, FieldValue> = HashMap::new();
+    doc.insert("field0".to_string(), Default::default());
+    doc.insert("field1".to_string(), Default::default());
+    doc.insert("field2".to_string(), Default::default());
+    schema_store.upsert_schema(&doc).unwrap();
+
+    // compact (0->0, 1->1, 2->2)
+    let new_fid_to_old_fid = schema_store.compact().unwrap();
+    assert_eq!(new_fid_to_old_fid, vec![0, 1, 2]);
+
+    // close and reopen
+    drop(schema_store);
+    let mut schema_store =
+        CKVIndexSchema::open_or_create(mount_directory, "field0".to_owned()).unwrap();
+
+    // make changes - soft del field1, add field3
+    let mut doc: HashMap<String, FieldValue> = HashMap::new();
+    doc.insert("field0".to_string(), Default::default());
+    doc.insert("field3".to_string(), Default::default());
+    schema_store.upsert_schema(&doc).unwrap();
+    schema_store
+        .soft_delete_fields(&vec!["field1".to_string()], &Vec::new())
+        .unwrap();
+
+    // compact (0->0, 1->2, 2->3)
+    let new_fid_to_old_fid = schema_store.compact().unwrap();
+    assert_eq!(new_fid_to_old_fid, vec![0, 2, 3]);
+
+    // drop all
+    schema_store.hard_delete_all_fields().unwrap();
+    let new_fid_to_old_fid = schema_store.compact().unwrap();
+    assert_eq!(new_fid_to_old_fid, vec![0]);
+
+    // cleanup mount dir
+    let _ = std::fs::remove_dir_all(&mount_directory);
+}

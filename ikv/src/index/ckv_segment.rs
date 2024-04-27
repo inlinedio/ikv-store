@@ -256,6 +256,7 @@ impl CKVIndexSegment {
             destination.upsert_document(primary_key, &field_ids, &field_values)?;
         }
 
+        destination.flush_writes()?;
         Ok(())
     }
 
@@ -387,6 +388,10 @@ impl CKVIndexSegment {
         self.offset_table_file_writer.flush()?;
 
         Ok(())
+    }
+
+    pub fn close(mut self) -> io::Result<()> {
+        self.flush_writes()
     }
 
     fn size_of_mmap_entry(field_value: &FieldValue) -> anyhow::Result<usize> {
