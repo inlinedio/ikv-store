@@ -19,7 +19,11 @@ impl IndexBuilder {
     pub fn build_and_export(config: &IKVStoreConfig) -> anyhow::Result<()> {
         // Download and load previous base index
         info!("Loading previous base index");
+        // TODO: we must force a latest download of the base index
+        // right now build orchestration allocates a new dir using current
+        // timestamp as a workaround.
         index_loader::load_index(config)?;
+
         let index = CKVIndex::open_or_create(config)?;
 
         let arc_index = Arc::new(index);
