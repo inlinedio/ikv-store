@@ -24,10 +24,17 @@ public class Worker {
 
   private final IKVStoreContextObjectsAccessor _controller;
 
+  /**
+   * Usage - java -cp /path/to/jar io.inlined.cloud.indexbuilder.Worker {account-id} {store-name}
+   */
   public static void main(String[] args) throws IOException {
     IKVStoreContextObjectsAccessor accessor = IKVStoreContextObjectsAccessorFactory.getAccessor();
     Worker worker = new Worker(accessor);
-    worker.build("testing-account-v1", "testing-store");
+
+    String accountId = args[0];
+    String storeName = args[1];
+
+    worker.build(accountId, storeName, 0); // partition=0 hardcoded for now
   }
 
   public Worker(IKVStoreContextObjectsAccessor dynamoDBAccessor) {
@@ -35,7 +42,9 @@ public class Worker {
   }
 
   // Build for all stores.
-  public void build(String accountId, String storeName) throws IOException {
+  public void build(String accountId, String storeName, int partition) throws IOException {
+    // pass in the mount point for native binary
+    // can be different than mount point for actual DB
     IKVClientJNI ikvClientJNI = IKVClientJNI.createNew(WORKING_DIR);
     Preconditions.checkNotNull(ikvClientJNI.provideHelloWorld(), "Linkage error");
 
@@ -53,8 +62,11 @@ public class Worker {
     UserStoreContext context = UserStoreContext.from(maybeContext.get());
     IKVStoreConfig sotConfigs = context.createGatewaySpecifiedConfigs();
 
+    // mount dir MUST be different per run - to foce a base index download
+    // from S3. Else left over data can be used
     String mountDirectory =
         String.format("%s/%d/%s", WORKING_DIR, Instant.now().toEpochMilli(), accountId);
+    deleteDirectory(mountDirectory); // cleanup
 
     // Set some overrides
     IKVStoreConfig config =
@@ -64,11 +76,15 @@ public class Worker {
             .putStringConfigs(IKVConstants.MOUNT_DIRECTORY, mountDirectory)
             .putStringConfigs(IKVConstants.RUST_CLIENT_LOG_LEVEL, "info")
             .putBooleanConfigs(IKVConstants.RUST_CLIENT_LOG_TO_CONSOLE, true)
-            .putIntConfigs(IKVConstants.PARTITION, 0) // todo! change - invoke for all partitions.
+            .putIntConfigs(IKVConstants.PARTITION, partition)
             .build();
 
     // Never print configs since it has passkeys
-    LOGGER.info("Starting offline build for accountid: {} storename: {}", accountId, storeName);
+    LOGGER.info(
+        "Starting index build for accountid: {} storename: {}, mount-dir: {}",
+        accountId,
+        storeName,
+        mountDirectory);
 
     Instant start = Instant.now();
     try {
@@ -78,8 +94,10 @@ public class Worker {
           accountId,
           storeName,
           Duration.between(start, Instant.now()).toSeconds());
+
       LOGGER.info("Deleting mount directory: {}", mountDirectory);
       deleteDirectory(mountDirectory);
+
     } catch (Exception e) {
       LOGGER.error(
           "Error during offline build for accountid: {} storename: {} time: {}s. Error: ",
