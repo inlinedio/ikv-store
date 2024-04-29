@@ -84,6 +84,7 @@ func TestSingleSetGet(t *testing.T) {
 func TestMultiGet(t *testing.T) {
 	t.Skip("ignore-test")
 
+	// WARN: the test drops all docs from db at the end
 	accountid := "foo"
 	accountpasskey := "bar"
 
@@ -149,6 +150,9 @@ func TestMultiGet(t *testing.T) {
 
 	_, err = reader.MultiGetBytesValues([]interface{}{"id_1", []byte(nil)}, []string{"firstname"})
 	assert.NotNil(t, err, nil)
+
+	// drop all documents from database!
+	assert.Equal(t, writer.DropAllFields(), nil)
 }
 
 func TestUpsertAndDelete(t *testing.T) {
