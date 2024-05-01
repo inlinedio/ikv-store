@@ -20,6 +20,9 @@ pub struct OffsetStore {
     file: File,
 }
 
+/// NOTE - it is okay to store raw kafka offsets
+/// An offset is always valid (w.r.t being b/w low/high watermark) even
+/// with time/size based retention in play (auto expiry by kafka).
 impl OffsetStore {
     pub fn open_or_create(mount_directory: String) -> io::Result<Self> {
         let filename = format!("{}/kafka_offsets", mount_directory);
