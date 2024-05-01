@@ -273,6 +273,9 @@ async fn initialize_stream_consumer(
     seek_consumer(&consumer, topic, partition, rdkafka::Offset::Beginning)?;
 
     // seek - using persisted offsets
+    // NOTE - it is okay to store raw kafka offsets
+    // An offset is always valid (w.r.t being b/w low/high watermark) even
+    // with time/size based retention in play (auto expiry by kafka).
     let stored_topic_partition_list = offset_store.read_all_offsets()?;
     for entry in stored_topic_partition_list.iter() {
         if (&entry.topic == topic) && (entry.partition == partition) {
