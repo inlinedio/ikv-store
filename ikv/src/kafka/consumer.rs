@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::bail;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use rdkafka::consumer::DefaultConsumerContext;
 use rdkafka::message::Message;
 use rdkafka::util::Timeout;
@@ -71,6 +71,8 @@ impl IKVKafkaConsumer {
         client_config
             .set("group.id", "ikv-default-consumer") // we don't use offset management or automatic partition assignment
             .set("bootstrap.servers", kafka_consumer_bootstrap_server)
+            // This should be true to allow app level eof handler to be invoked. Can result in noisy ERROR logs.
+            // Also, if set to false, kafka consumer can wrap around (auto.offset.reset behavior)
             .set("enable.partition.eof", "true")
             .set("session.timeout.ms", "3600000")
             .set("max.poll.interval.ms", "3600000")
@@ -265,7 +267,6 @@ async fn initialize_stream_consumer(
     topic: &str,
     partition: i32,
 ) -> anyhow::Result<StreamConsumer<DefaultConsumerContext>> {
-    info!("Initializing kafka stream consumer.");
     let consumer = client_config.create_with_context(DefaultConsumerContext)?;
 
     // initialize - by starting at the very beginning of the topic.
@@ -345,13 +346,21 @@ async fn consume_till_high_watermark(
             current_high_watermark
         );
     }
+    let end_offset = end_offset.to_raw().unwrap();
+    debug!(
+        "Need to consume events till offset (high watermark): {}",
+        end_offset
+    );
 
     loop {
         // recv() is cancellation safe - ie exits
         // when tokio runtime is shutdown or task is abort()'ed
         match consumer.recv().await {
             Err(e) => match e {
+                // exit if we reach EOF
                 rdkafka::error::KafkaError::PartitionEOF(_) => return Ok(()),
+
+                // exit if we encounter any error (ex. connection issues)
                 e => return Err(e.into()),
             },
             Ok(curr_message) => {
@@ -359,15 +368,23 @@ async fn consume_till_high_watermark(
                     let event = <IKVDataEvent as protobuf::Message>::parse_from_bytes(bytes)?;
                     writes_processor.process(&event)?;
 
+                    // this exit condition may or may not be met if end-offset is "exclusive",
+                    // but we also exit on encountering EOF.
+                    let exit = curr_message.offset() == end_offset;
+
                     // flush index and commit offset in batches
                     // we do this for startup pending event catchup as well to store incremental progress
-                    if offset_committer.should_commit() {
+                    if exit || offset_committer.should_commit() {
                         writes_processor.flush_all()?;
                         offset_committer.commit(
                             curr_message.topic(),
                             curr_message.partition(),
                             curr_message.offset(),
                         )?;
+                    }
+
+                    if exit {
+                        return Ok(());
                     }
                 }
             }
