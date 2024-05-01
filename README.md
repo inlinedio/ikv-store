@@ -57,7 +57,7 @@ These benchmarks were performed by a multi-threaded client machine which made bl
 ## Developer Documentation
 Detailed documentation about data-modeling, best practices and language specific client SDKs and more: **[docs.inlined.io](https://docs.inlined.io)**
 
-## Using IKV
+## Getting Started | Installation
 IKV is an embedded database, but it is built on top of a data-plane (streams, block storage & config endpoints) which propagates new data to the embedded database instances. You can either use the data-plane hosted by inlined.io (IKV cloud) or self-host.
 
 ### IKV Cloud (data-plane hosted by inlined.io)
