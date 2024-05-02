@@ -109,21 +109,24 @@ pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_readField<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_batchReadField<'local>(
-    mut env: JNIEnv<'local>,
+pub extern "system" fn Java_io_inlined_clients_IKVClientJNI_batchReadFields<'local>(
+    env: JNIEnv<'local>,
     _class: JClass<'local>,
     handle: jlong,
     primary_keys: JByteArray<'local>,
-    field_name: JString<'local>,
+    field_names: JByteArray<'local>,
 ) -> jbyteArray {
     let controller = external_handle::from_external_handle(handle);
+
     let primary_keys = utils::jbyte_array_to_vec(&env, primary_keys).unwrap();
     let primary_keys = utils::unpack_size_prefixed_bytes(&primary_keys);
-    let field_name: String = env.get_string(&field_name).unwrap().into();
+
+    let field_names = utils::jbyte_array_to_vec(&env, field_names).unwrap();
+    let field_names = utils::unpack_size_prefixed_strs(&field_names);
 
     let result = controller
         .index_ref()
-        .batch_get_field_values(primary_keys, vec![&field_name]);
+        .batch_get_field_values(primary_keys, field_names);
 
     // TODO - ensure we don't return batch response larger than i32
     utils::vec_to_jbyte_array(&env, result)
