@@ -377,12 +377,14 @@ impl CKVIndexSegment {
     /// Implementation is free to flush and write to disk
     /// upon each write_* invocation too.
     pub fn flush_writes(&mut self) -> io::Result<()> {
-        // TODO: inspect if this needs to be a transaction and
-        // what ordering we need.
+        // note: no need to flush the underlying mmap-file directly
+        // flushing happens when it is extended and re-mapped
+        // and via the below self.mmap#flush call
 
-        // TODO: do we need this? self.mmap.flush()?;
-        self.mmap_file.flush()?;
+        // flush mmap, to sync new writes to the underlying file
+        self.mmap.flush()?;
 
+        // persists valid offset within the mmap-file to disk
         write_metadata(&mut self.metadata_file_writer, self.write_offset as u64)?;
 
         self.offset_table_file_writer.flush()?;
@@ -687,10 +689,12 @@ impl CKVIndexSegment {
             num_chunks
         );
 
-        // TODO: do we need this? self.mmap.flush().expect("cannot flush1");
+        // expand (and flush) underlying file
         self.mmap_file
             .write_all(&vec![0_u8; CHUNK_SIZE * num_chunks])?;
         self.mmap_file.flush()?;
+
+        // re-map the whole file
         self.mmap = unsafe { MmapMut::map_mut(&self.mmap_file)? };
         Ok(())
     }
