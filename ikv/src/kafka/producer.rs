@@ -2,7 +2,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
-use log::info;
+use log::debug;
 use protobuf::Message;
 use rdkafka::error::KafkaError;
 use rdkafka::{
@@ -128,26 +128,28 @@ impl IKVKafkaProducer {
 
         // loop and wait for events
         loop {
-            if let Ok((message, callback)) = message_stream.recv() {
-                let mut future_record = FutureRecord::to(&topic)
-                    .key(&message.serialized_field_value)
-                    .payload(&message.serialized_ikv_data_event);
-                if let Some(partition) = message.partition {
-                    future_record = future_record.partition(partition);
-                }
-
-                let send_result = producer.send(future_record, Duration::from_secs(0)).await;
-                match send_result {
-                    Ok(_) => callback.notify_ok(),
-                    Err((e, _)) => callback.notify_err(e),
-                }
+            let event = message_stream.recv();
+            if event.is_err() {
+                // all senders have disconnected, exit.
+                debug!("Shutting down kafka writer thread");
+                break;
             }
 
-            // all senders have disconnected, exit.
-            break;
+            let (message, callback) = event.unwrap();
+            let mut future_record = FutureRecord::to(&topic)
+                .key(&message.serialized_field_value)
+                .payload(&message.serialized_ikv_data_event);
+            if let Some(partition) = message.partition {
+                future_record = future_record.partition(partition);
+            }
+
+            let send_result = producer.send(future_record, Duration::from_secs(0)).await;
+            match send_result {
+                Ok(_) => callback.notify_ok(),
+                Err((e, _)) => callback.notify_err(e),
+            }
         }
 
-        info!("Shutting down kafka writer thread");
         Ok(())
     }
 }
