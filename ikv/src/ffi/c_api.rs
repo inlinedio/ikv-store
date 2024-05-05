@@ -3,9 +3,8 @@ use std::ffi::CStr;
 use log::error;
 use protobuf::Message;
 
+use crate::controller::main::ReadController;
 use crate::proto::generated_proto::common::IKVStoreConfig;
-
-use crate::controller::external_handle;
 
 use crate::ffi::{api, utils};
 
@@ -39,7 +38,7 @@ pub extern "C" fn open_index(config: *const libc::c_char, config_len: i32) -> i6
     let ikv_config =
         IKVStoreConfig::parse_from_bytes(cfg_bytes).expect("cannot deserialize client options");
 
-    api::open_index(&ikv_config).expect("IKV startup error")
+    api::open_reader(&ikv_config).expect("IKV startup error")
 }
 
 #[no_mangle]
@@ -63,7 +62,7 @@ pub extern "C" fn open_index_v2(config: *const libc::c_char, config_len: i32) ->
     }
 
     let handle;
-    match api::open_index(&ikv_config) {
+    match api::open_reader(&ikv_config) {
         Ok(h) => handle = h,
         Err(e) => {
             error!("Cannot startup IKV reader, details: {}", e.to_string());
@@ -79,7 +78,7 @@ pub extern "C" fn open_index_v2(config: *const libc::c_char, config_len: i32) ->
 
 #[no_mangle]
 pub extern "C" fn close_index(handle: i64) {
-    if let Err(e) = api::close_index(handle) {
+    if let Err(e) = api::close_reader(handle) {
         error!("Cannot close reader, failed with error: {}", e.to_string());
     }
 }
@@ -136,7 +135,7 @@ pub extern "C" fn get_field_value(
     pkey_len: i32,
     field_name: *const libc::c_char,
 ) -> BytesBuffer {
-    let controller = external_handle::from_external_handle(handle);
+    let controller = ReadController::from_external_handle(handle);
     let primary_key = unsafe { std::slice::from_raw_parts(pkey as *const u8, pkey_len as usize) };
 
     // only valid if field_name pointer points to valid utf8 encoded data
@@ -158,7 +157,7 @@ pub extern "C" fn multiget_field_values(
     concat_field_names: *const libc::c_char,
     concat_field_names_len: i32,
 ) -> BytesBuffer {
-    let controller = external_handle::from_external_handle(handle);
+    let controller = ReadController::from_external_handle(handle);
 
     // parse size-prefixed primary keys
     let concat_primary_keys = unsafe {
