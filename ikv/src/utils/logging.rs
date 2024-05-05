@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use crate::proto::generated_proto::common::IKVStoreConfig;
 
 use anyhow::{anyhow, bail};
@@ -8,6 +10,8 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
+
+static LOG_HANDLE: Mutex<Option<log4rs::Handle>> = Mutex::new(None);
 
 pub fn configure_logging(config: &IKVStoreConfig) -> anyhow::Result<()> {
     let pattern_encoder = Box::new(PatternEncoder::new(
@@ -34,7 +38,14 @@ pub fn configure_logging(config: &IKVStoreConfig) -> anyhow::Result<()> {
             .build(level_filter),
     )?;
 
-    log4rs::init_config(config)?;
+    let mut log_handle = LOG_HANDLE.lock().unwrap();
+    if log_handle.is_none() {
+        let lh = log4rs::init_config(config)?;
+        *log_handle = Some(lh);
+    } else {
+        log_handle.as_ref().unwrap().set_config(config);
+    }
+
     Ok(())
 }
 
