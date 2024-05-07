@@ -382,7 +382,9 @@ impl CKVIndexSegment {
         // and via the below self.mmap#flush call
 
         // flush mmap, to sync new writes to the underlying file
-        self.mmap.flush()?;
+
+        // TODO(critical): this fails on macos
+        // self.mmap.flush()
 
         // persists valid offset within the mmap-file to disk
         write_metadata(&mut self.metadata_file_writer, self.write_offset as u64)?;
