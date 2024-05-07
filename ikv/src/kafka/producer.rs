@@ -3,7 +3,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use log::debug;
-use protobuf::Message;
+use protobuf::well_known_types::timestamp::Timestamp;
+use protobuf::{Message, MessageField};
 use rdkafka::error::KafkaError;
 use rdkafka::{
     producer::{FutureProducer, FutureRecord},
@@ -14,6 +15,7 @@ use tokio::runtime::{Builder, Runtime};
 use anyhow::{anyhow, bail};
 
 use crate::proto::generated_proto::common::FieldValue;
+use crate::proto::generated_proto::streaming::EventHeader;
 use crate::proto::generated_proto::{common::IKVStoreConfig, streaming::IKVDataEvent};
 
 pub struct IKVKafkaProducer {
@@ -44,6 +46,9 @@ impl IKVKafkaProducer {
             ))
             .cloned()?
             .try_into()?;
+
+        // test kafka connection
+        IKVKafkaProducer::check_kafka_connection(topic.clone(), &client_config)?;
 
         let (sender, receiver) = channel();
 
@@ -117,13 +122,13 @@ impl IKVKafkaProducer {
         Ok(())
     }
 
-    // TODO: add an init event startup to test connection
     async fn wait_for_events_and_write(
         topic: String,
         client_config: ClientConfig,
         message_stream: Receiver<(KafkaMessage, KafkaSendCondVar)>,
     ) -> anyhow::Result<()> {
         // initialize producer
+        // note: use custom partitioner when store partitioning is implemented
         let producer: FutureProducer = client_config.create()?;
 
         // loop and wait for events
@@ -148,6 +153,35 @@ impl IKVKafkaProducer {
                 Ok(_) => callback.notify_ok(),
                 Err((e, _)) => callback.notify_err(e),
             }
+        }
+
+        Ok(())
+    }
+
+    #[tokio::main(flavor = "current_thread")]
+    async fn check_kafka_connection(
+        topic: String,
+        client_config: &ClientConfig,
+    ) -> anyhow::Result<()> {
+        // initialize producer
+        // note: use custom partitioner when store partitioning is implemented
+        let producer: FutureProducer = client_config.create()?;
+
+        // construct no-op message
+        let mut event_header = EventHeader::new();
+        event_header.sourceTimestamp = MessageField::some(Timestamp::now());
+        let mut event = IKVDataEvent::new();
+        event.eventHeader = MessageField::some(event_header);
+
+        let serialized_field_value = FieldValue::new().write_to_bytes()?;
+        let serialized_ikv_data_event = event.write_to_bytes()?;
+
+        let future_record = FutureRecord::to(&topic)
+            .key(&serialized_field_value)
+            .payload(&serialized_ikv_data_event);
+
+        if let Err((e, _)) = producer.send(future_record, Duration::from_secs(0)).await {
+            bail!("Kafka initialization error: {}", e);
         }
 
         Ok(())
