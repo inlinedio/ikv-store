@@ -1,5 +1,5 @@
-from schemas.common_pb2 import IKVStoreConfig
-import utils as ikvutils
+from ikvpy.schemas.common_pb2 import IKVStoreConfig
+import ikvpy.utils as ikvutils
 
 class ClientOptions:
     """

@@ -1,8 +1,8 @@
 from typing import Dict
-from schemas.common_pb2 import FieldValue, IKVDocumentOnWire
-from schemas.common_pb2 import STRING as FieldValueString
-from schemas.common_pb2 import BYTES as FieldValueBytes
-import utils as ikvutils
+from ikvpy.schemas.common_pb2 import FieldValue, IKVDocumentOnWire
+from ikvpy.schemas.common_pb2 import STRING as FieldValueString
+from ikvpy.schemas.common_pb2 import BYTES as FieldValueBytes
+import ikvpy.utils as ikvutils
 
 class IKVDocument:
     """ 

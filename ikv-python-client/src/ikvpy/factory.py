@@ -1,7 +1,7 @@
-from clientoptions import ClientOptions
-from reader import IKVReaderImpl
-from writer import IKVWriterImpl
-from client import IKVReader, IKVWriter
+from ikvpy.clientoptions import ClientOptions
+from ikvpy.reader import IKVReaderImpl
+from ikvpy.writer import IKVWriterImpl
+from ikvpy.client import IKVReader, IKVWriter
 
 """
 Factory for creating concrete IKVReader and IKVWriter instances.
