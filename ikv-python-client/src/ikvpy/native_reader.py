@@ -1,7 +1,7 @@
 from typing import Iterator, List, Optional
 from cffi import FFI
-import utils
-from utils import is_valid_str_or_raise, is_valid_bytes_or_raise
+import ikvpy.utils as utils
+from ikvpy.utils import is_valid_str_or_raise, is_valid_bytes_or_raise
 
 EMPTY_ITERATOR = iter([])
 

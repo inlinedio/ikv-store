@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from clientoptions import ClientOptions
-from document import IKVDocument
+from ikvpy.clientoptions import ClientOptions
+from ikvpy.document import IKVDocument
 from typing import Iterator, List, Optional
 
 class IKVReader(ABC):

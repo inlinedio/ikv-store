@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ikvpy"
-version = "0.0.27"
+version = "0.0.34"
 description = 'Python client for IKV (Inlined Key Value Store).'
 readme = "README.md"
 requires-python = ">=3.8"

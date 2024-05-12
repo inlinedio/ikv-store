@@ -1,12 +1,12 @@
 from typing import List, Optional, Iterator
-from client import IKVReader
-from clientoptions import ClientOptions
-from writer import IKVWriterImpl
-from bin_manager import NativeBinaryManager
-from utils import is_valid_str_or_raise
+from ikvpy.client import IKVReader
+from ikvpy.clientoptions import ClientOptions
+from ikvpy.writer import IKVWriterImpl
+from ikvpy.bin_manager import NativeBinaryManager
+from ikvpy.utils import is_valid_str_or_raise
 
-import native_reader
-import schemas.common_pb2 as common_pb2
+import ikvpy.native_reader as native_reader
+import ikvpy.schemas.common_pb2 as common_pb2
 
 class IKVReaderImpl(IKVReader):
     def __init__(self, client_options: ClientOptions):

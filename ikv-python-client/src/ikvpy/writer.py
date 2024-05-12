@@ -1,17 +1,17 @@
 import json
 import grpc
-import schemas.services_pb2_grpc as services_pb2_grpc
-import schemas.services_pb2 as services_pb2
-import schemas.common_pb2 as common_pb2
+import ikvpy.schemas.services_pb2_grpc as services_pb2_grpc
+import ikvpy.schemas.services_pb2 as services_pb2
+import ikvpy.schemas.common_pb2 as common_pb2
 
 from google.protobuf import timestamp_pb2
 from grpc_status import rpc_status
 
-from client import IKVWriter
-from document import IKVDocument
+from ikvpy.client import IKVWriter
+from ikvpy.document import IKVDocument
 from typing import List, Optional
-from clientoptions import ClientOptions
-from utils import is_valid_str_or_raise
+from ikvpy.clientoptions import ClientOptions
+from ikvpy.utils import is_valid_str_or_raise
 
 # grpc call retry policy
 retry_policy = json.dumps(

@@ -4,7 +4,7 @@ import re
 
 from typing import Optional, Tuple
 
-from utils import is_valid_str_or_raise, compare_semver
+from ikvpy.utils import is_valid_str_or_raise, compare_semver
 
 REGION = "us-west-2"
 BUCKET_NAME = "ikv-binaries"
