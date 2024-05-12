@@ -26,7 +26,7 @@ class TestIKVReaderImpl(unittest.TestCase):
     def test_shutdown(self):
         self.reader.shutdown()
 
-# run: $> python3 tests/test_native_reader.py
+# run: $> python3 tests/test_reader.py
 #      $> [ikv-python-client/tests]$ python3 -m unittest
 if __name__ == '__main__':
     unittest.main()

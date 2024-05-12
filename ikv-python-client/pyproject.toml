@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ikvpy"
-version = "0.0.22"
+version = "0.0.27"
 description = 'Python client for IKV (Inlined Key Value Store).'
 readme = "README.md"
 requires-python = ">=3.8"
@@ -29,7 +29,7 @@ dependencies = [
   "cffi>=1.16.0",
   "grpcio>=1.62.1",
   "grpcio_status>=1.62.1",
-  "protobuf>=5.26.0"
+  "protobuf>=4.25.3"
 ]
 
 [project.urls]
