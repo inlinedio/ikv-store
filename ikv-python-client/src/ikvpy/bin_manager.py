@@ -1,5 +1,7 @@
 import os, platform
 import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 import re
 
 from typing import Optional, Tuple
@@ -17,7 +19,7 @@ class NativeBinaryManager:
     platform, for dynamic loading.
     """
     def __init__(self, mount_dir: str):
-        self.s3_client = boto3.client('s3', region_name=REGION)
+        self.s3_client = boto3.client('s3', region_name=REGION, config=Config(signature_version=UNSIGNED))
         self.mount_dir = is_valid_str_or_raise(mount_dir)
     
     def _init_mount_dir(self):
